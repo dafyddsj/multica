@@ -871,11 +871,14 @@ func parseUUIDLoose(s string) (pgtype.UUID, error) {
 // execenv materializes into .multica/project/resources.json, and the repo list
 // `multica repo checkout` reads.
 type claimProjectContext struct {
-	ProjectID   string
-	Title       string
-	Description string
-	Resources   []ProjectResourceData
-	Repos       []RepoData
+	ProjectID             string
+	Title                 string
+	Description           string
+	InitiativeID          string
+	InitiativeTitle       string
+	InitiativeDescription string
+	Resources             []ProjectResourceData
+	Repos                 []RepoData
 }
 
 // applyTo copies the resolved context onto a claim response. Callers assign the
@@ -885,6 +888,9 @@ func (c claimProjectContext) applyTo(resp *AgentTaskResponse) {
 	resp.ProjectID = c.ProjectID
 	resp.ProjectTitle = c.Title
 	resp.ProjectDescription = c.Description
+	resp.InitiativeID = c.InitiativeID
+	resp.InitiativeTitle = c.InitiativeTitle
+	resp.InitiativeDescription = c.InitiativeDescription
 	if len(c.Resources) > 0 {
 		resp.ProjectResources = c.Resources
 	}
@@ -927,6 +933,22 @@ func (h *Handler) resolveClaimProjectContext(ctx context.Context, projectID, wor
 			out.ProjectID = uuidToString(project.ID)
 			out.Title = project.Title
 			out.Description = project.Description.String
+			if project.InitiativeID.Valid {
+				init, initErr := h.Queries.GetInitiativeInWorkspace(ctx, db.GetInitiativeInWorkspaceParams{
+					ID:          project.InitiativeID,
+					WorkspaceID: workspaceID,
+				})
+				switch {
+				case initErr == nil:
+					out.InitiativeID = uuidToString(init.ID)
+					out.InitiativeTitle = init.Title
+					out.InitiativeDescription = init.Description.String
+				case errors.Is(initErr, pgx.ErrNoRows):
+					// Stale initiative pointer: leave initiative fields empty.
+				default:
+					return claimProjectContext{}, fmt.Errorf("get initiative: %w", initErr)
+				}
+			}
 
 			rows, resErr := h.Queries.ListProjectResourcesInWorkspace(ctx, db.ListProjectResourcesInWorkspaceParams{
 				ProjectID:   project.ID,

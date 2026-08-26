@@ -2112,6 +2112,67 @@ func TestClaimTask_ProjectDescriptionInjected(t *testing.T) {
 	}
 }
 
+func TestClaimTask_InitiativeContextInjected(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+
+	const initiativeDescription = "Own the platform product, not a single launch."
+	initiativeID := dbfx.Initiative(t, "Platform", testutil.Cols{
+		"description": initiativeDescription,
+	})
+	projectID := dbfx.Project(t, "Sprint 12", testutil.Cols{
+		"initiative_id": initiativeID,
+		"description":   "Ship the billing cutover.",
+	})
+
+	var agentID, runtimeID string
+	dbfx.QueryRow(t,
+		`SELECT id, runtime_id FROM agent WHERE workspace_id = $1 LIMIT 1`,
+		testWorkspaceID,
+	).Scan(&agentID, &runtimeID)
+
+	issueID := dbfx.Issue(t, "initiative context", testutil.Cols{
+		"project_id": projectID,
+		"priority":   "medium",
+		"number":     88012,
+	})
+
+	dbfx.Task(t, agentID, testutil.Cols{
+		"runtime_id": runtimeID,
+		"issue_id":   issueID,
+	})
+
+	req := newDaemonTokenRequest("POST", "/api/daemon/runtimes/"+runtimeID+"/claim", nil, testWorkspaceID, "test-claim-initiative-ctx")
+	req = withURLParam(req, "runtimeId", runtimeID)
+	w := testutil.Call(t, testHandler.ClaimTaskByRuntime, req).Want(http.StatusOK)
+
+	var resp struct {
+		Task *struct {
+			ProjectID             string `json:"project_id"`
+			InitiativeID          string `json:"initiative_id"`
+			InitiativeTitle       string `json:"initiative_title"`
+			InitiativeDescription string `json:"initiative_description"`
+		} `json:"task"`
+	}
+	w.JSON(&resp)
+	if resp.Task == nil {
+		t.Fatal("expected task in response")
+	}
+	if resp.Task.ProjectID != projectID {
+		t.Errorf("project_id = %q, want %q", resp.Task.ProjectID, projectID)
+	}
+	if resp.Task.InitiativeID != initiativeID {
+		t.Errorf("initiative_id = %q, want %q", resp.Task.InitiativeID, initiativeID)
+	}
+	if resp.Task.InitiativeTitle != "Platform" {
+		t.Errorf("initiative_title = %q, want Platform", resp.Task.InitiativeTitle)
+	}
+	if resp.Task.InitiativeDescription != initiativeDescription {
+		t.Errorf("initiative_description = %q, want %q", resp.Task.InitiativeDescription, initiativeDescription)
+	}
+}
+
 // The quick-create path resolves its project from the task context JSONB
 // (not an issue row), so its project_description wiring is a separate branch
 // in the claim handler and needs its own boundary assertion.

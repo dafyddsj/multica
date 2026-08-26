@@ -638,6 +638,56 @@ func TestPrepareWithProjectResources(t *testing.T) {
 	}
 }
 
+func TestInitiativeContextSitsAboveProjectContext(t *testing.T) {
+	t.Parallel()
+	workspacesRoot := t.TempDir()
+
+	taskCtx := TaskContextForEnv{
+		IssueID:               "11111111-2222-3333-4444-555555555555",
+		ProjectID:             "22222222-3333-4444-5555-666666666666",
+		ProjectTitle:          "Sprint 12",
+		ProjectDescription:    "Ship the billing cutover.",
+		InitiativeID:          "33333333-4444-5555-6666-777777777777",
+		InitiativeTitle:       "Platform",
+		InitiativeDescription: "Own the platform product, not a single launch.",
+	}
+	env, err := Prepare(PrepareParams{
+		WorkspacesRoot: workspacesRoot,
+		WorkspaceID:    "ws-test-init",
+		TaskID:         "11111111-2222-3333-4444-555555555555",
+		AgentName:      "Test Agent",
+		Provider:       "claude",
+		Task:           taskCtx,
+	}, testLogger())
+	if err != nil {
+		t.Fatalf("Prepare: %v", err)
+	}
+	if _, err := InjectRuntimeConfig(env.WorkDir, "claude", taskCtx); err != nil {
+		t.Fatalf("InjectRuntimeConfig: %v", err)
+	}
+	content, err := os.ReadFile(filepath.Join(env.WorkDir, "CLAUDE.md"))
+	if err != nil {
+		t.Fatalf("read CLAUDE.md: %v", err)
+	}
+	s := string(content)
+	initAt := strings.Index(s, "## Initiative Context")
+	projAt := strings.Index(s, "## Project Context")
+	if initAt < 0 {
+		t.Fatal("CLAUDE.md missing ## Initiative Context")
+	}
+	if projAt < 0 {
+		t.Fatal("CLAUDE.md missing ## Project Context")
+	}
+	if initAt > projAt {
+		t.Fatalf("Initiative Context at %d should sit above Project Context at %d", initAt, projAt)
+	}
+	for _, want := range []string{"Platform", "Own the platform product", "Sprint 12"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("CLAUDE.md missing %q", want)
+		}
+	}
+}
+
 func TestChatProjectContextInjectedIntoRuntimeBrief(t *testing.T) {
 	t.Parallel()
 
