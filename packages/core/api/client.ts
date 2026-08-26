@@ -3568,7 +3568,7 @@ export class ApiClient {
       endpoint: "POST /api/initiatives",
     });
     if (!initiative) {
-      throw new Error();
+      throw new Error("POST /api/initiatives returned a malformed initiative");
     }
     return initiative;
   }

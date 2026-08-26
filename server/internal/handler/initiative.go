@@ -39,6 +39,9 @@ type InitiativeResponse struct {
 	DoneCount    int64   `json:"done_count"`
 }
 
+var validInitiativeStatuses = []string{"planned", "in_progress", "paused", "completed", "cancelled"}
+var validInitiativePriorities = []string{"urgent", "high", "medium", "low", "none"}
+
 func initiativeToResponse(i db.Initiative) InitiativeResponse {
 	return InitiativeResponse{
 		ID:          uuidToString(i.ID),
@@ -232,14 +235,14 @@ func (h *Handler) CreateInitiative(w http.ResponseWriter, r *http.Request) {
 	if status == "" {
 		status = "planned"
 	}
-	if !validateProjectEnum(w, "status", status, validProjectStatuses) {
+	if !validateProjectEnum(w, "status", status, validInitiativeStatuses) {
 		return
 	}
 	priority := req.Priority
 	if priority == "" {
 		priority = "none"
 	}
-	if !validateProjectEnum(w, "priority", priority, validProjectPriorities) {
+	if !validateProjectEnum(w, "priority", priority, validInitiativePriorities) {
 		return
 	}
 	var leadType pgtype.Text
@@ -346,13 +349,13 @@ func (h *Handler) UpdateInitiative(w http.ResponseWriter, r *http.Request) {
 		params.Title = pgtype.Text{String: *req.Title, Valid: true}
 	}
 	if req.Status != nil {
-		if !validateProjectEnum(w, "status", *req.Status, validProjectStatuses) {
+		if !validateProjectEnum(w, "status", *req.Status, validInitiativeStatuses) {
 			return
 		}
 		params.Status = pgtype.Text{String: *req.Status, Valid: true}
 	}
 	if req.Priority != nil {
-		if !validateProjectEnum(w, "priority", *req.Priority, validProjectPriorities) {
+		if !validateProjectEnum(w, "priority", *req.Priority, validInitiativePriorities) {
 			return
 		}
 		params.Priority = pgtype.Text{String: *req.Priority, Valid: true}

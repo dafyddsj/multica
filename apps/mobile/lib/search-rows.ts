@@ -24,6 +24,16 @@ export type RowItem =
   | { kind: "initiative"; key: string; initiative: SearchInitiativeResult; query: string }
   | { kind: "recent"; key: string; issue: Issue };
 
+/**
+ * Builds the flat row list. Empty query → the Recent section; otherwise the
+ * search results in cancelled-partition order:
+ *
+ *   Initiatives (live) → Projects (live) → Issues (live) → Cancelled
+ *
+ * The three searches are ranked independently, so a cancelled row from one
+ * response would outrank a live row from another unless the partition happens
+ * at this aggregation point. Direct hits stay in their live section.
+ */
 export function buildSearchRows({
   query,
   issues,
