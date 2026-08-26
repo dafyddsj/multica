@@ -271,6 +271,10 @@ var concurrentIndexCleanups = map[string]string{
 	"428_channel_task_delivery_binding_index":                   "idx_channel_task_delivery_binding",
 	"429_channel_task_delivery_installation_index":              "idx_channel_task_delivery_installation",
 	"430_channel_outbound_message_binding_index":                "idx_channel_outbound_message_binding_route",
+	"433_initiative_workspace_created_index":                    "idx_initiative_workspace_created",
+	"435_project_initiative_id_index":                           "idx_project_workspace_initiative",
+	"436_initiative_title_trgm_index":                           "idx_initiative_title_trgm",
+	"437_initiative_description_trgm_index":                     "idx_initiative_description_trgm",
 }
 
 // concurrentDownIndexCleanups covers every migration whose down direction

@@ -286,6 +286,16 @@ func (f *Fixture) Project(t TB, title string, over ...Cols) string {
 	}, over))
 }
 
+func (f *Fixture) Initiative(t TB, title string, over ...Cols) string {
+	t.Helper()
+	return f.Insert(t, "initiative", merge(Cols{
+		"workspace_id": f.WorkspaceID,
+		"title":        title,
+		"status":       "planned",
+		"priority":     "none",
+	}, over))
+}
+
 // ChatSession inserts a chat session with agentID.
 func (f *Fixture) ChatSession(t TB, agentID string, over ...Cols) string {
 	t.Helper()
