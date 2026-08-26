@@ -99,17 +99,6 @@
     "search_placeholder": "Search initiatives...",
     "clear_aria": "Clear initiative"
   },
-  "create": {
-    "title": "New initiative",
-    "title_breadcrumb": "New initiative",
-    "icon_tooltip": "Choose icon",
-    "title_placeholder": "Initiative title",
-    "description_placeholder": "Add description...",
-    "submit": "Create initiative",
-    "submitting": "Creating...",
-    "toast_created": "Initiative created",
-    "toast_failed": "Failed to create initiative"
-  },
   "chip": {
     "fallback_label": "Initiative"
   },
