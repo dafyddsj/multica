@@ -82,7 +82,6 @@ func TestPauseResumeAgentRejectSystemAgent(t *testing.T) {
 	}
 
 	agentID := dbfx.Agent(t, "pause-system-agent", handlerTestRuntimeID(t), testutil.Cols{
-		"kind":       "system",
 		"system_key": "pause-test",
 	})
 	for _, tc := range []struct {
