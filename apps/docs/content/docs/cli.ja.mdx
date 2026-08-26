@@ -163,6 +163,7 @@ multica runtime activity <runtime-id>
 | コマンド | 用途 |
 | --- | --- |
 | `issue` | イシューの作成、更新、割り当て、検索。コメント、購読者、ラベル、プロパティ、実行履歴の管理 |
+| `initiative` | イニシアチブを管理 |
 | `project` | プロジェクトとそのリソースを管理 |
 | `label`、`property` | ワークスペースのラベルとカスタムプロパティを管理 |
 | `agent`、`skill`、`squad` | エージェント、スキル、スクワッドを管理 |
@@ -244,7 +245,9 @@ CLI の設定ファイルには、あなたとして Multica にアクセスで�
 | | `usage <issue-id>` | 集計されたトークン使用量を表示 | |
 | | `rerun <id>` | 現在の担当者で実行を再キューイング | |
 | | `cancel-task <task-id>` | 実行中またはキュー中のタスクをキャンセル | `--issue` |
-| `project` | `list/get/create/update/delete` | プロジェクトを管理 | |
+| `initiative` | `list/get/create/update/delete` | イニシアチブを管理 | `create`: `--title`（必須）、`--description`、`--status`、`--icon`、`--lead`、`--start-date`、`--due-date` |
+| | `status <id> <status>` | イニシアチブのステータスを変更 | |
+| `project` | `list/get/create/update/delete` | プロジェクトを管理 | `create` / `update`: `--initiative` |
 | | `status <id> <status>` | プロジェクトのステータスを変更 | |
 | | `resource list/add/update/remove` | プロジェクトの追加リソースを管理 | `--type`、`--url`、`--local-path`、`--daemon-id`、`--execution-mode`（ローカルディレクトリの `in_place` / `worktree`） |
 | `label` | `list/get/create/update/delete` | ワークスペースのラベルを管理 | |

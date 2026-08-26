@@ -1,0 +1,63 @@
+---
+title: 이니셔티브
+description: 제품, 서비스, 프로그램 아래에 프로젝트를 묶습니다.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+이니셔티브는 [프로젝트](/projects)의 오래 가는 상위입니다. 워크스페이스 안의 계층은 워크스페이스 → 이니셔티브 → 프로젝트 → 이슈입니다.
+
+제품, 서비스, 프로그램은 이니셔티브에 둡니다. 프로젝트는 그 상위 안의 기한 있는 작업입니다. 스프린트, 마이그레이션, 릴리스가 해당합니다. 하나의 프로젝트는 최대 하나의 이니셔티브에만 속할 수 있습니다. 이슈는 프로젝트를 통해서만 연결됩니다. 이슈에서 이니셔티브로 가는 직접 링크는 없습니다.
+
+프로젝트가 하나뿐인 작업에는 이니셔티브가 필요하지 않습니다. 여러 프로젝트가 같은 제품이나 프로그램을 공유하고, 개별 프로젝트가 끝난 뒤에도 그것을 남겨 두고 싶을 때 만듭니다.
+
+## 이니셔티브의 구성
+
+| 내용 | 용도 |
+|---|---|
+| **이름, 아이콘, 설명** | 이 이니셔티브가 나타내는 제품 또는 프로그램입니다. |
+| **상태** | `planned`, `in_progress`, `paused`, `completed`, `cancelled`입니다. 프로젝트와 같은 어휘입니다. |
+| **우선순위** | `urgent`, `high`, `medium`, `low`, `none`입니다. |
+| **담당자(lead)** | 이니셔티브 조율 책임자를 나타내는 멤버 또는 에이전트입니다. |
+| **시작일과 마감일** | 선택적인 달력 기간입니다. |
+| **프로젝트** | 이 이니셔티브 아래의 기한 있는 작업입니다. |
+
+## 이니셔티브와 프로젝트의 관계
+
+하나의 프로젝트는 최대 하나의 이니셔티브에만 속할 수 있습니다. 프로젝트를 만들 때 연결하거나 나중에 연결할 수 있습니다.
+
+```bash
+multica project create --title "2026 Week 16 Sprint" --initiative <initiative-id>
+multica project update <project-id> --initiative <initiative-id>
+multica project update <project-id> --initiative ""
+```
+
+`--initiative ""`는 프로젝트를 이니셔티브에서 분리합니다. 이슈는 프로젝트에 남습니다. 이니셔티브 연결을 바꿔도 이슈는 이동하지 않습니다.
+
+이니셔티브 상태와 프로젝트 상태는 서로 독립적입니다. 하위 프로젝트가 모두 완료되어도 이니셔티브가 자동으로 `completed`가 되지 않으며, 이니셔티브 상태를 바꿔도 그 안의 프로젝트 상태가 일괄 변경되지 않습니다.
+
+## 이니셔티브 담당자
+
+Lead는 이니셔티브 조율 책임자를 나타내는 멤버 또는 에이전트입니다. 권한 설정이 아닙니다.
+
+## 생성, 수정, 삭제
+
+모든 워크스페이스 멤버가 이니셔티브를 만들고 수정할 수 있습니다. 삭제는 `owner`와 `admin`만 할 수 있습니다.
+
+```bash
+multica initiative list
+multica initiative get <initiative-id>
+multica initiative create --title "Platform"
+multica initiative update <initiative-id> --status in_progress
+multica initiative delete <initiative-id>
+```
+
+<Callout type="warning">
+이니셔티브를 삭제해도 그 안의 프로젝트는 삭제되지 않습니다. 프로젝트는 이니셔티브와 연결이 해제된 뒤 워크스페이스에 계속 남습니다. 이니셔티브의 설명과 상태는 영구적으로 삭제됩니다.
+</Callout>
+
+## 다음 단계
+
+- [프로젝트](/projects). 이니셔티브 안의 기한 있는 작업.
+- [이슈](/issues). 프로젝트 안의 구체적인 작업.
+- [CLI 사용](/cli). 전체 명령 참고.

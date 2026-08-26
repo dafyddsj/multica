@@ -163,6 +163,7 @@ multica runtime activity <runtime-id>
 | 명령 | 용도 |
 | --- | --- |
 | `issue` | 이슈 생성, 업데이트, 할당, 검색. 댓글, 구독, 라벨, 속성, 실행 기록 관리 |
+| `initiative` | 이니셔티브 관리 |
 | `project` | 프로젝트와 프로젝트 리소스 관리 |
 | `label`, `property` | 워크스페이스 라벨과 사용자 지정 속성 관리 |
 | `agent`, `skill`, `squad` | 에이전트, 스킬, 스쿼드 관리 |
@@ -244,7 +245,9 @@ CLI 설정 파일에는 사용자를 대신해 Multica에 접근할 수 있는 t
 | | `usage <issue-id>` | 집계 token 사용량 확인 | |
 | | `rerun <id>` | 현재 할당을 기준으로 다시 큐에 넣어 실행 | |
 | | `cancel-task <task-id>` | 실행 중 또는 큐 대기 중인 태스크 취소 | `--issue` |
-| `project` | `list/get/create/update/delete` | 프로젝트 관리 | |
+| `initiative` | `list/get/create/update/delete` | 이니셔티브 관리 | `create`: `--title`(필수), `--description`, `--status`, `--icon`, `--lead`, `--start-date`, `--due-date` |
+| | `status <id> <status>` | 이니셔티브 상태 변경 | |
+| `project` | `list/get/create/update/delete` | 프로젝트 관리 | `create` / `update`: `--initiative` |
 | | `status <id> <status>` | 프로젝트 상태 변경 | |
 | | `resource list/add/update/remove` | 프로젝트 추가 리소스 관리 | `--type`, `--url`, `--local-path`, `--daemon-id`, `--execution-mode`(로컬 디렉터리의 `in_place` / `worktree`) |
 | `label` | `list/get/create/update/delete` | 워크스페이스 라벨 관리 | |
