@@ -1602,11 +1602,15 @@ fi
 const coAuthoredByExtraFile = "multica-coauthor-extra"
 
 func configureCoAuthoredByContext(ctx context.Context, worktreePath string, params WorktreeParams) error {
-	if err := writeCoAuthoredByExtraContext(ctx, worktreePath, params.AgentName, params.CoAuthoredByEmail); err != nil {
+	email := strings.TrimSpace(params.CoAuthoredByEmail)
+	if err := writeCoAuthoredByExtraContext(ctx, worktreePath, params.AgentName, email); err != nil {
 		return err
 	}
-	if params.CoAuthoredByEnabled || params.CoAuthoredByEmail != "" {
+	if params.CoAuthoredByEnabled || email != "" {
 		return installCoAuthoredByHookContext(ctx, worktreePath, params.CoAuthoredByEnabled)
+	}
+	if siblingHasCoAuthoredByExtra(ctx, worktreePath) {
+		return installCoAuthoredByHookContext(ctx, worktreePath, false)
 	}
 	return removeCoAuthoredByHookContext(ctx, worktreePath)
 }
@@ -1622,6 +1626,7 @@ func writeCoAuthoredByExtraContext(ctx context.Context, worktreePath, name, emai
 	}
 
 	extraPath := filepath.Join(gitDir, coAuthoredByExtraFile)
+	email = sanitizeCoAuthoredByEmail(email)
 	if email == "" {
 		if err := os.Remove(extraPath); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("remove co-authored-by extra file: %w", err)
@@ -1629,12 +1634,37 @@ func writeCoAuthoredByExtraContext(ctx context.Context, worktreePath, name, emai
 		return nil
 	}
 
-	name = strings.NewReplacer("<", "", ">", "", "\r", "", "\n", "").Replace(name)
+	name = sanitizeCoAuthoredByName(name)
 	trailer := fmt.Sprintf("Co-authored-by: %s <%s>\n", name, email)
 	if err := os.WriteFile(extraPath, []byte(trailer), 0o644); err != nil {
 		return fmt.Errorf("write co-authored-by extra file: %w", err)
 	}
 	return nil
+}
+
+func sanitizeCoAuthoredByName(name string) string {
+	name = strings.NewReplacer("<", "", ">", "", "\r", "", "\n", "").Replace(strings.TrimSpace(name))
+	if name == "" {
+		return "agent"
+	}
+	return name
+}
+
+func sanitizeCoAuthoredByEmail(email string) string {
+	return strings.NewReplacer("<", "", ">", "", "\r", "", "\n", "").Replace(strings.TrimSpace(email))
+}
+
+func siblingHasCoAuthoredByExtra(ctx context.Context, worktreePath string) bool {
+	out, err := runGitOutputContext(ctx, "-C", worktreePath, "rev-parse", "--git-common-dir")
+	if err != nil {
+		return false
+	}
+	commonDir := strings.TrimSpace(string(out))
+	if !filepath.IsAbs(commonDir) {
+		commonDir = filepath.Join(worktreePath, commonDir)
+	}
+	matches, err := filepath.Glob(filepath.Join(commonDir, "worktrees", "*", coAuthoredByExtraFile))
+	return err == nil && len(matches) > 0
 }
 
 func installCoAuthoredByHook(worktreePath string, workspaceTrailer bool) error {
