@@ -50,6 +50,7 @@ import {
   hideQueuedChatMessages,
   removePendingChatTask,
 } from "@multica/core/chat/pending";
+import { agentAcceptsNewWork } from "@multica/core/agents";
 import { canAssignAgentToIssue } from "@multica/core/permissions";
 import { api } from "@/data/api";
 import { useAuthStore } from "@/data/auth-store";
@@ -169,7 +170,7 @@ export default function ChatTab() {
     () =>
       agents.filter(
         (a) =>
-          !a.archived_at &&
+          agentAcceptsNewWork(a) &&
           canAssignAgentToIssue(a, { userId: userId ?? null, role: memberRole })
             .allowed,
       ),

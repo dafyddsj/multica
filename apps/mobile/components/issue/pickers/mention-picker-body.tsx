@@ -47,6 +47,7 @@ import {
 } from "@/data/stores/mention-draft-store";
 import { useScrollToTopOnChange } from "@/lib/use-scroll-to-top-on-change";
 import { THEME } from "@/lib/theme";
+import { agentAcceptsNewWork, agentIsPaused } from "@multica/core/agents";
 import { isAgentRuntimeBound } from "@/lib/is-agent-runtime-bound";
 import { cn } from "@/lib/utils";
 
@@ -81,7 +82,7 @@ export function MentionPickerBody({ query, mode = "comment" }: Props) {
     () =>
       new Set(
         agents
-          .filter((agent) => !agent.archived_at && isAgentRuntimeBound(agent))
+          .filter((agent) => agentAcceptsNewWork(agent) && isAgentRuntimeBound(agent))
           .map((agent) => agent.id),
       ),
     [agents],
@@ -155,7 +156,7 @@ export function MentionPickerBody({ query, mode = "comment" }: Props) {
         out.push({ kind: "section", label: "People" }, ...memberRows);
       }
       const agentRows = [...agents]
-        .filter((a) => matchName(a.name))
+        .filter((a) => !a.archived_at && matchName(a.name))
         .sort((a, b) => a.name.localeCompare(b.name))
         .map((a): Row => ({ kind: "agent", agent: a }));
       if (agentRows.length > 0) {
@@ -230,17 +231,23 @@ export function MentionPickerBody({ query, mode = "comment" }: Props) {
             </View>
           );
         }
+        const paused =
+          item.kind === "agent"
+            ? agentIsPaused(item.agent)
+            : item.kind === "squad" &&
+              agents.some((a) => a.id === item.squad.leader_id && agentIsPaused(a));
         const needsRuntime =
           (item.kind === "agent" && !isAgentRuntimeBound(item.agent)) ||
           (item.kind === "squad" &&
             !runnableAgentIds.has(item.squad.leader_id));
+        const blocked = paused || needsRuntime;
         return (
           <Pressable
-            disabled={needsRuntime}
+            disabled={blocked}
             onPress={() => pick(item)}
             className={cn(
               "flex-row items-center gap-3 px-4 py-3 active:bg-secondary",
-              needsRuntime && "opacity-50",
+              blocked && "opacity-50",
             )}
           >
             {item.kind === "all" ? (
@@ -298,11 +305,19 @@ export function MentionPickerBody({ query, mode = "comment" }: Props) {
             )}
             {item.kind === "agent" ? (
               <Text className="text-sm text-muted-foreground">
-                {isAgentRuntimeBound(item.agent) ? "Agent" : "Needs runtime"}
+                {agentIsPaused(item.agent)
+                  ? "Paused"
+                  : isAgentRuntimeBound(item.agent)
+                    ? "Agent"
+                    : "Needs runtime"}
               </Text>
             ) : item.kind === "squad" ? (
               <Text className="text-sm text-muted-foreground">
-                {needsRuntime ? "Leader needs runtime" : "Squad"}
+                {paused
+                  ? "Leader paused"
+                  : needsRuntime
+                    ? "Leader needs runtime"
+                    : "Squad"}
               </Text>
             ) : null}
             {isSelected(item) ? (

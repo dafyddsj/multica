@@ -108,6 +108,7 @@ interface ChatInputProps {
    *  as opposed to the session itself being archived — swaps the placeholder
    *  copy so the read-only reason reads accurately. */
   agentArchived?: boolean;
+  agentPaused?: boolean;
   /** True when `disabled` is because the caller may no longer INVOKE the bound
    *  agent (flipped to personal, ownership moved, dropped from the allow-list).
    *  Distinct from `noAgent`: an agent IS bound and its transcript is readable,
@@ -159,6 +160,7 @@ export function ChatInput({
   disabled,
   noAgent,
   agentArchived,
+  agentPaused,
   agentAccessRevoked,
   agentRuntimeRequired,
   agentName,
@@ -585,6 +587,8 @@ export function ChatInput({
     : disabled
       ? agentArchived
         ? t(($) => $.input.placeholder_archived_agent)
+        : agentPaused
+          ? t(($) => $.input.placeholder_paused_agent)
         : agentRuntimeRequired
           ? t(($) => $.input.placeholder_runtime_required)
         : t(($) => $.input.placeholder_archived)

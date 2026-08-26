@@ -17,7 +17,7 @@ import { issueStatusCategory } from "@multica/core/issues";
 import { workspaceKeys } from "@multica/core/workspace/queries";
 import { useAuthStore } from "@multica/core/auth";
 import { canAssignAgentToIssue } from "@multica/core/permissions";
-import { isAgentRuntimeBound } from "@multica/core/agents";
+import { agentIsPaused, isAgentRuntimeBound } from "@multica/core/agents";
 import { api } from "@multica/core/api";
 import {
   isIssueDirectHit,
@@ -91,7 +91,7 @@ export interface MentionItem {
   projectStatus?: ProjectStatus;
   initiativeStatus?: InitiativeStatus;
   /** Present when the target should remain discoverable but cannot be selected. */
-  disabledReason?: "agent_runtime_required";
+  disabledReason?: "agent_runtime_required" | "agent_paused";
 }
 
 interface MentionListProps {
@@ -779,9 +779,11 @@ export function createMentionSuggestion(
         id: a.id,
         label: a.name,
         type: "agent" as const,
-        disabledReason: isAgentRuntimeBound(a)
-          ? undefined
-          : ("agent_runtime_required" as const),
+        disabledReason: agentIsPaused(a)
+          ? ("agent_paused" as const)
+          : isAgentRuntimeBound(a)
+            ? undefined
+            : ("agent_runtime_required" as const),
       }));
     const activeAgentRuntimeBinding = new Map(
       agents
@@ -799,10 +801,14 @@ export function createMentionSuggestion(
         id: s.id,
         label: s.name,
         type: "squad" as const,
-        disabledReason:
-          activeAgentRuntimeBinding.get(s.leader_id) === false
-            ? ("agent_runtime_required" as const)
-            : undefined,
+        disabledReason: (() => {
+          const leader = agents.find((a) => a.id === s.leader_id);
+          if (leader && agentIsPaused(leader)) return "agent_paused" as const;
+          if (activeAgentRuntimeBinding.get(s.leader_id) === false) {
+            return "agent_runtime_required" as const;
+          }
+          return undefined;
+        })(),
       }));
 
     // Members and agents share a single ranked list — recently mentioned

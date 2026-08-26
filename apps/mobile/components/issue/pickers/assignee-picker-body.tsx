@@ -32,6 +32,7 @@ import { useWorkspaceStore } from "@/data/workspace-store";
 import { useScrollToTopOnChange } from "@/lib/use-scroll-to-top-on-change";
 import { THEME } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { agentAcceptsNewWork, agentIsPaused } from "@multica/core/agents";
 import { isAgentRuntimeBound } from "@/lib/is-agent-runtime-bound";
 
 const AVATAR_SIZE = 36;
@@ -72,7 +73,7 @@ export function AssigneePickerBody({ value, query, onChange }: Props) {
     () =>
       new Set(
         agents
-          .filter((agent) => !agent.archived_at && isAgentRuntimeBound(agent))
+          .filter((agent) => agentAcceptsNewWork(agent) && isAgentRuntimeBound(agent))
           .map((agent) => agent.id),
       ),
     [agents],
@@ -95,7 +96,7 @@ export function AssigneePickerBody({ value, query, onChange }: Props) {
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((m) => ({ kind: "member" as const, member: m }));
     const agentRows: Row[] = [...agents]
-      .filter((a) => matchName(a.name))
+      .filter((a) => !a.archived_at && matchName(a.name))
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((a) => ({ kind: "agent" as const, agent: a }));
     const squadRows: Row[] = [...squads]
@@ -151,17 +152,23 @@ export function AssigneePickerBody({ value, query, onChange }: Props) {
         return `s:${row.squad.id}`;
       }}
       renderItem={({ item }) => {
+        const paused =
+          item.kind === "agent"
+            ? agentIsPaused(item.agent)
+            : item.kind === "squad" &&
+              agents.some((a) => a.id === item.squad.leader_id && agentIsPaused(a));
         const needsRuntime =
           (item.kind === "agent" && !isAgentRuntimeBound(item.agent)) ||
           (item.kind === "squad" &&
             !runnableAgentIds.has(item.squad.leader_id));
+        const blocked = paused || needsRuntime;
         return (
           <Pressable
-          disabled={needsRuntime}
+          disabled={blocked}
           onPress={() => select(item)}
           className={cn(
             "flex-row items-center gap-3 px-4 py-3 active:bg-secondary",
-            needsRuntime && "opacity-50",
+            blocked && "opacity-50",
           )}
         >
           {item.kind === "unassigned" ? (
@@ -197,11 +204,19 @@ export function AssigneePickerBody({ value, query, onChange }: Props) {
               the same row. Members carry no tag (they're the default actor). */}
           {item.kind === "agent" ? (
             <Text className="text-sm text-muted-foreground">
-              {isAgentRuntimeBound(item.agent) ? "Agent" : "Needs runtime"}
+              {agentIsPaused(item.agent)
+                ? "Paused"
+                : isAgentRuntimeBound(item.agent)
+                  ? "Agent"
+                  : "Needs runtime"}
             </Text>
           ) : item.kind === "squad" ? (
             <Text className="text-sm text-muted-foreground">
-              {needsRuntime ? "Leader needs runtime" : "Squad"}
+              {paused
+                ? "Leader paused"
+                : needsRuntime
+                  ? "Leader needs runtime"
+                  : "Squad"}
             </Text>
           ) : null}
           {isSelected(item) ? (

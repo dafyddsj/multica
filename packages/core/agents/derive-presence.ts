@@ -13,6 +13,7 @@
 
 import { deriveRuntimeHealth } from "../runtimes/derive-health";
 import type { Agent, AgentRuntime, AgentTask } from "../types";
+import { agentLifecycle } from "./work-admission";
 import type {
   AgentAvailability,
   AgentPresenceDetail,
@@ -98,7 +99,8 @@ export function deriveAgentPresenceDetail(input: DerivePresenceInput): AgentPres
   // never read as live anywhere. Short-circuit before deriving runtime
   // health or workload so a leftover online runtime row or a stale snapshot
   // task can't leak "Online" / "Working" into any consumer.
-  if (input.agent.archived_at) {
+  const lifecycle = agentLifecycle(input.agent);
+  if (lifecycle === "archived") {
     return {
       availability: "archived",
       workload: "idle",
@@ -108,7 +110,10 @@ export function deriveAgentPresenceDetail(input: DerivePresenceInput): AgentPres
     };
   }
 
-  const availability = deriveAgentAvailability(input.runtime, input.now);
+  const availability =
+    lifecycle === "paused"
+      ? "paused"
+      : deriveAgentAvailability(input.runtime, input.now);
   const detail = deriveWorkloadDetail(input.tasks);
 
   return {

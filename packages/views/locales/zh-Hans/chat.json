@@ -13,6 +13,7 @@
     "placeholder_no_agent": "创建一个智能体后才能开始对话",
     "placeholder_archived": "此会话已归档",
     "placeholder_archived_agent": "该智能体已归档",
+    "placeholder_paused_agent": "该智能体已暂停",
     "placeholder_runtime_required": "绑定运行时后继续",
     "placeholder_access_revoked": "你已没有运行该智能体的权限",
     "placeholder_named": "给 {{name}} 发消息…",
@@ -184,6 +185,7 @@
   },
   "no_agent_banner": "需要先有一个智能体才能开始对话。",
   "archived_agent_banner": "{{name}} 已归档——此会话为只读。",
+  "paused_agent_banner": "{{name}} 已暂停，不会接收新消息。",
   "agent_access_revoked_banner": "你已没有运行 {{name}} 的权限——此会话为只读。",
   "runtime_required_banner": {
     "fallback_name": "该智能体",

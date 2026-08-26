@@ -20,6 +20,8 @@ import { projectListOptions } from "@multica/core/projects/queries";
 import { canAssignAgent } from "@multica/views/issues/components";
 import { api, dispatchReasonCode } from "@multica/core/api";
 import {
+  agentAcceptsNewWork,
+  agentIsPaused,
   isAgentRuntimeBound,
   useAgentPresenceDetail,
   useCustomizeStarterPromptsHref,
@@ -42,6 +44,7 @@ import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 import { OfflineBanner } from "./offline-banner";
 import { NoAgentBanner } from "./no-agent-banner";
 import { ArchivedAgentBanner } from "./archived-agent-banner";
+import { PausedAgentBanner } from "./paused-agent-banner";
 import { AgentAccessRevokedBanner } from "./agent-access-revoked-banner";
 import { RuntimeRequiredBanner } from "./runtime-required-banner";
 import {
@@ -239,7 +242,7 @@ export function ChatWindow() {
   const currentMember = members.find((m) => m.user_id === user?.id);
   const memberRole = currentMember?.role;
   const availableAgents = agents.filter(
-    (a) => !a.archived_at && canAssignAgent(a, user?.id, memberRole),
+    (a) => agentAcceptsNewWork(a) && canAssignAgent(a, user?.id, memberRole),
   );
 
   // The agent bound to the OPEN session, resolved from the full agent list
@@ -252,6 +255,7 @@ export function ChatWindow() {
     ? agents.find((a) => a.id === currentSession.agent_id) ?? null
     : null;
   const isAgentArchived = !!sessionAgent?.archived_at;
+  const isAgentPaused = !!sessionAgent && agentIsPaused(sessionAgent);
 
   // Resolve selected agent: open session's agent → stored preference → first
   // available. New chats have no session, so they fall through to the picker.
@@ -450,6 +454,13 @@ export function ChatWindow() {
         });
         return false;
       }
+      if (isAgentPaused) {
+        apiLogger.warn("sendChatMessage skipped: agent is paused", {
+          sessionId: activeSessionId,
+          agentId: activeAgent.id,
+        });
+        return false;
+      }
       // Invoke permission was revoked while this session was open — the server
       // would refuse before persisting anything. Keep the draft, skip the
       // roundtrip. The input is disabled here; belt-and-braces guard.
@@ -608,6 +619,7 @@ export function ChatWindow() {
       activeAgent,
       activeAgentRuntimeBound,
       isAgentArchived,
+      isAgentPaused,
       isAgentAccessRevoked,
       pendingTask,
       pendingTaskId,
@@ -930,6 +942,7 @@ export function ChatWindow() {
             !!pendingTaskId ||
             isSessionArchived ||
             isAgentArchived ||
+            isAgentPaused ||
             isAgentAccessRevoked ||
             !activeAgentRuntimeBound ||
             noAgent
@@ -968,6 +981,8 @@ export function ChatWindow() {
         <AgentAccessRevokedBanner agentName={activeAgent?.name} />
       ) : isAgentArchived ? (
         <ArchivedAgentBanner agentName={activeAgent?.name} />
+      ) : isAgentPaused ? (
+        <PausedAgentBanner agentName={activeAgent?.name} />
       ) : !activeAgentRuntimeBound && activeAgent ? (
         <RuntimeRequiredBanner
           agentId={activeAgent.id}
@@ -1003,11 +1018,13 @@ export function ChatWindow() {
         disabled={
           isSessionArchived ||
           isAgentArchived ||
+          isAgentPaused ||
           isAgentAccessRevoked ||
           !activeAgentRuntimeBound
         }
         noAgent={noAgent}
         agentArchived={isAgentArchived}
+        agentPaused={isAgentPaused}
         agentAccessRevoked={isAgentAccessRevoked}
         agentRuntimeRequired={!activeAgentRuntimeBound}
         agentName={activeAgent?.name}

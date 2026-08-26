@@ -32,6 +32,7 @@ const DOT_CLASS: Record<AgentAvailability, string> = {
   // Retired agent (agent.archived_at set) — gray, mirrors web's archived dot
   // in packages/views/agents/presence.ts.
   archived: "bg-muted-foreground/40",
+  paused: "bg-warning",
 };
 
 export function PresenceDot({ availability, size = 8 }: Props) {

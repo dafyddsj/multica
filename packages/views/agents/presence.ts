@@ -5,6 +5,7 @@ import {
   CircleSlash,
   Clock,
   Loader2,
+  Pause,
   PlugZap,
   type LucideIcon,
 } from "lucide-react";
@@ -62,6 +63,13 @@ export const availabilityConfig: Record<AgentAvailability, AvailabilityVisual> =
     dotClass: "bg-muted-foreground/40",
     textClass: "text-muted-foreground",
     icon: CircleSlash,
+  },
+  // Temporary hold. Amber so it does not read as archived gray or offline
+  // gray. Workload still renders next to it.
+  paused: {
+    dotClass: "bg-warning",
+    textClass: "text-warning",
+    icon: Pause,
   },
   // Lifecycle state, not a runtime state — a retired agent. Gray like
   // offline (it can't take work) but labelled distinctly (via

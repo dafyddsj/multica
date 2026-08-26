@@ -422,7 +422,9 @@
     "agents_group": "Agents",
     "squads_group": "Squads",
     "agent_runtime_required": "Bind a runtime before selecting this agent",
-    "squad_runtime_required": "Bind a runtime to this squad's leader before selecting it"
+    "agent_paused": "Resume this agent before selecting it",
+    "squad_runtime_required": "Bind a runtime to this squad's leader before selecting it",
+    "squad_paused": "Resume this squad's leader before selecting it"
   },
   "timezone_picker": {
     "search_placeholder": "Search timezone..."

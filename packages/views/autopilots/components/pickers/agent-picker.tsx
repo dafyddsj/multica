@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bot } from "lucide-react";
 import { useWorkspaceId } from "@multica/core/hooks";
-import { isAgentRuntimeBound } from "@multica/core/agents";
+import { agentIsPaused, isAgentRuntimeBound } from "@multica/core/agents";
 import { agentListOptions, squadListOptions } from "@multica/core/workspace/queries";
 import type { AutopilotAssigneeType } from "@multica/core/types";
 import { ActorAvatar } from "../../../common/actor-avatar";
@@ -110,13 +110,16 @@ export function AgentPicker({
             <PickerSection label={t(($) => $.agent_picker.agents_group)}>
               {filteredAgents.map((a) => {
                 const runtimeBound = isAgentRuntimeBound(a);
+                const paused = agentIsPaused(a);
                 return (
                   <PickerItem
                     key={a.id}
                     selected={isSelected("agent", a.id)}
-                    disabled={!runtimeBound}
+                    disabled={!runtimeBound || paused}
                     tooltip={
-                      runtimeBound
+                      paused
+                        ? t(($) => $.agent_picker.agent_paused)
+                        : runtimeBound
                         ? undefined
                         : t(($) => $.agent_picker.agent_runtime_required)
                     }
@@ -134,13 +137,16 @@ export function AgentPicker({
               {filteredSquads.map((s) => {
                 const leader = agentsById.get(s.leader_id);
                 const runtimeBound = !!leader && isAgentRuntimeBound(leader);
+                const leaderPaused = !!leader && agentIsPaused(leader);
                 return (
                   <PickerItem
                     key={s.id}
                     selected={isSelected("squad", s.id)}
-                    disabled={!runtimeBound}
+                    disabled={!runtimeBound || leaderPaused}
                     tooltip={
-                      runtimeBound
+                      leaderPaused
+                        ? t(($) => $.agent_picker.squad_paused)
+                        : runtimeBound
                         ? undefined
                         : t(($) => $.agent_picker.squad_runtime_required)
                     }

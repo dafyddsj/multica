@@ -487,12 +487,14 @@
     "trigger_blocked_runtime_offline": "この対象のランタイムがオフラインです",
     "trigger_blocked_runtime_unusable": "この対象の CLI はそのマシンで実行できません — そのマシンで再インストールしてください",
     "trigger_blocked_agent_runtime_required": "この対象にはランタイムがありません — 実行するにはバインドしてください",
+    "trigger_blocked_agent_paused": "この対象は一時停止中です",
     "trigger_blocked_generic": "この対象はトリガーされません",
     "trigger_blocked_short_invocation_not_allowed": "未検出または権限なし",
     "trigger_blocked_short_target_unavailable": "利用不可",
     "trigger_blocked_short_runtime_offline": "ランタイム オフライン",
     "trigger_blocked_short_runtime_unusable": "CLI を実行できません",
     "trigger_blocked_short_agent_runtime_required": "ランタイム未設定",
+    "trigger_blocked_short_agent_paused": "一時停止中",
     "trigger_blocked_short_generic": "トリガーされません",
     "send_reply_failed": "返信を送信できませんでした",
     "delete_failed": "コメントを削除できませんでした",
@@ -714,7 +716,9 @@
       "agents_group": "エージェント",
       "squads_group": "スクワッド",
       "agent_runtime_required": "作業を割り当てる前に、このエージェントにランタイムをバインドしてください",
-      "squad_runtime_required": "作業を割り当てる前に、このスクワッドのリーダーにランタイムをバインドしてください"
+      "agent_paused": "作業を割り当てる前に、このエージェントを再開してください",
+      "squad_runtime_required": "作業を割り当てる前に、このスクワッドのリーダーにランタイムをバインドしてください",
+      "squad_paused": "作業を割り当てる前に、このスクワッドのリーダーを再開してください"
     },
     "start_date": {
       "trigger_label": "開始日",

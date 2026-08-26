@@ -422,7 +422,9 @@
     "agents_group": "에이전트",
     "squads_group": "스쿼드",
     "agent_runtime_required": "이 에이전트를 선택하기 전에 런타임을 연결하세요",
-    "squad_runtime_required": "선택하기 전에 이 스쿼드 리더에 런타임을 연결하세요"
+    "agent_paused": "선택하기 전에 이 에이전트를 재개하세요",
+    "squad_runtime_required": "선택하기 전에 이 스쿼드 리더에 런타임을 연결하세요",
+    "squad_paused": "선택하기 전에 이 스쿼드 리더를 재개하세요"
   },
   "timezone_picker": {
     "search_placeholder": "시간대 검색..."
