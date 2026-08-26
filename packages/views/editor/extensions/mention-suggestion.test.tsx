@@ -38,6 +38,7 @@ vi.mock("@multica/core/platform", () => ({
 // Mock the API so we control search responses + observe calls.
 const searchIssuesMock = vi.fn();
 const searchProjectsMock = vi.fn();
+const searchInitiativesMock = vi.fn();
 vi.mock("@multica/core/api", () => ({
   api: {
     get searchIssues() {
@@ -45,6 +46,9 @@ vi.mock("@multica/core/api", () => ({
     },
     get searchProjects() {
       return searchProjectsMock;
+    },
+    get searchInitiatives() {
+      return searchInitiativesMock;
     },
   },
 }));
@@ -151,6 +155,7 @@ describe("createMentionSuggestion", () => {
   beforeEach(() => {
     searchIssuesMock.mockReset();
     searchProjectsMock.mockReset();
+    searchInitiativesMock.mockReset().mockResolvedValue({ initiatives: [], total: 0 });
     Element.prototype.scrollIntoView = vi.fn();
   });
 
@@ -317,6 +322,7 @@ describe("createMentionSuggestion", () => {
     });
     expect(searchIssuesMock).toHaveBeenCalledWith(expect.objectContaining({ q: "road", limit: 8 }));
     expect(searchProjectsMock).toHaveBeenCalledWith(expect.objectContaining({ q: "road", limit: 8 }));
+    expect(searchInitiativesMock).toHaveBeenCalledWith(expect.objectContaining({ q: "road", limit: 8 }));
   });
 
   it("does not call searchIssues for an empty query", () => {
@@ -324,6 +330,7 @@ describe("createMentionSuggestion", () => {
 
     expect(searchIssuesMock).not.toHaveBeenCalled();
     expect(searchProjectsMock).not.toHaveBeenCalled();
+    expect(searchInitiativesMock).not.toHaveBeenCalled();
   });
 
   it("captures Enter while the popup has no selectable items", () => {
@@ -893,8 +900,10 @@ describe("MentionList cancelled demotion", () => {
   beforeEach(() => {
     searchIssuesMock.mockReset();
     searchProjectsMock.mockReset();
+    searchInitiativesMock.mockReset();
     searchIssuesMock.mockResolvedValue({ issues: [], total: 0 });
     searchProjectsMock.mockResolvedValue({ projects: [], total: 0 });
+    searchInitiativesMock.mockResolvedValue({ initiatives: [], total: 0 });
   });
 
   // Rendered top-to-bottom order of the issue rows. textContent runs the

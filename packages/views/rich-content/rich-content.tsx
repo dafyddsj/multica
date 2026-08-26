@@ -57,6 +57,7 @@ import {
 import { IssueMentionCard } from "../issues/components/issue-mention-card";
 import { useResolveIssueIdentifier } from "../issues/hooks";
 import { ProjectMentionCard } from "../projects/components/project-mention-card";
+import { InitiativeMentionCard } from "../initiatives/components/initiative-mention-card";
 import { useLinkHover, LinkHoverCard } from "../editor/link-hover-card";
 import {
   openLink,
@@ -163,6 +164,14 @@ function ProjectMentionLink({ projectId, label }: { projectId: string; label?: s
   );
 }
 
+function InitiativeMentionLink({ initiativeId, label }: { initiativeId: string; label?: string }) {
+  return (
+    <span className="inline align-middle" onClick={(e) => e.stopPropagation()}>
+      <InitiativeMentionCard initiativeId={initiativeId} fallbackLabel={label} />
+    </span>
+  );
+}
+
 function childrenToLabel(children: ReactNode): string | undefined {
   if (typeof children === "string") return children;
   if (Array.isArray(children)) return children.join("");
@@ -217,7 +226,7 @@ function RichLink({ href, children }: { href?: string; children?: ReactNode }) {
   }
 
   if (isMentionHref(href)) {
-    const match = href.match(/^mention:\/\/(member|agent|issue|project|all)\/(.+)$/);
+    const match = href.match(/^mention:\/\/(member|agent|issue|project|initiative|all)\/(.+)$/);
     if (match?.[1] === "issue" && match[2]) {
       // A bare identifier (from the autolink preprocessor) is carried as the id
       // segment; a real mention carries a UUID. Dispatch on the id shape.
@@ -233,6 +242,9 @@ function RichLink({ href, children }: { href?: string; children?: ReactNode }) {
     }
     if (match?.[1] === "project" && match[2]) {
       return <ProjectMentionLink projectId={match[2]} label={childrenToLabel(children)} />;
+    }
+    if (match?.[1] === "initiative" && match[2]) {
+      return <InitiativeMentionLink initiativeId={match[2]} label={childrenToLabel(children)} />;
     }
     // Member / agent / all mentions
     return <span className="mention">{children}</span>;
@@ -283,6 +295,9 @@ function RichLink({ href, children }: { href?: string; children?: ReactNode }) {
   }
   if (entity?.kind === "project") {
     return <ProjectMentionLink projectId={entity.id} />;
+  }
+  if (entity?.kind === "initiative") {
+    return <InitiativeMentionLink initiativeId={entity.id} />;
   }
 
   return plainLink;

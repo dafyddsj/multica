@@ -141,6 +141,27 @@
     "local_invalid_dir": "このディレクトリは使用できません。別のものを選択してください。",
     "local_hint": "他のマシンのエージェントはこのパスを参照できず、起動に失敗します。共有作業にはリポジトリを使用してください。"
   },
+  "create_initiative": {
+    "title": "新規イニシアチブ",
+    "title_breadcrumb": "新規イニシアチブ",
+    "icon_tooltip": "アイコンを選択",
+    "title_placeholder": "イニシアチブのタイトル",
+    "description_placeholder": "説明を追加...",
+    "description_hint": "このイニシアチブの作業で、コンテキストとしてエージェントに共有されます。",
+    "lead": "リード",
+    "no_lead": "リードなし",
+    "set_start_date": "開始日を設定...",
+    "set_due_date": "期限を設定...",
+    "more_options_aria": "その他のオプション",
+    "lead_placeholder": "リードを指定...",
+    "members_group": "メンバー",
+    "agents_group": "エージェント",
+    "no_results": "結果なし",
+    "submit": "イニシアチブを作成",
+    "submitting": "作成中...",
+    "toast_created": "イニシアチブを作成しました",
+    "toast_failed": "イニシアチブを作成できませんでした"
+  },
   "create_issue": {
     "sr_manual": "新規タスク",
     "sr_agent": "タスクをクイック作成",

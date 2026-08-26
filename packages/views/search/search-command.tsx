@@ -26,9 +26,10 @@ import type {
   MemberWithUser,
   SearchIssueResult,
   SearchProjectResult,
+  SearchInitiativeResult,
 } from "@multica/core/types";
 import { api } from "@multica/core/api";
-import { partitionAggregatedSearchResults } from "@multica/core/search/cancelled-rank";
+import { partitionAggregatedSearchResults, partitionStable, isProjectDirectHit } from "@multica/core/search/cancelled-rank";
 import {
   openCreateIssueWithPreference,
   selectRecentIssues,
@@ -47,9 +48,11 @@ import { resolvePublicFileUrl } from "@multica/core/workspace/avatar-url";
 import { StatusIcon } from "../issues/components";
 import { resolvedThreadRootIds, rootCommentIds } from "../issues/components/thread-utils";
 import { ProjectIcon } from "../projects/components/project-icon";
+import { InitiativeIcon } from "../initiatives/components/initiative-icon";
 import { routeIconForPath } from "../layout/route-icon-components";
 import { PROJECT_STATUS_CONFIG } from "@multica/core/projects/config";
-import type { ProjectStatus } from "@multica/core/types";
+import { INITIATIVE_STATUS_CONFIG } from "@multica/core/initiatives/config";
+import type { ProjectStatus, InitiativeStatus } from "@multica/core/types";
 import { ActorAvatar } from "../common/actor-avatar";
 import { ShortcutKeycaps } from "../common/shortcut-keycaps";
 import { ActorAvatar as ActorAvatarBase } from "@multica/ui/components/common/actor-avatar";
@@ -93,6 +96,7 @@ const PAGE_KEYWORDS: Record<WorkspacePageKey, string[]> = {
   myIssues: ["my", "issues", "assigned", "mine", "我的", "任务"],
   issues: ["issues", "tasks", "bugs", "任务"],
   projects: ["projects", "kanban", "项目"],
+  initiatives: ["initiatives", "initiative", "专项"],
   autopilots: ["autopilot", "autopilots", "automation", "schedule", "cron", "webhook", "自动化", "定时"],
   agents: ["agents", "bots", "ai", "智能体"],
   squads: ["squads", "teams", "小队", "团队"],
@@ -214,6 +218,47 @@ function ProjectResultRow({
   );
 }
 
+function InitiativeResultRow({
+  initiative,
+  query,
+  disabled,
+  onSelect,
+}: {
+  initiative: SearchInitiativeResult;
+  query: string;
+  disabled?: boolean;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <CommandPrimitive.Item
+      key={`initiative:${initiative.id}`}
+      value={`initiative:${initiative.id}`}
+      disabled={disabled}
+      onSelect={onSelect}
+      className="flex cursor-default select-none flex-col gap-1 rounded-lg px-3 py-2.5 text-body outline-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-accent"
+    >
+      <div className="flex items-center gap-2.5">
+        <InitiativeIcon initiative={initiative} size="md" />
+        <span className="truncate">
+          <HighlightText text={initiative.title} query={query} />
+        </span>
+        <span
+          className={`ml-auto text-caption shrink-0 ${INITIATIVE_STATUS_CONFIG[initiative.status as InitiativeStatus]?.color ?? "text-muted-foreground"}`}
+        >
+          {INITIATIVE_STATUS_CONFIG[initiative.status as InitiativeStatus]?.label ?? initiative.status}
+        </span>
+      </div>
+      {initiative.match_source === "description" && initiative.matched_snippet && (
+        <div className="flex items-start gap-2 pl-[26px]">
+          <span className="text-caption text-muted-foreground truncate">
+            <HighlightText text={initiative.matched_snippet} query={query} />
+          </span>
+        </div>
+      )}
+    </CommandPrimitive.Item>
+  );
+}
+
 function IssueResultRow({
   issue,
   query,
@@ -292,9 +337,10 @@ interface SearchResults {
   query: string;
   issues: SearchIssueResult[];
   projects: SearchProjectResult[];
+  initiatives: SearchInitiativeResult[];
 }
 
-const NO_RESULTS: SearchResults = { query: "", issues: [], projects: [] };
+const NO_RESULTS: SearchResults = { query: "", issues: [], projects: [], initiatives: [] };
 
 // One heading treatment for every group. Headings go through cmdk's `heading`
 // prop rather than a hand-rolled div: cmdk renders it into a
@@ -415,6 +461,16 @@ export function SearchCommand() {
         keywords: ["new", "project", "create", "add"],
         onSelect: () => {
           useModalStore.getState().open("create-project");
+          setOpen(false);
+        },
+      },
+      {
+        key: "new-initiative",
+        label: t(($) => $.commands.new_initiative),
+        icon: Plus,
+        keywords: ["new", "initiative", "create", "add", "专项"],
+        onSelect: () => {
+          useModalStore.getState().open("create-initiative");
           setOpen(false);
         },
       },
@@ -555,6 +611,7 @@ export function SearchCommand() {
   const hasResults =
     results.issues.length > 0 ||
     results.projects.length > 0 ||
+    results.initiatives.length > 0 ||
     filteredMembers.length > 0;
 
   // Rows answering an earlier query are still painted while the next request
@@ -568,14 +625,24 @@ export function SearchCommand() {
   // independently server-side, so the partition has to happen here, where they
   // are aggregated for display. See the render note on the results list.
   const partitionedResults = useMemo(
-    () =>
-      partitionAggregatedSearchResults({
+    () => {
+      const aggregated = partitionAggregatedSearchResults({
         issues: results.issues,
         projects: results.projects,
-        // The partition describes these rows, so it keys off the query they
-        // answer — not what the user has typed since.
         query: results.query,
-      }),
+      });
+      const initiativeParts = partitionStable(
+        results.initiatives,
+        (initiative) =>
+          initiative.status === "cancelled" && !isProjectDirectHit(initiative, results.query),
+      );
+      return {
+        ...aggregated,
+        liveInitiatives: initiativeParts.live,
+        cancelledInitiatives: initiativeParts.cancelled,
+        hasCancelled: aggregated.hasCancelled || initiativeParts.cancelled.length > 0,
+      };
+    },
     [results],
   );
 
@@ -625,7 +692,7 @@ export function SearchCommand() {
       const controller = new AbortController();
       abortRef.current = controller;
       try {
-        const [issueRes, projectRes] = await Promise.all([
+        const [issueRes, projectRes, initiativeRes] = await Promise.all([
           api.searchIssues({
             q: q.trim(),
             limit: 20,
@@ -638,12 +705,19 @@ export function SearchCommand() {
             include_closed: true,
             signal: controller.signal,
           }),
+          api.searchInitiatives({
+            q: q.trim(),
+            limit: 10,
+            include_closed: true,
+            signal: controller.signal,
+          }),
         ]);
         if (!controller.signal.aborted) {
           setResults({
             query: q.trim(),
             issues: issueRes.issues,
             projects: projectRes.projects,
+            initiatives: initiativeRes.initiatives,
           });
           setIsLoading(false);
         }
@@ -652,7 +726,7 @@ export function SearchCommand() {
           // Drop the previous query's rows rather than leaving them on screen
           // permanently greyed out: the request that would have replaced them
           // is never coming. The list falls through to the empty state.
-          setResults({ query: q.trim(), issues: [], projects: [] });
+          setResults({ query: q.trim(), issues: [], projects: [], initiatives: [] });
           setIsLoading(false);
         }
       }
@@ -670,10 +744,11 @@ export function SearchCommand() {
   const handleSelect = useCallback(
     (value: string) => {
       setOpen(false);
-      const href = value.startsWith("project:")
-        ? // value is "project:<id>" — slice off the 8-char prefix to extract the id.
-          p.projectDetail(value.slice(8))
-        : p.issueDetail(value);
+      const href = value.startsWith("initiative:")
+        ? p.initiativeDetail(value.slice(11))
+        : value.startsWith("project:")
+          ? p.projectDetail(value.slice(8))
+          : p.issueDetail(value);
       intentNavigate(href, consumeIntent());
     },
     [intentNavigate, consumeIntent, setOpen, p],
@@ -863,6 +938,23 @@ export function SearchCommand() {
               type can precede a live row of the other. Direct hits stay in
               their live section (see partitionAggregatedSearchResults).
             */}
+            {partitionedResults.liveInitiatives.length > 0 && (
+              <CommandPrimitive.Group
+                heading={t(($) => $.groups.initiatives)}
+                className={GROUP_CLASS}
+              >
+                {partitionedResults.liveInitiatives.map((initiative) => (
+                  <InitiativeResultRow
+                    key={`initiative:${initiative.id}`}
+                    initiative={initiative}
+                    query={results.query}
+                    disabled={resultsAreStale}
+                    onSelect={handleSelect}
+                  />
+                ))}
+              </CommandPrimitive.Group>
+            )}
+
             {partitionedResults.liveProjects.length > 0 && (
               <CommandPrimitive.Group
                 heading={t(($) => $.groups.projects)}
@@ -902,6 +994,15 @@ export function SearchCommand() {
                 heading={t(($) => $.groups.cancelled)}
                 className={GROUP_CLASS}
               >
+                {partitionedResults.cancelledInitiatives.map((initiative) => (
+                  <InitiativeResultRow
+                    key={`initiative:${initiative.id}`}
+                    initiative={initiative}
+                    query={results.query}
+                    disabled={resultsAreStale}
+                    onSelect={handleSelect}
+                  />
+                ))}
                 {partitionedResults.cancelledProjects.map((project) => (
                   <ProjectResultRow
                     key={`project:${project.id}`}

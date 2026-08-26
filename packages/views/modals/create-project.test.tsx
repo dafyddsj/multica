@@ -58,6 +58,10 @@ vi.mock("@multica/core/workspace/queries", () => ({
   agentListOptions: () => ({ queryKey: ["agents"], queryFn: vi.fn() }),
 }));
 
+vi.mock("@multica/core/initiatives/queries", () => ({
+  initiativeListOptions: () => ({ queryKey: ["initiatives"], queryFn: vi.fn() }),
+}));
+
 vi.mock("@multica/core/workspace/hooks", () => ({
   useActorName: () => ({ getActorName: vi.fn() }),
 }));

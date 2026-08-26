@@ -24,6 +24,7 @@ const WORKSPACE_ROUTE_SEGMENTS = new Set([
   "usage",
   "issues",
   "projects",
+  "initiatives",
   "autopilots",
   "agents",
   "chat",
@@ -93,7 +94,7 @@ export function toInternalAppPath(
 
 /** An in-app entity page addressed by a link — the two kinds that have a chip. */
 export interface WorkspaceEntityRef {
-  kind: "issue" | "project";
+  kind: "issue" | "project" | "initiative";
   /**
    * Entity id, decoded from the path. A UUID for either kind, or — for an
    * issue only — a bare identifier (`MUL-123`). Callers dispatch on the shape
@@ -114,6 +115,7 @@ export interface WorkspaceEntityRef {
 const ENTITY_ROUTE_SEGMENTS: Record<string, WorkspaceEntityRef["kind"]> = {
   issues: "issue",
   projects: "project",
+  initiatives: "initiative",
 };
 
 const UUID_RE =

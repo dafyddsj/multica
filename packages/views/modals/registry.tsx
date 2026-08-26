@@ -3,6 +3,7 @@
 import { useModalStore } from "@multica/core/modals";
 import { CreateIssueDialog } from "./create-issue-dialog";
 import { CreateProjectModal } from "./create-project";
+import { CreateInitiativeModal } from "./create-initiative";
 import { CreateSquadModal } from "./create-squad";
 import { FeedbackModal } from "./feedback";
 import { SetParentIssueModal } from "./set-parent-issue";
@@ -23,7 +24,9 @@ export function ModalRegistry() {
     case "quick-create-issue":
       return <CreateIssueDialog onClose={close} initialMode="agent" data={data} />;
     case "create-project":
-      return <CreateProjectModal onClose={close} />;
+      return <CreateProjectModal onClose={close} data={data} />;
+    case "create-initiative":
+      return <CreateInitiativeModal onClose={close} />;
     case "create-squad":
       return <CreateSquadModal onClose={close} />;
     case "feedback":

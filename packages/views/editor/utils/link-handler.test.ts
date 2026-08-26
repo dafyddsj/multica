@@ -137,6 +137,7 @@ describe("openLink", () => {
 describe("parseWorkspaceEntityLink", () => {
   const PROJECT_ID = "8f14e45f-ceea-4d0e-a1a2-9b1c0d3e4f5a";
   const ISSUE_ID = "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed";
+  const INITIATIVE_ID = "2c0e7cde-ccfe-5c3e-ac6e-bc9e0cce5cfe";
 
   it("parses an absolute project URL on the app origin", () => {
     expect(
@@ -145,6 +146,15 @@ describe("parseWorkspaceEntityLink", () => {
         APP_ORIGIN,
       ),
     ).toEqual({ kind: "project", id: PROJECT_ID, slug: "acme" });
+  });
+
+  it("parses an absolute initiative URL on the app origin", () => {
+    expect(
+      parseWorkspaceEntityLink(
+        `${APP_ORIGIN}/acme/initiatives/${INITIATIVE_ID}`,
+        APP_ORIGIN,
+      ),
+    ).toEqual({ kind: "initiative", id: INITIATIVE_ID, slug: "acme" });
   });
 
   it("parses an absolute issue URL on the app origin", () => {

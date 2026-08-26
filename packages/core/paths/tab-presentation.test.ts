@@ -61,6 +61,21 @@ describe("resolveTabPresentation — direct resources", () => {
     });
   });
 
+  it("initiative reuses the project-icon visual and its own type label", () => {
+    expect(present("/acme/initiatives/n1")).toEqual({
+      visual: { kind: "project-icon", icon: null },
+      title: { kind: "tab", tabKey: "initiative" },
+    });
+    expect(
+      present("/acme/initiatives/n1", {
+        initiative: { icon: "🎯", title: "Platform" },
+      }),
+    ).toEqual({
+      visual: { kind: "project-icon", icon: "🎯" },
+      title: { kind: "text", text: "Platform" },
+    });
+  });
+
   it("actor shows avatar visual and resolved name", () => {
     expect(present("/acme/agents/ag1")).toEqual({
       visual: { kind: "actor", actorType: "agent", id: "ag1" },

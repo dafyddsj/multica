@@ -38,7 +38,7 @@ vi.mock("@tanstack/react-query", () => ({
   // pickers, which expect a different shape.
   useQuery: (options: { queryKey?: unknown[] }) => {
     const key = options?.queryKey?.[0];
-    if (key === "members" || key === "agents") return { data: [] };
+    if (key === "members" || key === "agents" || key === "initiatives") return { data: [] };
     return {
       data: [
         {
@@ -103,6 +103,9 @@ vi.mock("@multica/core/paths", () => ({
 vi.mock("@multica/core/workspace/queries", () => ({
   memberListOptions: () => ({ queryKey: ["members"], queryFn: vi.fn() }),
   agentListOptions: () => ({ queryKey: ["agents"], queryFn: vi.fn() }),
+}));
+vi.mock("@multica/core/initiatives/queries", () => ({
+  initiativeListOptions: () => ({ queryKey: ["initiatives"], queryFn: vi.fn() }),
 }));
 vi.mock("@multica/core/workspace/hooks", () => ({
   useActorName: () => ({ getActorName: vi.fn() }),

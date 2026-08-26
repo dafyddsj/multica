@@ -59,6 +59,7 @@ import {
 } from "../projects/components/labels";
 import { ProjectStartDatePicker } from "../projects/components/project-start-date-picker";
 import { ProjectDueDatePicker } from "../projects/components/project-due-date-picker";
+import { InitiativePicker } from "../initiatives/components/initiative-picker";
 import { PillButton } from "../common/pill-button";
 import { githubShortLabel } from "../common/github-url";
 import {
@@ -126,7 +127,13 @@ function RepoUrlText({
   );
 }
 
-export function CreateProjectModal({ onClose }: { onClose: () => void }) {
+export function CreateProjectModal({
+  onClose,
+  data,
+}: {
+  onClose: () => void;
+  data?: Record<string, unknown> | null;
+}) {
   const { t } = useT("modals");
   // The execution-mode copy lives in the projects namespace alongside the
   // resource panel's, so both entry points describe the choice identically.
@@ -155,6 +162,9 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const [icon, setIcon] = useState<string | undefined>(draft.icon);
   const [startDate, setStartDate] = useState<string>(draft.startDate ?? "");
   const [dueDate, setDueDate] = useState<string>(draft.dueDate ?? "");
+  const [initiativeId, setInitiativeId] = useState<string | null>(
+    typeof data?.initiative_id === "string" ? data.initiative_id : null,
+  );
   // Dates are collapsed into the ⋯ overflow by default (progressive
   // disclosure, mirroring create-issue); these flip a pill inline + open.
   const [startDatePickerOpen, setStartDatePickerOpen] = useState(false);
@@ -360,6 +370,7 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
         lead_id: leadId,
         start_date: startDate || undefined,
         due_date: dueDate || undefined,
+        initiative_id: initiativeId,
         // Server attaches these in the same transaction as the project.
         resources,
       });
@@ -655,6 +666,12 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
               onOpenChange={setDueDatePickerOpen}
             />
           )}
+
+          <InitiativePicker
+            initiativeId={initiativeId}
+            onUpdate={(u) => setInitiativeId(u.initiative_id)}
+            triggerRender={<PillButton />}
+          />
 
           <Popover
             open={repoPopoverOpen}
