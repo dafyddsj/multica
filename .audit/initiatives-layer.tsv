@@ -11,3 +11,4 @@ ts	phase	decision	why	evidence	result
 2026-08-26T11:54:37Z	predicate	units 1-6 landed on the branch; remaining is Comment Sicko plus trail review	Go API, core, CLI, docs, web/desktop, mobile list/detail/search, PR 2 open	https://github.com/dafyddsj/multica/pull/2	predicate nearly met
 2026-08-26T11:54:44Z	unit5	docs and glossary name Initiative, 专项, イニシアチブ, 이니셔티브 above Projects	conventions plus product docs; CLI pages mention --initiative	commit 4db412ac3	docs committed
 2026-08-26T11:54:44Z	unit6	mobile list, detail, create, and project picker already on the branch	mobile owns its screens; detail shows child projects	commit 0dc504fb6	mobile screens committed
+2026-08-26T11:56:37Z	verify	reran Go initiative handler and brief tests this session	postgres accepting on 5432; DATABASE_URL set to local multica	go test ./internal/handler/ -run Initiative|ClaimTask_Initiative; go test ./internal/daemon/execenv/ -run TestInitiativeContext	both ok
