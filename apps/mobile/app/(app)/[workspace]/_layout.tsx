@@ -10,12 +10,14 @@ import { useIssuesRealtime } from "@/data/realtime/use-issues-realtime";
 import { useMyIssuesRealtime } from "@/data/realtime/use-my-issues-realtime";
 import { useChatSessionsRealtime } from "@/data/realtime/use-chat-sessions-realtime";
 import { useProjectsRealtime } from "@/data/realtime/use-projects-realtime";
+import { useInitiativesRealtime } from "@/data/realtime/use-initiatives-realtime";
 import { usePinsRealtime } from "@/data/realtime/use-pins-realtime";
 import { usePresenceRealtime } from "@/data/realtime/use-presence-realtime";
 import { useWorkspacePresencePrefetch } from "@/lib/use-workspace-presence-prefetch";
 import { ModalCloseButton } from "@/components/ui/modal-close-button";
 import { useNewIssueDraftResetOnWorkspaceChange } from "@/data/stores/new-issue-draft-store";
 import { useNewProjectDraftResetOnWorkspaceChange } from "@/data/stores/new-project-draft-store";
+import { useNewInitiativeDraftResetOnWorkspaceChange } from "@/data/stores/new-initiative-draft-store";
 import { useChatSessionPickerResetOnWorkspaceChange } from "@/data/stores/chat-session-picker-store";
 
 /**
@@ -78,6 +80,7 @@ function RealtimeSubscriptions() {
   useMyIssuesRealtime();
   useChatSessionsRealtime();
   useProjectsRealtime();
+  useInitiativesRealtime();
   usePinsRealtime();
   // Presence: warm the three queries up front so avatars don't flash a
   // dotless first render, and listen for daemon/agent/task events to keep
@@ -117,6 +120,7 @@ export default function WorkspaceLayout() {
   // session id, etc.) is invalid in workspace B and must not leak.
   useNewIssueDraftResetOnWorkspaceChange(matched?.id ?? null);
   useNewProjectDraftResetOnWorkspaceChange(matched?.id ?? null);
+  useNewInitiativeDraftResetOnWorkspaceChange(matched?.id ?? null);
   useChatSessionPickerResetOnWorkspaceChange(matched?.id ?? null);
 
   // Wait for the workspaces list before deciding membership — otherwise a
@@ -147,9 +151,24 @@ export default function WorkspaceLayout() {
           }}
         />
         <Stack.Screen
+          name="initiative/[id]"
+          options={{
+            title: "Initiative",
+            headerBackTitle: "Back",
+          }}
+        />
+        <Stack.Screen
           name="project/[id]/edit"
           options={{
             title: "Edit Project",
+            presentation: "modal",
+            headerLeft: () => <ModalCloseButton />,
+          }}
+        />
+        <Stack.Screen
+          name="initiative/[id]/edit"
+          options={{
+            title: "Edit Initiative",
             presentation: "modal",
             headerLeft: () => <ModalCloseButton />,
           }}
@@ -166,6 +185,14 @@ export default function WorkspaceLayout() {
           name="project/new"
           options={{
             title: "New Project",
+            presentation: "modal",
+            headerLeft: () => <ModalCloseButton />,
+          }}
+        />
+        <Stack.Screen
+          name="initiative/new"
+          options={{
+            title: "New Initiative",
             presentation: "modal",
             headerLeft: () => <ModalCloseButton />,
           }}
@@ -237,7 +264,19 @@ export default function WorkspaceLayout() {
         />
         <Stack.Screen
           name="project/[id]/picker/lead"
-          options={SHEET_OPTIONS}
+          options={{
+            ...SHEET_OPTIONS,
+            headerShown: true,
+            title: "Lead",
+          }}
+        />
+        <Stack.Screen
+          name="project/[id]/picker/initiative"
+          options={{
+            ...SHEET_OPTIONS,
+            headerShown: true,
+            title: "Initiative",
+          }}
         />
         <Stack.Screen
           name="project/[id]/add-resource"
@@ -281,6 +320,38 @@ export default function WorkspaceLayout() {
           name="new-project-picker/priority"
           options={SHEET_OPTIONS}
         />
+        <Stack.Screen
+          name="new-project-picker/initiative"
+          options={{
+            ...SHEET_OPTIONS,
+            headerShown: true,
+            title: "Initiative",
+          }}
+        />
+        <Stack.Screen
+          name="initiative/[id]/picker/status"
+          options={SHEET_OPTIONS}
+        />
+        <Stack.Screen
+          name="initiative/[id]/picker/priority"
+          options={SHEET_OPTIONS}
+        />
+        <Stack.Screen
+          name="initiative/[id]/picker/lead"
+          options={{
+            ...SHEET_OPTIONS,
+            headerShown: true,
+            title: "Lead",
+          }}
+        />
+        <Stack.Screen
+          name="new-initiative-picker/status"
+          options={SHEET_OPTIONS}
+        />
+        <Stack.Screen
+          name="new-initiative-picker/priority"
+          options={SHEET_OPTIONS}
+        />
         {/* Shared filter sheet for My Issues and the workspace Issues page —
             chooses the right view-store via `?scope=my|all` URL param. */}
         <Stack.Screen name="issues-filter" options={SHEET_OPTIONS} />
@@ -296,6 +367,10 @@ export default function WorkspaceLayout() {
         <Stack.Screen
           name="more/projects"
           options={{ title: "Projects", headerBackTitle: "Back" }}
+        />
+        <Stack.Screen
+          name="more/initiatives"
+          options={{ title: "Initiatives", headerBackTitle: "Back" }}
         />
         <Stack.Screen
           name="more/agents"

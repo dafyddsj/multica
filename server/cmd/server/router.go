@@ -1958,6 +1958,18 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
+			// Initiatives
+			r.Route("/api/initiatives", func(r chi.Router) {
+				r.Get("/search", h.SearchInitiatives)
+				r.Get("/", h.ListInitiatives)
+				r.Post("/", h.CreateInitiative)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Get("/", h.GetInitiative)
+					r.Put("/", h.UpdateInitiative)
+					r.Delete("/", h.DeleteInitiative)
+				})
+			})
+
 			// Projects
 			r.Route("/api/projects", func(r chi.Router) {
 				r.Get("/search", h.SearchProjects)

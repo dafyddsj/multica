@@ -6,6 +6,7 @@ import type { Comment, Reaction } from "./comment";
 import type { TimelineEntry } from "./activity";
 import type { Workspace, MemberWithUser, Invitation } from "./workspace";
 import type { Project } from "./project";
+import type { Initiative } from "./initiative";
 import type { Label } from "./label";
 
 // WebSocket event types (matching Go server protocol/events.go)
@@ -67,6 +68,9 @@ export type WSEventType =
   | "project:created"
   | "project:updated"
   | "project:deleted"
+  | "initiative:created"
+  | "initiative:updated"
+  | "initiative:deleted"
   | "squad:created"
   | "squad:updated"
   | "squad:deleted"
@@ -503,6 +507,18 @@ export interface ProjectDeletedPayload {
   project_id: string;
 }
 
+export interface InitiativeCreatedPayload {
+  initiative: Initiative;
+}
+
+export interface InitiativeUpdatedPayload {
+  initiative: Initiative;
+}
+
+export interface InitiativeDeletedPayload {
+  initiative_id: string;
+}
+
 export interface InvitationCreatedPayload {
   invitation: Invitation;
   workspace_name?: string;
@@ -608,6 +624,9 @@ export interface WSEventPayloadMap {
   "project:created": ProjectCreatedPayload;
   "project:updated": ProjectUpdatedPayload;
   "project:deleted": ProjectDeletedPayload;
+  "initiative:created": InitiativeCreatedPayload;
+  "initiative:updated": InitiativeUpdatedPayload;
+  "initiative:deleted": InitiativeDeletedPayload;
   "invitation:created": InvitationCreatedPayload;
   "invitation:accepted": InvitationAcceptedPayload;
   "invitation:declined": InvitationDeclinedPayload;

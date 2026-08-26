@@ -14,6 +14,7 @@ import {
 } from "@multica/core/paths";
 import { issueDetailOptions } from "@multica/core/issues/queries";
 import { projectDetailOptions } from "@multica/core/projects/queries";
+import { initiativeDetailOptions } from "@multica/core/initiatives/queries";
 import { autopilotDetailOptions } from "@multica/core/autopilots/queries";
 import {
   skillDetailOptions,
@@ -63,6 +64,7 @@ const NONE = "__tab_presentation_none__";
 const PENDING_RESOURCE_KEYS: ReadonlySet<TabLabelKey> = new Set<TabLabelKey>([
   "issue",
   "project",
+  "initiative",
   "autopilot",
   "agent",
   "member",
@@ -117,6 +119,13 @@ function useTabEntityData(subject: TabSubject, wsId: string): TabEntityData {
     ...projectDetailOptions(wsId, subject.kind === "project" ? subject.id : NONE),
     enabled: false,
   }).data;
+  const initiative = useQuery({
+    ...initiativeDetailOptions(
+      wsId,
+      subject.kind === "initiative" ? subject.id : NONE,
+    ),
+    enabled: false,
+  }).data;
   const autopilot = useQuery({
     ...autopilotDetailOptions(
       wsId,
@@ -148,6 +157,14 @@ function useTabEntityData(subject: TabSubject, wsId: string): TabEntityData {
       break;
     case "project":
       if (project) data.project = { icon: project.icon, title: project.title };
+      break;
+    case "initiative":
+      if (initiative) {
+        data.initiative = {
+          icon: initiative.icon || "🎯",
+          title: initiative.title,
+        };
+      }
       break;
     case "autopilot":
       if (autopilot) data.autopilot = { title: autopilot.autopilot.title };

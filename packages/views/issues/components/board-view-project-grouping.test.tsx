@@ -92,6 +92,7 @@ function makeProject(id: string, title: string, icon: string | null): Project {
     issue_count: 0,
     done_count: 0,
     resource_count: 0,
+    initiative_id: null,
   };
 }
 

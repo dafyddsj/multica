@@ -711,6 +711,61 @@ The `usage` command returns the aggregated token usage for an issue, summed acro
 
 The `runs` command shows all past and current executions for an issue, including running tasks. Table output uses short task UUID prefixes by default; pass `--full-id` to print canonical task UUIDs. The `run-messages` command accepts full task UUIDs directly; copied short task prefixes must be scoped with `--issue <issue-id>` so the CLI only checks that issue's runs. It shows the detailed message log (tool calls, thinking, text, errors) for a single run. Use `--since` for efficient polling of in-progress runs.
 
+## Initiatives
+
+An initiative is a durable parent of projects (a product, service, or program). A
+project belongs to at most one initiative. Deleting an initiative detaches its
+projects; it does not delete them.
+
+### List Initiatives
+
+```bash
+multica initiative list
+multica initiative list --status in_progress
+multica initiative list --output json
+```
+
+Available filters: `--status`.
+
+### Get Initiative
+
+```bash
+multica initiative get <id>
+multica initiative get <id> --output json
+```
+
+### Create Initiative
+
+```bash
+multica initiative create --title "Platform" --icon "🎯" --lead "Lambda"
+```
+
+Flags: `--title` (required), `--description`, `--status`, `--icon`, `--lead`, `--start-date`, `--due-date`. Dates are calendar days (`YYYY-MM-DD`).
+
+### Update Initiative
+
+```bash
+multica initiative update <id> --title "New title" --status in_progress
+```
+
+Flags: `--title`, `--description`, `--status`, `--icon`, `--lead`, `--start-date`, `--due-date`. Pass an empty string on a date flag to clear it.
+
+### Change Status
+
+```bash
+multica initiative status <id> in_progress
+```
+
+Valid statuses: `planned`, `in_progress`, `paused`, `completed`, `cancelled`.
+
+### Delete Initiative
+
+```bash
+multica initiative delete <id>
+```
+
+Child projects are detached, not deleted.
+
 ## Projects
 
 Projects group related issues (e.g. a sprint, an epic, a workstream). Every project
@@ -739,7 +794,7 @@ multica project get <id> --output json
 multica project create --title "2026 Week 16 Sprint" --icon "🏃" --lead "Lambda"
 ```
 
-Flags: `--title` (required), `--description`, `--status`, `--icon`, `--lead`, `--start-date`, `--due-date`. Dates are calendar days (`YYYY-MM-DD`).
+Flags: `--title` (required), `--description`, `--status`, `--icon`, `--lead`, `--start-date`, `--due-date`, `--initiative`. Dates are calendar days (`YYYY-MM-DD`). `--initiative` attaches the new project to a parent initiative.
 
 ### Update Project
 
@@ -749,7 +804,7 @@ multica project update <id> --lead "Lambda"
 multica project update <id> --due-date 2026-04-15
 ```
 
-Flags: `--title`, `--description`, `--status`, `--icon`, `--lead`, `--start-date`, `--due-date`. For the date flags, pass an empty string (e.g. `--start-date ""`) to clear the date.
+Flags: `--title`, `--description`, `--status`, `--icon`, `--lead`, `--start-date`, `--due-date`, `--initiative`. For the date flags, pass an empty string (e.g. `--start-date ""`) to clear the date. `--initiative ""` detaches the project from its parent.
 
 ### Change Status
 

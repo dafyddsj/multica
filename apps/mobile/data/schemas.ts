@@ -25,6 +25,7 @@ import type {
   ListLabelsResponse,
   ListProjectResourcesResponse,
   ListProjectsResponse,
+  Initiative,
   MemberWithUser,
   PinnedItem,
   Project,
@@ -172,6 +173,8 @@ export const ProjectSchema = z.object({
   issue_count: z.number().default(0),
   done_count: z.number().default(0),
   resource_count: z.number().default(0),
+  // Older backends omit this key. Default to null so the list still parses.
+  initiative_id: z.string().nullable().default(null),
 }).loose();
 
 export const ListProjectsResponseSchema = z.object({
@@ -207,6 +210,26 @@ export const EMPTY_PROJECT: Project = {
   issue_count: 0,
   done_count: 0,
   resource_count: 0,
+  initiative_id: null,
+};
+
+export const EMPTY_INITIATIVE: Initiative = {
+  id: "",
+  workspace_id: "",
+  title: "",
+  description: null,
+  icon: null,
+  status: "planned",
+  priority: "none",
+  lead_type: null,
+  lead_id: null,
+  start_date: null,
+  due_date: null,
+  created_at: "",
+  updated_at: "",
+  project_count: 0,
+  issue_count: 0,
+  done_count: 0,
 };
 
 // Project resources are typed pointers to external resources (today: GitHub
@@ -520,13 +543,14 @@ export const WorkspaceListSchema = z.array(WorkspaceSchema).default([]);
 export const EMPTY_WORKSPACE_LIST: Workspace[] = [];
 
 /** Pin metadata only — display fields (title / status / icon) are NOT here,
- *  consumers derive them from `issueDetailOptions` / `projectDetailOptions`.
- *  Matches the design in packages/core/types/pin.ts. */
-export const PinnedItemSchema: z.ZodType<PinnedItem> = z.object({
+ *  consumers derive them from detail queries. item_type is an open string so
+ *  `initiative` (and future types) parse instead of being coerced to issue
+ *  or project. The pins screen ignores unknown types. */
+export const PinnedItemSchema = z.object({
   id: z.string(),
   workspace_id: z.string().default(""),
   user_id: z.string().default(""),
-  item_type: z.enum(["issue", "project"]).catch("issue"),
+  item_type: z.string(),
   item_id: z.string(),
   position: z.number().default(0),
   created_at: z.string().default(""),

@@ -1,0 +1,119 @@
+{
+  "page": {
+    "title": "이니셔티브",
+    "new_initiative": "새 이니셔티브",
+    "empty": "아직 이니셔티브가 없습니다",
+    "create_first": "첫 이니셔티브 만들기",
+    "view_compact": "간결하게",
+    "view_comfortable": "넓게",
+    "search_placeholder": "이니셔티브 검색...",
+    "no_search_results": "검색 결과가 없습니다",
+    "view_table": "테이블",
+    "view_cards": "카드",
+    "row_menu": "이니셔티브 작업",
+    "pin": "사이드바에 고정",
+    "unpin": "고정 해제",
+    "delete": "삭제",
+    "no_matches": "일치하는 이니셔티브가 없습니다",
+    "selected_other": "{{count}}개 선택됨",
+    "clear_selection": "선택 해제"
+  },
+  "table": {
+    "name": "이름",
+    "priority": "우선순위",
+    "status": "상태",
+    "progress": "진행률",
+    "lead": "리드",
+    "created": "생성일",
+    "projects": "프로젝트 수"
+  },
+  "status": {
+    "planned": "계획됨",
+    "in_progress": "진행 중",
+    "paused": "일시 중지",
+    "completed": "완료됨",
+    "cancelled": "취소됨"
+  },
+  "priority": {
+    "urgent": "긴급",
+    "high": "높음",
+    "medium": "보통",
+    "low": "낮음",
+    "none": "우선순위 없음"
+  },
+  "lead": {
+    "no_lead": "리드 없음",
+    "assign_placeholder": "리드 지정...",
+    "members_group": "멤버",
+    "agents_group": "에이전트",
+    "no_results": "결과 없음"
+  },
+  "relative_date": {
+    "today": "오늘",
+    "one_day_ago": "1일 전",
+    "days_ago": "{{count}}일 전",
+    "months_ago": "{{count}}개월 전"
+  },
+  "detail": {
+    "not_found": "이니셔티브를 찾을 수 없습니다",
+    "breadcrumb_fallback": "이니셔티브",
+    "title_placeholder": "이니셔티브 제목",
+    "icon_tooltip": "아이콘 변경",
+    "pin_tooltip": "사이드바에 고정",
+    "unpin_tooltip": "사이드바에서 고정 해제",
+    "sidebar_tooltip": "오른쪽 사이드바 전환",
+    "copy_link": "링크 복사",
+    "delete_action": "이니셔티브 삭제",
+    "section_properties": "속성",
+    "section_progress": "진행률",
+    "section_description": "설명",
+    "section_projects": "프로젝트",
+    "prop_start_date": "시작일",
+    "prop_due_date": "마감일",
+    "no_start_date": "시작일 없음",
+    "no_due_date": "마감일 없음",
+    "description_placeholder": "설명 추가...",
+    "description_hint": "이 이니셔티브의 작업에서 컨텍스트로 에이전트에게 공유됩니다.",
+    "empty_projects_title": "아직 프로젝트가 없습니다",
+    "empty_projects_hint": "이 이니셔티브에 프로젝트를 만들거나 기존 프로젝트를 연결하세요.",
+    "empty_projects_create": "새 프로젝트",
+    "empty_projects_attach": "프로젝트 연결",
+    "attach_search_placeholder": "프로젝트 검색...",
+    "attach_empty": "연결할 수 있는 프로젝트가 없습니다",
+    "no_issues_yet": "아직 태스크가 없습니다",
+    "toast_link_copied": "링크를 복사했습니다",
+    "toast_initiative_deleted": "이니셔티브를 삭제했습니다",
+    "toast_project_attached": "프로젝트를 연결했습니다",
+    "toast_project_attach_failed": "프로젝트를 연결하지 못했습니다"
+  },
+  "delete_dialog": {
+    "title": "이니셔티브 삭제",
+    "description": "이니셔티브가 삭제됩니다. 프로젝트는 삭제되지 않지만 연결은 해제됩니다.",
+    "confirm": "삭제",
+    "cancel": "취소"
+  },
+  "picker": {
+    "no_initiative": "이니셔티브 없음",
+    "empty": "아직 이니셔티브가 없습니다",
+    "search_placeholder": "이니셔티브 검색...",
+    "clear_aria": "이니셔티브 지우기"
+  },
+  "chip": {
+    "fallback_label": "이니셔티브"
+  },
+  "toolbar": {
+    "result_count_title": "일치하는 이니셔티브 / 전체 이니셔티브",
+    "filter_label": "필터",
+    "filter_active_count_other": "필터 {{count}}개",
+    "clear_filters": "필터 지우기",
+    "section_status": "상태",
+    "section_priority": "우선순위",
+    "section_lead": "리드",
+    "display": "표시",
+    "sort_by": "정렬",
+    "direction_asc": "오름차순",
+    "direction_desc": "내림차순",
+    "section_columns": "열",
+    "view": "보기"
+  }
+}

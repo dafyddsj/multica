@@ -143,6 +143,27 @@
     "local_invalid_dir": "This directory can't be used. Pick another.",
     "local_hint": "Agents on other machines won't see this path — they'll fail to start. Use repos for shared work."
   },
+  "create_initiative": {
+    "title": "New Initiative",
+    "title_breadcrumb": "New initiative",
+    "icon_tooltip": "Choose icon",
+    "title_placeholder": "Initiative title",
+    "description_placeholder": "Add description...",
+    "description_hint": "Shared with agents as context for work in this initiative.",
+    "lead": "Lead",
+    "no_lead": "No lead",
+    "set_start_date": "Set start date...",
+    "set_due_date": "Set due date...",
+    "more_options_aria": "More options",
+    "lead_placeholder": "Assign lead...",
+    "members_group": "Members",
+    "agents_group": "Agents",
+    "no_results": "No results",
+    "submit": "Create Initiative",
+    "submitting": "Creating...",
+    "toast_created": "Initiative created",
+    "toast_failed": "Failed to create initiative"
+  },
   "create_issue": {
     "sr_manual": "New Issue",
     "sr_agent": "Quick create issue",

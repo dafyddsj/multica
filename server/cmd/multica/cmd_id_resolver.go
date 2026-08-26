@@ -378,6 +378,35 @@ func fetchProjectCandidates(ctx context.Context, client *cli.APIClient) ([]idCan
 	return candidates, nil
 }
 
+func resolveInitiativeID(ctx context.Context, client *cli.APIClient, input string) (resolvedID, error) {
+	return resolveIDByPrefix(ctx, client, "initiative", input, fetchInitiativeCandidates)
+}
+
+func fetchInitiativeCandidates(ctx context.Context, client *cli.APIClient) ([]idCandidate, error) {
+	if client.WorkspaceID == "" {
+		return nil, fmt.Errorf("workspace_id is required to resolve initiative id prefixes")
+	}
+	params := url.Values{"workspace_id": {client.WorkspaceID}}
+	var result map[string]any
+	if err := client.GetJSON(ctx, "/api/initiatives?"+params.Encode(), &result); err != nil {
+		return nil, err
+	}
+	initiativesRaw, _ := result["initiatives"].([]any)
+	candidates := make([]idCandidate, 0, len(initiativesRaw))
+	for _, raw := range initiativesRaw {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		candidates = append(candidates, idCandidate{
+			ID:      strVal(item, "id"),
+			Display: strVal(item, "title"),
+			Detail:  strVal(item, "status"),
+		})
+	}
+	return candidates, nil
+}
+
 func resolveProjectResourceID(ctx context.Context, client *cli.APIClient, projectID, input string) (resolvedID, error) {
 	fetch := func(ctx context.Context, client *cli.APIClient) ([]idCandidate, error) {
 		var result map[string]any

@@ -9,37 +9,42 @@ import type {
   Issue,
   SearchIssueResult,
   SearchProjectResult,
+  SearchInitiativeResult,
 } from "@multica/core/types";
-import { partitionAggregatedSearchResults } from "@multica/core/search/cancelled-rank";
+import {
+  isProjectDirectHit,
+  partitionAggregatedSearchResults,
+  partitionStable,
+} from "@multica/core/search/cancelled-rank";
 
 export type RowItem =
   | { kind: "header"; key: string; title: string }
   | { kind: "issue"; key: string; issue: SearchIssueResult; query: string }
   | { kind: "project"; key: string; project: SearchProjectResult; query: string }
+  | { kind: "initiative"; key: string; initiative: SearchInitiativeResult; query: string }
   | { kind: "recent"; key: string; issue: Issue };
 
 /**
  * Builds the flat row list. Empty query → the Recent section; otherwise the
  * search results in cancelled-partition order:
  *
- *   Projects (live) → Issues (live) → Cancelled (projects then issues)
+ *   Initiatives (live) → Projects (live) → Issues (live) → Cancelled
  *
- * Projects and issues come from two independently ranked responses, and this
- * screen renders every project before every issue — so per-type ranking alone
- * let a single cancelled project be the first row of the list. One trailing
- * Cancelled section is the only arrangement in which no cancelled row of either
- * type can precede a live row of the other. Direct hits (exact identifier,
- * number, or title) stay in their live section.
+ * The three searches are ranked independently, so a cancelled row from one
+ * response would outrank a live row from another unless the partition happens
+ * at this aggregation point. Direct hits stay in their live section.
  */
 export function buildSearchRows({
   query,
   issues,
   projects,
+  initiatives = [],
   recentIssues,
 }: {
   query: string;
   issues: SearchIssueResult[];
   projects: SearchProjectResult[];
+  initiatives?: SearchInitiativeResult[];
   recentIssues: Issue[];
 }): RowItem[] {
   const trimmedQuery = query.trim();
@@ -61,8 +66,24 @@ export function buildSearchRows({
     projects,
     query: trimmedQuery,
   });
+  const initiativeParts = partitionStable(
+    initiatives,
+    (initiative) =>
+      initiative.status === "cancelled" && !isProjectDirectHit(initiative, trimmedQuery),
+  );
 
   const rows: RowItem[] = [];
+  if (initiativeParts.live.length > 0) {
+    rows.push({ kind: "header", key: "h-initiatives", title: "Initiatives" });
+    for (const initiative of initiativeParts.live) {
+      rows.push({
+        kind: "initiative",
+        key: `n-${initiative.id}`,
+        initiative,
+        query: trimmedQuery,
+      });
+    }
+  }
   if (parts.liveProjects.length > 0) {
     rows.push({ kind: "header", key: "h-projects", title: "Projects" });
     for (const project of parts.liveProjects) {
@@ -75,8 +96,18 @@ export function buildSearchRows({
       rows.push({ kind: "issue", key: `i-${issue.id}`, issue, query: trimmedQuery });
     }
   }
-  if (parts.hasCancelled) {
+  const hasCancelled =
+    parts.hasCancelled || initiativeParts.cancelled.length > 0;
+  if (hasCancelled) {
     rows.push({ kind: "header", key: "h-cancelled", title: "Cancelled" });
+    for (const initiative of initiativeParts.cancelled) {
+      rows.push({
+        kind: "initiative",
+        key: `n-${initiative.id}`,
+        initiative,
+        query: trimmedQuery,
+      });
+    }
     for (const project of parts.cancelledProjects) {
       rows.push({ kind: "project", key: `p-${project.id}`, project, query: trimmedQuery });
     }

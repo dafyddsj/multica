@@ -250,6 +250,10 @@ vi.mock("../../layout/animated-right-sidebar", () => ({
   }),
 }));
 
+vi.mock("../../initiatives/components/initiative-picker", () => ({
+  InitiativePicker: () => <div>Initiative picker</div>,
+}));
+
 const PROJECT: Project = {
   id: "project-1",
   workspace_id: "workspace-1",
@@ -267,6 +271,7 @@ const PROJECT: Project = {
   issue_count: 3,
   done_count: 1,
   resource_count: 0,
+  initiative_id: null,
 };
 
 function renderProjectDetail() {

@@ -4,6 +4,7 @@ import { render, renderHook } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { issueDetailOptions } from "@multica/core/issues/queries";
 import { projectDetailOptions } from "@multica/core/projects/queries";
+import { initiativeDetailOptions } from "@multica/core/initiatives/queries";
 import { chatSessionsOptions } from "@multica/core/chat/queries";
 import {
   inboxListOptions,
@@ -64,6 +65,11 @@ function seed(qc: QueryClient) {
     icon: "🚀",
     title: "Apollo",
   } as never);
+  qc.setQueryData(initiativeDetailOptions("ws1", "n1").queryKey, {
+    id: "n1",
+    icon: "🎯",
+    title: "Platform",
+  } as never);
   qc.setQueryData(chatSessionsOptions("ws1").queryKey, [
     { id: "s1", title: "Deploy plan", status: "active" },
     { id: "s2", title: "  ", status: "active" },
@@ -120,6 +126,13 @@ describe("useTabPresentation — live from cache", () => {
     expect(presentationOf("/acme/projects/p1")).toEqual({
       visual: { kind: "project-icon", icon: "🚀" },
       title: "Apollo",
+    });
+  });
+
+  it("initiative: own icon + title", () => {
+    expect(presentationOf("/acme/initiatives/n1")).toEqual({
+      visual: { kind: "project-icon", icon: "🎯" },
+      title: "Platform",
     });
   });
 

@@ -137,6 +137,7 @@ func init() {
 	projectCreateCmd.Flags().String("lead", "", "Lead name (member or agent)")
 	projectCreateCmd.Flags().String("start-date", "", "Start date (calendar day, YYYY-MM-DD)")
 	projectCreateCmd.Flags().String("due-date", "", "Due date (calendar day, YYYY-MM-DD)")
+	projectCreateCmd.Flags().String("initiative", "", "Parent initiative (id or title prefix)")
 	projectCreateCmd.Flags().StringArray("repo", nil, "Attach a github_repo resource by URL (may be repeated)")
 	projectCreateCmd.Flags().String("output", "json", "Output format: table or json")
 
@@ -184,6 +185,7 @@ func init() {
 	projectUpdateCmd.Flags().String("lead", "", "New lead name (member or agent)")
 	projectUpdateCmd.Flags().String("start-date", "", "New start date (calendar day, YYYY-MM-DD; pass empty string to clear)")
 	projectUpdateCmd.Flags().String("due-date", "", "New due date (calendar day, YYYY-MM-DD; pass empty string to clear)")
+	projectUpdateCmd.Flags().String("initiative", "", "Parent initiative (id or title prefix; pass empty string to detach)")
 	projectUpdateCmd.Flags().String("output", "json", "Output format: table or json")
 
 	// project delete
@@ -344,6 +346,13 @@ func runProjectCreate(cmd *cobra.Command, _ []string) error {
 	if v, _ := cmd.Flags().GetString("due-date"); v != "" {
 		body["due_date"] = v
 	}
+	if v, _ := cmd.Flags().GetString("initiative"); v != "" {
+		initRef, resolveErr := resolveInitiativeID(ctx, client, v)
+		if resolveErr != nil {
+			return fmt.Errorf("resolve initiative: %w", resolveErr)
+		}
+		body["initiative_id"] = initRef.ID
+	}
 
 	// Bundle resources into the create payload so the server attaches them in
 	// the same transaction; this avoids leaving a half-attached project on
@@ -439,9 +448,21 @@ func runProjectUpdate(cmd *cobra.Command, args []string) error {
 		v, _ := cmd.Flags().GetString("due-date")
 		body["due_date"] = v
 	}
+	if cmd.Flags().Changed("initiative") {
+		v, _ := cmd.Flags().GetString("initiative")
+		if strings.TrimSpace(v) == "" {
+			body["initiative_id"] = nil
+		} else {
+			initRef, resolveErr := resolveInitiativeID(ctx, client, v)
+			if resolveErr != nil {
+				return fmt.Errorf("resolve initiative: %w", resolveErr)
+			}
+			body["initiative_id"] = initRef.ID
+		}
+	}
 
 	if len(body) == 0 {
-		return fmt.Errorf("no fields to update; use flags like --title, --status, --description, --icon, --lead, --start-date, --due-date")
+		return fmt.Errorf("no fields to update; use flags like --title, --status, --description, --icon, --lead, --start-date, --due-date, --initiative")
 	}
 
 	var result map[string]any

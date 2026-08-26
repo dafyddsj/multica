@@ -38,6 +38,7 @@ const {
   mockPush,
   mockSearchIssues,
   mockSearchProjects,
+  mockSearchInitiatives,
   mockRecentItems,
   mockAllIssues,
   mockSetTheme,
@@ -59,6 +60,7 @@ const {
   mockPush: vi.fn(),
   mockSearchIssues: vi.fn(),
   mockSearchProjects: vi.fn(),
+  mockSearchInitiatives: vi.fn(),
   mockRecentItems: { current: [] as Array<{ id: string; visitedAt: number }> },
   mockAllIssues: { current: [] as Array<Record<string, unknown>> },
   mockSetTheme: vi.fn(),
@@ -106,6 +108,7 @@ vi.mock("@multica/core/api", () => ({
     getBaseUrl: () => "http://127.0.0.1:8080",
     searchIssues: mockSearchIssues,
     searchProjects: mockSearchProjects,
+    searchInitiatives: mockSearchInitiatives,
   },
 }));
 
@@ -180,6 +183,7 @@ vi.mock("@multica/core/paths", async (importOriginal) => ({
     myIssues: () => "/ws-test/my-issues",
     issues: () => "/ws-test/issues",
     projects: () => "/ws-test/projects",
+    initiatives: () => "/ws-test/initiatives",
     autopilots: () => "/ws-test/autopilots",
     agents: () => "/ws-test/agents",
     squads: () => "/ws-test/squads",
@@ -192,6 +196,7 @@ vi.mock("@multica/core/paths", async (importOriginal) => ({
     agentDetail: (id: string) => `/ws-test/agents/${id}`,
     squadDetail: (id: string) => `/ws-test/squads/${id}`,
     projectDetail: (id: string) => `/ws-test/projects/${id}`,
+    initiativeDetail: (id: string) => `/ws-test/initiatives/${id}`,
   }),
 }));
 
@@ -278,6 +283,7 @@ describe("SearchCommand", () => {
     mockPush.mockReset();
     mockSearchIssues.mockReset().mockResolvedValue({ issues: [] });
     mockSearchProjects.mockReset().mockResolvedValue({ projects: [] });
+    mockSearchInitiatives.mockReset().mockResolvedValue({ initiatives: [] });
     mockRecentItems.current = [];
     mockAllIssues.current = [];
     mockAgents.current = [];
@@ -1207,6 +1213,11 @@ describe("SearchCommand", () => {
       mockSearchProjects.mockImplementation(({ q }: { q: string }) =>
         q === "alpha"
           ? Promise.resolve({ projects: [], total: 0 })
+          : new Promise(() => {}),
+      );
+      mockSearchInitiatives.mockImplementation(({ q }: { q: string }) =>
+        q === "alpha"
+          ? Promise.resolve({ initiatives: [], total: 0 })
           : new Promise(() => {}),
       );
     };

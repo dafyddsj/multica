@@ -163,6 +163,7 @@ See [Daemon and runtimes](/daemon-runtimes) for how it works and for custom prof
 | Command | Purpose |
 | --- | --- |
 | `issue` | Create, update, assign, and search issues; manage comments, subscribers, labels, properties, and runs |
+| `initiative` | Manage initiatives |
 | `project` | Manage projects and their resources |
 | `label`, `property` | Manage workspace labels and custom properties |
 | `agent`, `skill`, `squad` | Manage agents, skills, and squads |
@@ -252,7 +253,9 @@ The tables below cover every current top-level command, grouped the way the CLI 
 | | `usage <issue-id>` | View aggregated token usage | |
 | | `rerun <id>` | Re-enqueue a run for the current assignee | |
 | | `cancel-task <task-id>` | Cancel a running or queued task | `--issue` |
-| `project` | `list/get/create/update/delete` | Manage projects | |
+| `initiative` | `list/get/create/update/delete` | Manage initiatives | `create`: `--title` (required), `--description`, `--status`, `--icon`, `--lead`, `--start-date`, `--due-date` |
+| | `status <id> <status>` | Change initiative status | |
+| `project` | `list/get/create/update/delete` | Manage projects | `create` / `update`: `--initiative` |
 | | `status <id> <status>` | Change project status | |
 | | `resource list/add/update/remove` | Manage project resources | `--type`, `--url`, `--local-path`, `--daemon-id`, `--execution-mode` (`in_place` / `worktree` for a local directory) |
 | `label` | `list/get/create/update/delete` | Manage workspace labels | |

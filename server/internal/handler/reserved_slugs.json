@@ -70,6 +70,7 @@
       "slugs": [
         "issues",
         "projects",
+        "initiatives",
         "autopilots",
         "agents",
         "squads",

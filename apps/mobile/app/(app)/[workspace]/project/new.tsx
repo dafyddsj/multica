@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/input-tokens";
 import { ProjectStatusIcon } from "@/components/ui/project-status-icon";
 import { ProjectPriorityIcon } from "@/components/ui/project-priority-icon";
+import { InitiativeIcon } from "@/components/ui/initiative-icon";
 import {
   projectPriorityLabel,
   projectStatusLabel,
@@ -48,10 +49,11 @@ import { useWorkspaceStore } from "@/data/workspace-store";
  * compile-checked rather than depending on free-form template strings —
  * same approach as `create-form-attribute-row.tsx`.
  */
-type NewProjectPickerField = "status" | "priority";
+type NewProjectPickerField = "status" | "priority" | "initiative";
 const NEW_PROJECT_PICKER_PATHNAMES = {
   status: "/[workspace]/new-project-picker/status",
   priority: "/[workspace]/new-project-picker/priority",
+  initiative: "/[workspace]/new-project-picker/initiative",
 } as const satisfies Record<NewProjectPickerField, string>;
 
 export default function NewProject() {
@@ -63,6 +65,7 @@ export default function NewProject() {
   const [description, setDescription] = useState("");
   const status = useNewProjectDraftStore((s) => s.status);
   const priority = useNewProjectDraftStore((s) => s.priority);
+  const initiative = useNewProjectDraftStore((s) => s.initiative);
   const resetDraft = useNewProjectDraftStore((s) => s.reset);
 
   const dirty =
@@ -70,7 +73,8 @@ export default function NewProject() {
     icon.length > 0 ||
     description.length > 0 ||
     status !== "planned" ||
-    priority !== "none";
+    priority !== "none" ||
+    initiative !== null;
 
   const canCreate = title.trim().length > 0 && !create.isPending;
 
@@ -117,6 +121,7 @@ export default function NewProject() {
         icon: icon.trim() || undefined,
         status,
         priority,
+        ...(initiative ? { initiative_id: initiative.id } : {}),
       },
       {
         onSuccess: (project) => {
@@ -147,6 +152,7 @@ export default function NewProject() {
     icon,
     status,
     priority,
+    initiative,
     wsSlug,
     resetDraft,
   ]);
@@ -246,6 +252,26 @@ export default function NewProject() {
               </Field>
             </View>
           </View>
+
+          <Field label="Initiative">
+            <Pressable
+              onPress={() => openPicker("initiative")}
+              className="flex-row items-center gap-2 bg-secondary/50 rounded-md px-3 py-2.5"
+            >
+              {initiative ? (
+                <InitiativeIcon icon={initiative.icon} size="sm" />
+              ) : null}
+              <Text
+                className={
+                  initiative
+                    ? "text-sm text-foreground flex-1"
+                    : "text-sm text-muted-foreground flex-1"
+                }
+              >
+                {initiative?.title ?? "No initiative"}
+              </Text>
+            </Pressable>
+          </Field>
         </ScrollView>
       </KeyboardAvoidingView>
     </>

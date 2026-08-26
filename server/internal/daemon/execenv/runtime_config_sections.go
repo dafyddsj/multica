@@ -410,6 +410,21 @@ func writeRepositories(b *strings.Builder, ctx TaskContextForEnv) {
 	b.WriteString("\n")
 }
 
+func writeInitiativeContext(b *strings.Builder, ctx TaskContextForEnv) {
+	if ctx.InitiativeID == "" && ctx.InitiativeTitle == "" && strings.TrimSpace(ctx.InitiativeDescription) == "" {
+		return
+	}
+	b.WriteString("## Initiative Context\n\n")
+	if ctx.InitiativeTitle != "" {
+		fmt.Fprintf(b, "The active project belongs to initiative **%s**.\n\n", ctx.InitiativeTitle)
+	}
+	if desc := strings.TrimSpace(ctx.InitiativeDescription); desc != "" {
+		b.WriteString("Initiative description — durable context for work under this initiative:\n\n")
+		b.WriteString(desc)
+		b.WriteString("\n\n")
+	}
+}
+
 // writeProjectContext emits the Project Context section when the task carries
 // an active project. Project context is independent of the task surface: an
 // issue inherits it from its project, while a chat receives it from the
@@ -935,6 +950,7 @@ func buildMetaSkillContentSlim(provider string, ctx TaskContextForEnv) string {
 		writeRepositories(&b, ctx)
 	}
 
+	writeInitiativeContext(&b, ctx)
 	writeProjectContext(&b, ctx)
 
 	if kind.hasIssueContext() {

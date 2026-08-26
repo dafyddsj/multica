@@ -656,8 +656,11 @@ deleted_runtimes AS (
 ),
 deleted_profiles AS (
     DELETE FROM runtime_profile WHERE runtime_profile.workspace_id = $1
+),
+deleted_projects AS (
+    DELETE FROM project WHERE project.workspace_id = $1
 )
-DELETE FROM project WHERE project.workspace_id = $1;
+DELETE FROM initiative WHERE initiative.workspace_id = $1;
 
 -- name: DeleteWorkspaceAdministration :exec
 WITH

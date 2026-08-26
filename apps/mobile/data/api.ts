@@ -21,11 +21,13 @@ import type {
   ChatPendingTask,
   ChatSession,
   Comment,
+  CreateInitiativeRequest,
   CreateIssueRequest,
   CreateLabelRequest,
   CreateProjectRequest,
   CreateProjectResourceRequest,
   InboxItem,
+  Initiative,
   Issue,
   IssueLabelsResponse,
   Label,
@@ -33,6 +35,7 @@ import type {
   ListIssuesParams,
   ListIssuesResponse,
   ListLabelsResponse,
+  ListInitiativesResponse,
   ListProjectResourcesResponse,
   ListProjectsResponse,
   MemberWithUser,
@@ -43,6 +46,7 @@ import type {
   Reaction,
   ReorderPinsRequest,
   RuntimeDevice,
+  SearchInitiativesResponse,
   SearchIssuesResponse,
   SearchProjectsResponse,
   ListIssueStatusesResponse,
@@ -52,6 +56,7 @@ import type {
   NotificationPreferences,
   TaskMessagePayload,
   TimelineEntry,
+  UpdateInitiativeRequest,
   UpdateIssueRequest,
   UpdateMeRequest,
   UpdateProjectRequest,
@@ -59,12 +64,17 @@ import type {
   Workspace,
 } from "@multica/core/types";
 import {
+  EMPTY_LIST_INITIATIVES_RESPONSE,
   EMPTY_LIST_ISSUE_STATUSES_RESPONSE,
   EMPTY_LIST_ISSUES_RESPONSE,
+  EMPTY_SEARCH_INITIATIVES_RESPONSE,
   EMPTY_TIMELINE_ENTRIES,
+  InitiativeDetailSchema,
   IssueSchema,
+  ListInitiativesResponseSchema,
   ListIssuesResponseSchema,
   ListIssueStatusesResponseSchema,
+  SearchInitiativesResponseSchema,
   TimelineEntriesSchema,
 } from "@multica/core/api/schemas";
 import {
@@ -93,6 +103,7 @@ import {
   EMPTY_LIST_PROJECTS_RESPONSE,
   EMPTY_MEMBER_LIST,
   EMPTY_NOTIFICATION_PREFERENCES,
+  EMPTY_INITIATIVE,
   EMPTY_PIN_LIST,
   EMPTY_PROJECT,
   EMPTY_RUNTIME_LIST,
@@ -899,10 +910,17 @@ class ApiClient {
   // --- Projects ---
   async listProjects(opts?: {
     signal?: AbortSignal;
+    status?: string;
+    initiative_id?: string;
   }): Promise<ListProjectsResponse> {
-    const raw = await this.fetch<unknown>("/api/projects", {
-      signal: opts?.signal,
-    });
+    const search = new URLSearchParams();
+    if (opts?.status) search.set("status", opts.status);
+    if (opts?.initiative_id) search.set("initiative_id", opts.initiative_id);
+    const query = search.toString();
+    const raw = await this.fetch<unknown>(
+      query ? `/api/projects?${query}` : "/api/projects",
+      { signal: opts?.signal },
+    );
     return parseWithFallback(
       raw,
       ListProjectsResponseSchema,
@@ -972,6 +990,71 @@ class ApiClient {
 
   async deleteProject(id: string): Promise<void> {
     await this.fetch<void>(`/api/projects/${id}`, { method: "DELETE" });
+  }
+
+  async listInitiatives(opts?: {
+    signal?: AbortSignal;
+    status?: string;
+  }): Promise<ListInitiativesResponse> {
+    const search = new URLSearchParams();
+    if (opts?.status) search.set("status", opts.status);
+    const query = search.toString();
+    return this.fetchValidated(
+      query ? `/api/initiatives?${query}` : "/api/initiatives",
+      ListInitiativesResponseSchema,
+      EMPTY_LIST_INITIATIVES_RESPONSE as ListInitiativesResponse,
+      { ...opts, endpoint: "GET /api/initiatives" },
+    );
+  }
+
+  async searchInitiatives(
+    params: { q: string; limit?: number; include_closed?: boolean; offset?: number },
+    opts?: { signal?: AbortSignal },
+  ): Promise<SearchInitiativesResponse> {
+    const search = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v == null) continue;
+      search.set(k, String(v));
+    }
+    return this.fetchValidated(
+      `/api/initiatives/search?${search.toString()}`,
+      SearchInitiativesResponseSchema,
+      EMPTY_SEARCH_INITIATIVES_RESPONSE,
+      { ...opts, endpoint: "GET /api/initiatives/search" },
+    );
+  }
+
+  async getInitiative(
+    id: string,
+    opts?: { signal?: AbortSignal },
+  ): Promise<Initiative> {
+    return this.fetchValidated(
+      `/api/initiatives/${id}`,
+      InitiativeDetailSchema,
+      EMPTY_INITIATIVE,
+      { ...opts, endpoint: "GET /api/initiatives/:id" },
+    );
+  }
+
+  async createInitiative(body: CreateInitiativeRequest): Promise<Initiative> {
+    return this.fetch<Initiative>("/api/initiatives", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async updateInitiative(
+    id: string,
+    body: UpdateInitiativeRequest,
+  ): Promise<Initiative> {
+    return this.fetch<Initiative>(`/api/initiatives/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  }
+
+  async deleteInitiative(id: string): Promise<void> {
+    await this.fetch<void>(`/api/initiatives/${id}`, { method: "DELETE" });
   }
 
   // --- Project resources ---

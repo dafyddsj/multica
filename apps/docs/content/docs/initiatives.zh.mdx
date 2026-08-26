@@ -1,0 +1,63 @@
+---
+title: 专项
+description: 把项目收在长期存在的产品、服务或计划下面。
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+专项是 [项目](/projects) 的长期父级。工作区里的层级是：工作区 → 专项 → 项目 → issue。
+
+产品、服务或长期计划放在专项上。项目是专项里有时限的工作：一次迭代、一次迁移、一次发布。一个项目最多属于一个专项。Issue 只通过项目挂上来，没有 issue 到专项的直接关联。
+
+只有一个项目时不必建专项。多个项目同属一个产品或计划、而你在单个项目结束后仍要看见它时，再创建专项。
+
+## 专项的组成
+
+| 内容 | 用途 |
+|---|---|
+| **名称、图标和描述** | 这个专项所代表的产品或计划。 |
+| **状态** | `planned`、`in_progress`、`paused`、`completed` 或 `cancelled`。与项目同一套词。 |
+| **优先级** | `urgent`、`high`、`medium`、`low` 或 `none`。 |
+| **负责人（lead）** | 成员或智能体，表示谁负责协调专项。 |
+| **开始和截止日期** | 可选的日历范围。 |
+| **项目** | 该专项下有时限的工作。 |
+
+## 专项和项目的关系
+
+一个项目最多属于一个专项。创建项目时就可以挂上，也可以事后再挂：
+
+```bash
+multica project create --title "2026 Week 16 Sprint" --initiative <initiative-id>
+multica project update <project-id> --initiative <initiative-id>
+multica project update <project-id> --initiative ""
+```
+
+`--initiative ""` 会把项目从专项上拆下来。Issue 仍留在项目上，不会跟着专项关联一起移动。
+
+专项状态与项目状态彼此独立：所有子项目完成后专项不会自动变为 `completed`，修改专项状态也不会批量修改其中的项目。
+
+## 专项负责人
+
+Lead 可以是成员或智能体，表示谁负责协调专项。它不是权限设置。
+
+## 创建、编辑和删除
+
+工作区成员都可以创建和编辑专项；只有 `owner` 和 `admin` 可以删除。
+
+```bash
+multica initiative list
+multica initiative get <initiative-id>
+multica initiative create --title "Platform"
+multica initiative update <initiative-id> --status in_progress
+multica initiative delete <initiative-id>
+```
+
+<Callout type="warning">
+删除专项不会删除其中的项目：它们解除关联后继续保留在工作区；专项的描述和状态会被永久删除。
+</Callout>
+
+## 接下来
+
+- [项目](/projects)。专项里有时限的工作。
+- [Issues](/issues)。项目中的具体工作。
+- [使用 CLI](/cli)。完整命令参考。

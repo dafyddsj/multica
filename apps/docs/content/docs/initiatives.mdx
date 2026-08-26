@@ -1,0 +1,63 @@
+---
+title: Initiatives
+description: Group projects under a durable product, service, or program.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+An initiative is the durable parent of [projects](/projects). Hierarchy in a workspace is Workspace → Initiative → Project → Issue.
+
+A product, service, or program lives on an initiative. A project is time-boxed work inside that parent: a sprint, a migration, a release. A project belongs to at most one initiative. Issues attach only through projects. There is no issue-to-initiative link.
+
+A single project does not require an initiative. Create one when several projects share a product or program that remains after any single project ends.
+
+## Parts of an initiative
+
+| Part | Purpose |
+|---|---|
+| **Name, icon, and description** | The product or program this initiative stands for. |
+| **Status** | `planned`, `in_progress`, `paused`, `completed`, or `cancelled`. Same vocabulary as projects. |
+| **Priority** | `urgent`, `high`, `medium`, `low`, or `none`. |
+| **Lead** | A member or an agent who coordinates the initiative. |
+| **Start and target dates** | Optional calendar range. |
+| **Projects** | Time-boxed work under this initiative. |
+
+## Initiatives and projects
+
+A project belongs to at most one initiative. Attach it when you create the project, or later:
+
+```bash
+multica project create --title "2026 Week 16 Sprint" --initiative <initiative-id>
+multica project update <project-id> --initiative <initiative-id>
+multica project update <project-id> --initiative ""
+```
+
+`--initiative ""` detaches the project. Issues stay on the project. They do not move with the initiative link.
+
+Initiative status and project status are independent. Completing every child project does not set the initiative to `completed`. Changing the initiative's status does not bulk-change its projects.
+
+## Initiative lead
+
+The lead can be a member or an agent, and marks who coordinates the initiative. It is not a permission setting.
+
+## Create, edit, and delete
+
+Any workspace member can create and edit initiatives. Only `owner` and `admin` can delete them.
+
+```bash
+multica initiative list
+multica initiative get <initiative-id>
+multica initiative create --title "Platform"
+multica initiative update <initiative-id> --status in_progress
+multica initiative delete <initiative-id>
+```
+
+<Callout type="warning">
+Deleting an initiative does not delete its projects: they detach and stay in the workspace. The initiative's description and status are permanently deleted.
+</Callout>
+
+## Next steps
+
+- [Projects](/projects). Time-boxed work inside an initiative.
+- [Issues](/issues). The concrete work inside a project.
+- [Using the CLI](/cli). Full command reference.

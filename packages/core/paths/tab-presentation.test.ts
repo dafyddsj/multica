@@ -23,6 +23,10 @@ describe("resolveTabPresentation — pages", () => {
       visual: { kind: "icon", icon: "FolderKanban" },
       title: { kind: "nav", navKey: "projects" },
     });
+    expect(present("/acme/initiatives")).toEqual({
+      visual: { kind: "icon", icon: "Target" },
+      title: { kind: "nav", navKey: "initiatives" },
+    });
   });
 });
 
@@ -54,6 +58,21 @@ describe("resolveTabPresentation — direct resources", () => {
     ).toEqual({
       visual: { kind: "project-icon", icon: "🚀" },
       title: { kind: "text", text: "Apollo" },
+    });
+  });
+
+  it("initiative reuses the project-icon visual and its own type label", () => {
+    expect(present("/acme/initiatives/n1")).toEqual({
+      visual: { kind: "project-icon", icon: null },
+      title: { kind: "tab", tabKey: "initiative" },
+    });
+    expect(
+      present("/acme/initiatives/n1", {
+        initiative: { icon: "🎯", title: "Platform" },
+      }),
+    ).toEqual({
+      visual: { kind: "project-icon", icon: "🎯" },
+      title: { kind: "text", text: "Platform" },
     });
   });
 

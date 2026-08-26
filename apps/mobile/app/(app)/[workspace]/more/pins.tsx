@@ -13,10 +13,10 @@
  * top comment.
  *
  * Rendering split by `item_type`:
- *   - issue → existing `<IssueRow>` (used by my-issues / more/issues /
- *     project-related-issues), `showStatus` because pins are heterogeneous
- *     (no section grouping by status).
- *   - project → existing `<ProjectRow>` (used by more/projects).
+ *   - issue → existing `<IssueRow>`
+ *   - project → existing `<ProjectRow>`
+ *   - initiative → existing `<InitiativeRow>`
+ *   - anything else (view, future types) → ignored, not rendered as a project
  *
  * Missing / no-permission rows: the detail query may 404 (issue/project
  * deleted, user lost access, server returned a parseWithFallback fallback
@@ -34,14 +34,16 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import type { Issue, PinnedItem, Project } from "@multica/core/types";
+import type { Initiative, Issue, PinnedItem, Project } from "@multica/core/types";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { IssueRow } from "@/components/issue/issue-row";
+import { InitiativeRow } from "@/components/initiative/initiative-row";
 import { ProjectRow } from "@/components/project/project-row";
 import { pinListOptions } from "@/data/queries/pins";
 import { useDeletePin } from "@/data/mutations/pins";
 import { issueDetailOptions } from "@/data/queries/issues";
+import { initiativeDetailOptions } from "@/data/queries/initiatives";
 import { projectDetailOptions } from "@/data/queries/projects";
 import { useAuthStore } from "@/data/auth-store";
 import { useWorkspaceStore } from "@/data/workspace-store";
@@ -60,7 +62,15 @@ export default function PinsPage() {
   // Sort by `position` ascending so the order matches web's sidebar
   // (the reorder endpoint writes 1-based positions there too).
   const pins = useMemo(
-    () => [...(data ?? [])].sort((a, b) => a.position - b.position),
+    () =>
+      [...(data ?? [])]
+        .filter(
+          (p) =>
+            p.item_type === "issue" ||
+            p.item_type === "project" ||
+            p.item_type === "initiative",
+        )
+        .sort((a, b) => a.position - b.position),
     [data],
   );
 
@@ -90,8 +100,8 @@ export default function PinsPage() {
     return (
       <View className="flex-1 items-center justify-center bg-background px-6">
         <Text className="text-sm text-muted-foreground text-center">
-          No pins yet. Pin an issue or project from its actions menu to
-          surface it here.
+          No pins yet. Pin an issue, project, or initiative from its actions
+          menu to surface it here.
         </Text>
       </View>
     );
@@ -129,11 +139,15 @@ function PinRow({
   wsSlug: string | null;
 }) {
   if (pin.item_type === "issue") {
-    return (
-      <IssuePinRow pin={pin} wsId={wsId} wsSlug={wsSlug} />
-    );
+    return <IssuePinRow pin={pin} wsId={wsId} wsSlug={wsSlug} />;
   }
-  return <ProjectPinRow pin={pin} wsId={wsId} wsSlug={wsSlug} />;
+  if (pin.item_type === "project") {
+    return <ProjectPinRow pin={pin} wsId={wsId} wsSlug={wsSlug} />;
+  }
+  if (pin.item_type === "initiative") {
+    return <InitiativePinRow pin={pin} wsId={wsId} wsSlug={wsSlug} />;
+  }
+  return null;
 }
 
 function IssuePinRow({
@@ -192,6 +206,34 @@ function ProjectPinRow({
   );
 }
 
+function InitiativePinRow({
+  pin,
+  wsId,
+  wsSlug,
+}: {
+  pin: PinnedItem;
+  wsId: string | null;
+  wsSlug: string | null;
+}) {
+  const { data, isLoading } = useQuery(
+    initiativeDetailOptions(wsId, pin.item_id),
+  );
+  const initiative = data && data.id ? (data as Initiative) : null;
+
+  if (isLoading) return <SkeletonRow />;
+  if (!initiative)
+    return <MissingPinRow itemType="initiative" itemId={pin.item_id} />;
+
+  return (
+    <InitiativeRow
+      initiative={initiative}
+      onPress={() => {
+        if (wsSlug) router.push(`/${wsSlug}/initiative/${initiative.id}`);
+      }}
+    />
+  );
+}
+
 function SkeletonRow() {
   return (
     <View className="px-4 py-3 flex-row items-center gap-3">
@@ -211,7 +253,7 @@ function MissingPinRow({
   itemType,
   itemId,
 }: {
-  itemType: "issue" | "project";
+  itemType: "issue" | "project" | "initiative";
   itemId: string;
 }) {
   const { colorScheme } = useColorScheme();

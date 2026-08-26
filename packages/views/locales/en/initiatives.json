@@ -1,0 +1,121 @@
+{
+  "page": {
+    "title": "Initiatives",
+    "new_initiative": "New initiative",
+    "empty": "No initiatives yet",
+    "create_first": "Create your first initiative",
+    "view_compact": "Compact",
+    "view_comfortable": "Comfortable",
+    "search_placeholder": "Search initiatives...",
+    "no_search_results": "No results match your search",
+    "view_table": "Table",
+    "view_cards": "Cards",
+    "row_menu": "Initiative actions",
+    "pin": "Pin to sidebar",
+    "unpin": "Unpin",
+    "delete": "Delete",
+    "no_matches": "No initiatives match",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "clear_selection": "Clear selection"
+  },
+  "table": {
+    "name": "Name",
+    "priority": "Priority",
+    "status": "Status",
+    "progress": "Progress",
+    "lead": "Lead",
+    "created": "Created",
+    "projects": "Projects"
+  },
+  "status": {
+    "planned": "Planned",
+    "in_progress": "In Progress",
+    "paused": "Paused",
+    "completed": "Completed",
+    "cancelled": "Cancelled"
+  },
+  "priority": {
+    "urgent": "Urgent",
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "none": "No priority"
+  },
+  "lead": {
+    "no_lead": "No lead",
+    "assign_placeholder": "Assign lead...",
+    "members_group": "Members",
+    "agents_group": "Agents",
+    "no_results": "No results"
+  },
+  "relative_date": {
+    "today": "Today",
+    "one_day_ago": "1d ago",
+    "days_ago": "{{count}}d ago",
+    "months_ago": "{{count}}mo ago"
+  },
+  "detail": {
+    "not_found": "Initiative not found",
+    "breadcrumb_fallback": "Initiatives",
+    "title_placeholder": "Initiative title",
+    "icon_tooltip": "Change icon",
+    "pin_tooltip": "Pin to sidebar",
+    "unpin_tooltip": "Unpin from sidebar",
+    "sidebar_tooltip": "Toggle right sidebar",
+    "copy_link": "Copy link",
+    "delete_action": "Delete initiative",
+    "section_properties": "Properties",
+    "section_progress": "Progress",
+    "section_description": "Description",
+    "section_projects": "Projects",
+    "prop_start_date": "Start date",
+    "prop_due_date": "Due date",
+    "no_start_date": "No start date",
+    "no_due_date": "No due date",
+    "description_placeholder": "Add description...",
+    "description_hint": "Shared with agents as context for work in this initiative.",
+    "empty_projects_title": "No projects yet",
+    "empty_projects_hint": "Create a project in this initiative, or attach an existing one.",
+    "empty_projects_create": "New project",
+    "empty_projects_attach": "Attach project",
+    "attach_search_placeholder": "Search projects...",
+    "attach_empty": "No unattached projects",
+    "no_issues_yet": "No issues yet",
+    "toast_link_copied": "Link copied",
+    "toast_initiative_deleted": "Initiative deleted",
+    "toast_project_attached": "Project attached",
+    "toast_project_attach_failed": "Failed to attach project"
+  },
+  "delete_dialog": {
+    "title": "Delete initiative",
+    "description": "This will delete the initiative. Projects will not be deleted but will be unlinked.",
+    "confirm": "Delete",
+    "cancel": "Cancel"
+  },
+  "picker": {
+    "no_initiative": "No initiative",
+    "empty": "No initiatives yet",
+    "search_placeholder": "Search initiatives...",
+    "clear_aria": "Clear initiative"
+  },
+  "chip": {
+    "fallback_label": "Initiative"
+  },
+  "toolbar": {
+    "result_count_title": "Matching initiatives / all initiatives",
+    "filter_label": "Filter",
+    "filter_active_count_one": "{{count}} filter",
+    "filter_active_count_other": "{{count}} filters",
+    "clear_filters": "Clear filters",
+    "section_status": "Status",
+    "section_priority": "Priority",
+    "section_lead": "Lead",
+    "display": "Display",
+    "sort_by": "Sort by",
+    "direction_asc": "Ascending",
+    "direction_desc": "Descending",
+    "section_columns": "Columns",
+    "view": "View"
+  }
+}

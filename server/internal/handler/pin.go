@@ -73,10 +73,14 @@ func (h *Handler) ListPins(w http.ResponseWriter, r *http.Request) {
 	// opening the sidebar — so view rows only ship to clients that declare
 	// they understand them (?include=view).
 	includeViews := strings.Contains(r.URL.Query().Get("include"), "view")
+	includeInitiatives := strings.Contains(r.URL.Query().Get("include"), "initiative")
 
 	resp := make([]PinnedItemResponse, 0, len(pins))
 	for _, p := range pins {
 		if p.ItemType == "view" && !includeViews {
+			continue
+		}
+		if p.ItemType == "initiative" && !includeInitiatives {
 			continue
 		}
 		resp = append(resp, pinnedItemToResponse(p))
@@ -96,8 +100,8 @@ func (h *Handler) CreatePin(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.ItemType != "issue" && req.ItemType != "project" && req.ItemType != "view" {
-		writeError(w, http.StatusBadRequest, "item_type must be 'issue', 'project' or 'view'")
+	if req.ItemType != "issue" && req.ItemType != "project" && req.ItemType != "view" && req.ItemType != "initiative" {
+		writeError(w, http.StatusBadRequest, "item_type must be 'issue', 'project', 'view' or 'initiative'")
 		return
 	}
 	if req.ItemID == "" {
@@ -139,6 +143,13 @@ func (h *Handler) CreatePin(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil || !canReadIssueView(view, parseUUID(userID)) {
 			writeError(w, http.StatusNotFound, "view not found")
+			return
+		}
+	case "initiative":
+		if _, err := h.Queries.GetInitiativeInWorkspace(r.Context(), db.GetInitiativeInWorkspaceParams{
+			ID: itemUUID, WorkspaceID: wsUUID,
+		}); err != nil {
+			writeError(w, http.StatusNotFound, "initiative not found")
 			return
 		}
 	}

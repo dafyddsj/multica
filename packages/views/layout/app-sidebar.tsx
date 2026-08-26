@@ -77,9 +77,11 @@ import { pinListOptions } from "@multica/core/pins/queries";
 import { useDeletePin, useReorderPins } from "@multica/core/pins/mutations";
 import { issueDetailOptions } from "@multica/core/issues/queries";
 import { projectDetailOptions } from "@multica/core/projects/queries";
+import { initiativeDetailOptions } from "@multica/core/initiatives/queries";
 import type { PinnedItem } from "@multica/core/types";
 import { useLogout } from "../auth";
 import { ProjectIcon } from "../projects/components/project-icon";
+import { InitiativeIcon } from "../initiatives/components/initiative-icon";
 import { routeIconForPath } from "./route-icon-components";
 import { useT } from "../i18n";
 import {
@@ -115,6 +117,7 @@ type NavKey =
   | "chat"
   | "myIssues"
   | "issues"
+  | "initiatives"
   | "projects"
   | "autopilots"
   | "agents"
@@ -131,6 +134,7 @@ type NavLabelKey =
   | "chat"
   | "my_issues"
   | "issues"
+  | "initiatives"
   | "projects"
   | "autopilots"
   | "agents"
@@ -151,6 +155,7 @@ const personalNav: { key: NavKey; labelKey: NavLabelKey }[] = [
 
 const workspaceNav: { key: NavKey; labelKey: NavLabelKey }[] = [
   { key: "issues", labelKey: "issues" },
+  { key: "initiatives", labelKey: "initiatives" },
   { key: "projects", labelKey: "projects" },
   { key: "autopilots", labelKey: "autopilots" },
   { key: "agents", labelKey: "agents" },
@@ -285,6 +290,7 @@ function PinRow({
 }) {
   const isIssue = pin.item_type === "issue";
   const isView = pin.item_type === "view";
+  const isInitiative = pin.item_type === "initiative";
   const p = useWorkspacePaths();
   const setActiveView = useActiveIssueViewStore((s) => s.setActive);
   const issueQuery = useQuery({
@@ -294,6 +300,10 @@ function PinRow({
   const projectQuery = useQuery({
     ...projectDetailOptions(wsId, pin.item_id),
     enabled: pin.item_type === "project",
+  });
+  const initiativeQuery = useQuery({
+    ...initiativeDetailOptions(wsId, pin.item_id),
+    enabled: isInitiative,
   });
   const viewQuery = useQuery({
     ...issueViewDetailOptions(wsId, pin.item_id),
@@ -307,12 +317,16 @@ function PinRow({
     // every view pin — auto-unpinning would permanently delete them all.
     // A deleted view's row simply hides instead.
     if (isView) return;
-    const err = isIssue ? issueQuery.error : projectQuery.error;
+    const err = isIssue
+      ? issueQuery.error
+      : isInitiative
+        ? initiativeQuery.error
+        : projectQuery.error;
     if (err instanceof ApiError && err.status === 404 && !triggeredRef.current) {
       triggeredRef.current = true;
       onUnpin();
     }
-  }, [isIssue, isView, issueQuery.error, onUnpin, projectQuery.error]);
+  }, [isIssue, isView, isInitiative, issueQuery.error, initiativeQuery.error, onUnpin, projectQuery.error]);
 
   const activeViewByContainer = useActiveIssueViewStore((s) => s.active);
   if (isView) {
@@ -380,6 +394,22 @@ function PinRow({
         onUnpin={onUnpin}
         label={label}
         iconNode={iconNode}
+      />
+    );
+  }
+
+  if (isInitiative) {
+    if (initiativeQuery.isPending) return <PinSkeleton />;
+    if (initiativeQuery.isError || !initiativeQuery.data) return null;
+    const initiative = initiativeQuery.data;
+    return (
+      <SortablePinItem
+        pin={pin}
+        href={href}
+        pathname={pathname}
+        onUnpin={onUnpin}
+        label={initiative.title}
+        iconNode={<InitiativeIcon initiative={initiative} size="sm" />}
       />
     );
   }
@@ -514,9 +544,11 @@ export function AppSidebar({ topSlot, searchSlot, headerClassName, headerStyle }
         ? p.issueDetail(pin.item_id)
         : pin.item_type === "project"
           ? p.projectDetail(pin.item_id)
-          // Views know their target only after their detail loads — the row
-          // resolves its own href; this placeholder never renders as a link.
-          : "",
+          : pin.item_type === "initiative"
+            ? p.initiativeDetail(pin.item_id)
+            // Views know their target only after their detail loads — the row
+            // resolves its own href; this placeholder never renders as a link.
+            : "",
     [p],
   );
 

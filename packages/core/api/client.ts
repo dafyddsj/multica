@@ -9,6 +9,7 @@ import type {
   ListIssuesResponse,
   SearchIssuesResponse,
   SearchProjectsResponse,
+  SearchInitiativesResponse,
   UpdateMeRequest,
   CreateMemberRequest,
   UpdateMemberRequest,
@@ -99,6 +100,10 @@ import type {
   CreateProjectRequest,
   UpdateProjectRequest,
   ListProjectsResponse,
+  Initiative,
+  CreateInitiativeRequest,
+  UpdateInitiativeRequest,
+  ListInitiativesResponse,
   ProjectResource,
   CreateProjectResourceRequest,
   UpdateProjectResourceRequest,
@@ -285,6 +290,8 @@ import {
   EMPTY_LIST_ISSUES_RESPONSE,
   EMPTY_SEARCH_ISSUES_RESPONSE,
   EMPTY_SEARCH_PROJECTS_RESPONSE,
+  EMPTY_SEARCH_INITIATIVES_RESPONSE,
+  EMPTY_LIST_INITIATIVES_RESPONSE,
   EMPTY_SQUAD,
   EMPTY_SQUAD_LIST,
   EMPTY_SQUAD_MEMBER_STATUS_LIST,
@@ -318,6 +325,9 @@ import {
   RuntimeUsageListSchema,
   SearchIssuesResponseSchema,
   SearchProjectsResponseSchema,
+  SearchInitiativesResponseSchema,
+  ListInitiativesResponseSchema,
+  InitiativeDetailSchema,
   SquadSchema,
   SquadListSchema,
   SquadMemberStatusListResponseSchema,
@@ -1010,6 +1020,20 @@ export class ApiClient {
     );
     return parseWithFallback(raw, SearchProjectsResponseSchema, EMPTY_SEARCH_PROJECTS_RESPONSE, {
       endpoint: "GET /api/projects/search",
+    });
+  }
+
+  async searchInitiatives(params: { q: string; limit?: number; offset?: number; include_closed?: boolean; signal?: AbortSignal }): Promise<SearchInitiativesResponse> {
+    const search = new URLSearchParams({ q: params.q });
+    if (params.limit !== undefined) search.set("limit", String(params.limit));
+    if (params.offset !== undefined) search.set("offset", String(params.offset));
+    if (params.include_closed) search.set("include_closed", "true");
+    const raw = await this.fetch<unknown>(
+      `/api/initiatives/search?${search}`,
+      params.signal ? { signal: params.signal } : undefined,
+    );
+    return parseWithFallback(raw, SearchInitiativesResponseSchema, EMPTY_SEARCH_INITIATIVES_RESPONSE, {
+      endpoint: "GET /api/initiatives/search",
     });
   }
 
@@ -3483,9 +3507,10 @@ export class ApiClient {
   }
 
   // Projects
-  async listProjects(params?: { status?: string }): Promise<ListProjectsResponse> {
+  async listProjects(params?: { status?: string; initiative_id?: string }): Promise<ListProjectsResponse> {
     const search = new URLSearchParams();
     if (params?.status) search.set("status", params.status);
+    if (params?.initiative_id) search.set("initiative_id", params.initiative_id);
     return this.fetch(`/api/projects?${search}`);
   }
 
@@ -3509,6 +3534,61 @@ export class ApiClient {
 
   async deleteProject(id: string): Promise<void> {
     await this.fetch(`/api/projects/${id}`, { method: "DELETE" });
+  }
+
+  async listInitiatives(params?: { status?: string }): Promise<ListInitiativesResponse> {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    const raw = await this.fetch<unknown>(`/api/initiatives?${search}`);
+    return parseWithFallback(
+      raw,
+      ListInitiativesResponseSchema,
+      EMPTY_LIST_INITIATIVES_RESPONSE as ListInitiativesResponse,
+      { endpoint: "GET /api/initiatives" },
+    );
+  }
+
+  async getInitiative(id: string): Promise<Initiative> {
+    const raw = await this.fetch<unknown>(`/api/initiatives/${id}`);
+    const initiative = parseWithFallback<Initiative | null>(raw, InitiativeDetailSchema, null, {
+      endpoint: "GET /api/initiatives/:id",
+    });
+    if (!initiative) {
+      throw new Error("GET /api/initiatives/:id returned a malformed initiative");
+    }
+    return initiative;
+  }
+
+  async createInitiative(data: CreateInitiativeRequest): Promise<Initiative> {
+    const raw = await this.fetch<unknown>("/api/initiatives", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    const initiative = parseWithFallback<Initiative | null>(raw, InitiativeDetailSchema, null, {
+      endpoint: "POST /api/initiatives",
+    });
+    if (!initiative) {
+      throw new Error("POST /api/initiatives returned a malformed initiative");
+    }
+    return initiative;
+  }
+
+  async updateInitiative(id: string, data: UpdateInitiativeRequest): Promise<Initiative> {
+    const raw = await this.fetch<unknown>(`/api/initiatives/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+    const initiative = parseWithFallback<Initiative | null>(raw, InitiativeDetailSchema, null, {
+      endpoint: "PUT /api/initiatives/:id",
+    });
+    if (!initiative) {
+      throw new Error("PUT /api/initiatives/:id returned a malformed initiative");
+    }
+    return initiative;
+  }
+
+  async deleteInitiative(id: string): Promise<void> {
+    await this.fetch(`/api/initiatives/${id}`, { method: "DELETE" });
   }
 
   // Project resources
@@ -3944,7 +4024,7 @@ export class ApiClient {
     // include=view is the capability opt-in: the server withholds view pins
     // from clients that don't declare support (old builds treated any
     // non-issue pin as a project pin and auto-deleted it on 404).
-    return this.fetch("/api/pins?include=view");
+    return this.fetch("/api/pins?include=view,initiative");
   }
 
   async createPin(data: CreatePinRequest): Promise<PinnedItem> {

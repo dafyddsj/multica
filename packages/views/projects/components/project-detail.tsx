@@ -28,6 +28,7 @@ import { PriorityIcon } from "../../issues/components/priority-icon";
 import { ProjectResourcesSection } from "./project-resources-section";
 import { ProjectStartDatePicker } from "./project-start-date-picker";
 import { ProjectDueDatePicker } from "./project-due-date-picker";
+import { InitiativePicker } from "../../initiatives/components/initiative-picker";
 import { IssueSurface } from "../../issues/surface/issue-surface";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { Button } from "@multica/ui/components/ui/button";
@@ -411,6 +412,12 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </PropRow>
           <PropRow label={t(($) => $.detail.prop_due_date)}>
             <ProjectDueDatePicker dueDate={project.due_date} onUpdate={handleUpdateField} />
+          </PropRow>
+          <PropRow label={t(($) => $.detail.prop_initiative)}>
+            <InitiativePicker
+              initiativeId={project.initiative_id}
+              onUpdate={handleUpdateField}
+            />
           </PropRow>
         </div>}
       </div>

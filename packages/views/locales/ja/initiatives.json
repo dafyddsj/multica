@@ -1,0 +1,119 @@
+{
+  "page": {
+    "title": "イニシアチブ",
+    "new_initiative": "新規イニシアチブ",
+    "empty": "イニシアチブはまだありません",
+    "create_first": "最初のイニシアチブを作成",
+    "view_compact": "コンパクト",
+    "view_comfortable": "ゆったり",
+    "search_placeholder": "イニシアチブを検索...",
+    "no_search_results": "検索条件に一致する結果はありません",
+    "view_table": "テーブル",
+    "view_cards": "カード",
+    "row_menu": "イニシアチブの操作",
+    "pin": "サイドバーにピン留め",
+    "unpin": "ピン留め解除",
+    "delete": "削除",
+    "no_matches": "該当するイニシアチブはありません",
+    "selected_other": "{{count}} 件選択中",
+    "clear_selection": "選択を解除"
+  },
+  "table": {
+    "name": "名前",
+    "priority": "優先度",
+    "status": "ステータス",
+    "progress": "進捗",
+    "lead": "リード",
+    "created": "作成日",
+    "projects": "プロジェクト数"
+  },
+  "status": {
+    "planned": "計画中",
+    "in_progress": "進行中",
+    "paused": "一時停止",
+    "completed": "完了",
+    "cancelled": "キャンセル"
+  },
+  "priority": {
+    "urgent": "緊急",
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "none": "優先度なし"
+  },
+  "lead": {
+    "no_lead": "リードなし",
+    "assign_placeholder": "リードを指定...",
+    "members_group": "メンバー",
+    "agents_group": "エージェント",
+    "no_results": "結果なし"
+  },
+  "relative_date": {
+    "today": "今日",
+    "one_day_ago": "1日前",
+    "days_ago": "{{count}}日前",
+    "months_ago": "{{count}}ヶ月前"
+  },
+  "detail": {
+    "not_found": "イニシアチブが見つかりません",
+    "breadcrumb_fallback": "イニシアチブ",
+    "title_placeholder": "イニシアチブのタイトル",
+    "icon_tooltip": "アイコンを変更",
+    "pin_tooltip": "サイドバーにピン留め",
+    "unpin_tooltip": "サイドバーからピン留め解除",
+    "sidebar_tooltip": "右サイドバーを切り替え",
+    "copy_link": "リンクをコピー",
+    "delete_action": "イニシアチブを削除",
+    "section_properties": "プロパティ",
+    "section_progress": "進捗",
+    "section_description": "説明",
+    "section_projects": "プロジェクト",
+    "prop_start_date": "開始日",
+    "prop_due_date": "期限",
+    "no_start_date": "開始日なし",
+    "no_due_date": "期限なし",
+    "description_placeholder": "説明を追加...",
+    "description_hint": "このイニシアチブの作業で、コンテキストとしてエージェントに共有されます。",
+    "empty_projects_title": "プロジェクトはまだありません",
+    "empty_projects_hint": "このイニシアチブにプロジェクトを作成するか、既存のプロジェクトを関連付けてください。",
+    "empty_projects_create": "新規プロジェクト",
+    "empty_projects_attach": "プロジェクトを関連付ける",
+    "attach_search_placeholder": "プロジェクトを検索...",
+    "attach_empty": "関連付けできるプロジェクトはありません",
+    "no_issues_yet": "タスクはまだありません",
+    "toast_link_copied": "リンクをコピーしました",
+    "toast_initiative_deleted": "イニシアチブを削除しました",
+    "toast_project_attached": "プロジェクトを関連付けました",
+    "toast_project_attach_failed": "プロジェクトを関連付けできませんでした"
+  },
+  "delete_dialog": {
+    "title": "イニシアチブを削除",
+    "description": "イニシアチブが削除されます。プロジェクトは削除されませんが、リンクが解除されます。",
+    "confirm": "削除",
+    "cancel": "キャンセル"
+  },
+  "picker": {
+    "no_initiative": "イニシアチブなし",
+    "empty": "イニシアチブはまだありません",
+    "search_placeholder": "イニシアチブを検索...",
+    "clear_aria": "イニシアチブをクリア"
+  },
+  "chip": {
+    "fallback_label": "イニシアチブ"
+  },
+  "toolbar": {
+    "result_count_title": "該当イニシアチブ / すべてのイニシアチブ",
+    "filter_label": "フィルター",
+    "filter_active_count_other": "{{count}} 件のフィルター",
+    "clear_filters": "フィルターをクリア",
+    "section_status": "ステータス",
+    "section_priority": "優先度",
+    "section_lead": "リード",
+    "display": "表示",
+    "sort_by": "並び替え",
+    "direction_asc": "昇順",
+    "direction_desc": "降順",
+    "section_columns": "列",
+    "view": "ビュー"
+  }
+}

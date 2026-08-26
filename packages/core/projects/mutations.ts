@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { projectKeys } from "./queries";
+import { initiativeKeys } from "../initiatives/queries";
 import { useWorkspaceId } from "../hooks";
 import { useRecentContextStore } from "../chat/recent-context-store";
 import { clearIssueSurfaceViewState } from "../issues/stores/surface-view-store";
@@ -21,6 +22,7 @@ export function useCreateProject() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: projectKeys.list(wsId) });
+      qc.invalidateQueries({ queryKey: initiativeKeys.all(wsId) });
     },
   });
 }
@@ -50,6 +52,7 @@ export function useUpdateProject() {
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: projectKeys.detail(wsId, vars.id) });
       qc.invalidateQueries({ queryKey: projectKeys.list(wsId) });
+      qc.invalidateQueries({ queryKey: initiativeKeys.all(wsId) });
     },
   });
 }
@@ -77,6 +80,7 @@ export function useDeleteProject() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: projectKeys.list(wsId) });
+      qc.invalidateQueries({ queryKey: initiativeKeys.all(wsId) });
     },
   });
 }

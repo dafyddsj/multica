@@ -167,6 +167,16 @@ export type {
 } from "./chat";
 export type { StorageAdapter } from "./storage";
 export type {
+  Initiative,
+  InitiativeStatus,
+  InitiativePriority,
+  CreateInitiativeRequest,
+  UpdateInitiativeRequest,
+  ListInitiativesResponse,
+  SearchInitiativeResult,
+  SearchInitiativesResponse,
+} from "./initiative";
+export type {
   Project,
   ProjectStatus,
   ProjectPriority,

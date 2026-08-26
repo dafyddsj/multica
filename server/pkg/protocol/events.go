@@ -98,6 +98,10 @@ const (
 	EventProjectResourceUpdated = "project_resource:updated"
 	EventProjectResourceDeleted = "project_resource:deleted"
 
+	EventInitiativeCreated = "initiative:created"
+	EventInitiativeUpdated = "initiative:updated"
+	EventInitiativeDeleted = "initiative:deleted"
+
 	// Label events
 	EventLabelCreated       = "label:created"
 	EventLabelUpdated       = "label:updated"

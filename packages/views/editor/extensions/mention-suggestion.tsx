@@ -35,6 +35,7 @@ import { ListTodo } from "lucide-react";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { StatusIcon } from "../../issues/components/status-icon";
 import { ProjectIcon } from "../../projects/components/project-icon";
+import { InitiativeIcon } from "../../initiatives/components/initiative-icon";
 import { useT } from "../../i18n";
 import { Badge } from "@multica/ui/components/ui/badge";
 import {
@@ -43,8 +44,9 @@ import {
   TooltipTrigger,
 } from "@multica/ui/components/ui/tooltip";
 import { cn } from "@multica/ui/lib/utils";
-import type { IssueStatus, IssueStatusCategory, ProjectStatus } from "@multica/core/types";
+import type { IssueStatus, IssueStatusCategory, ProjectStatus, InitiativeStatus } from "@multica/core/types";
 import { PROJECT_STATUS_CONFIG } from "@multica/core/projects/config";
+import { INITIATIVE_STATUS_CONFIG } from "@multica/core/initiatives/config";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { PluginKey } from "@tiptap/pm/state";
 import {
@@ -70,7 +72,7 @@ import { blockedReasonLabel } from "../../issues/blocked-trigger-copy";
 export interface MentionItem {
   id: string;
   label: string;
-  type: "member" | "agent" | "squad" | "issue" | "project" | "all";
+  type: "member" | "agent" | "squad" | "issue" | "project" | "initiative" | "all";
   /** Optional grouping hint for injected context items. */
   group?: "current" | "recent" | "search";
   /** Secondary text shown beside the label (e.g. issue title) */
@@ -84,10 +86,10 @@ export interface MentionItem {
    * done status looking and ranking like active work. (MUL-6243)
    */
   statusCategory?: IssueStatusCategory;
-  /** Project emoji/icon snapshot for ProjectIcon rendering */
   icon?: string | null;
   /** Project status snapshot for recent/current project rendering */
   projectStatus?: ProjectStatus;
+  initiativeStatus?: InitiativeStatus;
   /** Present when the target should remain discoverable but cannot be selected. */
   disabledReason?: "agent_runtime_required";
 }
@@ -129,7 +131,7 @@ function groupItems(items: MentionItem[], query: string): MentionGroup[] {
       recent.push(item);
     } else if (item.group === "search") {
       search.push(item);
-    } else if (item.type === "issue" || item.type === "project") {
+    } else if (item.type === "issue" || item.type === "project" || item.type === "initiative") {
       issues.push(item);
     } else {
       users.push(item);
@@ -204,6 +206,7 @@ function isDemotedCancelled(item: MentionItem, query: string): boolean {
   if (isPinnedAboveTruncation(item, query)) return false;
   if (item.type === "issue") return item.statusCategory === "cancelled";
   if (item.type === "project") return item.projectStatus === "cancelled";
+  if (item.type === "initiative") return item.initiativeStatus === "cancelled";
   return false;
 }
 
@@ -227,7 +230,7 @@ function isPinnedAboveTruncation(item: MentionItem, query: string): boolean {
       query,
     );
   }
-  if (item.type === "project") {
+  if (item.type === "project" || item.type === "initiative") {
     return isProjectDirectHit({ title: item.label }, query);
   }
   return false;
@@ -301,7 +304,7 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
         void (async () => {
           try {
             if (includeProjectSearch) {
-              const [issues, projects] = await Promise.all([
+              const [issues, projects, initiatives] = await Promise.all([
                 api.searchIssues({
                   q,
                   limit: SERVER_CONTEXT_SEARCH_LIMIT,
@@ -314,11 +317,18 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
                   include_closed: true,
                   signal: controller.signal,
                 }),
+                api.searchInitiatives({
+                  q,
+                  limit: SERVER_CONTEXT_SEARCH_LIMIT,
+                  include_closed: true,
+                  signal: controller.signal,
+                }),
               ]);
               if (!cancelled && !controller.signal.aborted) {
                 setServerItems([
                   ...issues.issues.map((issue) => ({ ...issueToMention(issue), group: "search" as const })),
                   ...projects.projects.map((project) => ({ ...projectToMention(project), group: "search" as const })),
+                  ...initiatives.initiatives.map((initiative) => ({ ...initiativeToMention(initiative), group: "search" as const })),
                 ]);
               }
             } else {
@@ -569,8 +579,10 @@ function MentionRow({
     );
   }
 
-  if (item.type === "project") {
-    const projectStatusCfg = item.projectStatus ? PROJECT_STATUS_CONFIG[item.projectStatus] : null;
+  if (item.type === "project" || item.type === "initiative") {
+    const statusCfg = item.type === "initiative"
+      ? (item.initiativeStatus ? INITIATIVE_STATUS_CONFIG[item.initiativeStatus] : null)
+      : (item.projectStatus ? PROJECT_STATUS_CONFIG[item.projectStatus] : null);
     return (
       <button
         type="button"
@@ -581,7 +593,11 @@ function MentionRow({
         onClick={onSelect}
       >
         <span className="flex h-7 w-7 shrink-0 items-center justify-center">
-          <ProjectIcon project={{ icon: item.icon ?? null }} size="sm" />
+          {item.type === "initiative" ? (
+            <InitiativeIcon initiative={{ icon: item.icon ?? null }} size="sm" />
+          ) : (
+            <ProjectIcon project={{ icon: item.icon ?? null }} size="sm" />
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-foreground">{item.label}</span>
@@ -591,8 +607,8 @@ function MentionRow({
             </span>
           )}
         </span>
-        {projectStatusCfg && (
-          <span className={`${projectStatusCfg.dotColor} ml-auto size-1.5 shrink-0 rounded-full`} />
+        {statusCfg && (
+          <span className={`${statusCfg.dotColor} ml-auto size-1.5 shrink-0 rounded-full`} />
         )}
       </button>
     );
@@ -673,6 +689,17 @@ function projectToMention(p: { id: string; title: string; description?: string |
     description: p.description ?? undefined,
     icon: p.icon ?? null,
     projectStatus: p.status,
+  };
+}
+
+function initiativeToMention(p: { id: string; title: string; description?: string | null; icon?: string | null; status?: InitiativeStatus }): MentionItem {
+  return {
+    id: p.id,
+    label: p.title,
+    type: "initiative" as const,
+    description: p.description ?? undefined,
+    icon: p.icon ?? null,
+    initiativeStatus: p.status,
   };
 }
 

@@ -33,13 +33,13 @@ label between the brackets is free text — that is where the human-readable nam
 goes.
 
 One `mention://` form deliberately sits OUTSIDE this parser:
-`[Label](mention://project/<uuid>)`. `project` is absent from the type group
-above, so the backend never parses it and it can enqueue nothing — it is a
-render-only link every client makes navigable (a chip on web and desktop, an
-ordinary link that opens the project on tap on mobile). That is the whole point:
-a project reference should never be able to start a run. Use it freely to point
-at a project (see the multica-projects-and-resources skill); everything else in
-this document is about the four types (plus `all`) the parser does recognize.
+`[Label](mention://project/<uuid>)` and `[Label](mention://initiative/<uuid>)`.
+`project` and `initiative` are absent from the type group above, so the backend
+never parses them and they can enqueue nothing — they are render-only links
+every client makes navigable. A project or initiative reference should never
+start a run. Use them freely to point at a parent (see the
+multica-projects-and-resources and multica-initiatives skills); everything else
+in this document is about the four types (plus `all`) the parser does recognize.
 
 ## Step 1 — look up the UUID with `--output json`
 

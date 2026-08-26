@@ -76,6 +76,7 @@ import type {
   RuntimeModelListRequest,
   SearchIssuesResponse,
   SearchProjectsResponse,
+  SearchInitiativesResponse,
   ShareLink,
   ShareLinkInfo,
   Skill,
@@ -1300,6 +1301,7 @@ const ProjectSchema = z.object({
   issue_count: z.number().default(0),
   done_count: z.number().default(0),
   resource_count: z.number().default(0),
+  initiative_id: z.string().nullable().default(null),
 }).loose();
 
 const SearchProjectResultSchema = ProjectSchema.extend({
@@ -1316,6 +1318,52 @@ export const EMPTY_SEARCH_PROJECTS_RESPONSE: SearchProjectsResponse = {
   projects: [],
   total: 0,
 };
+
+const InitiativeSchema = z.object({
+  id: z.string(),
+  workspace_id: z.string(),
+  title: z.string(),
+  description: z.string().nullable(),
+  icon: z.string().nullable(),
+  status: z.string(),
+  priority: z.string(),
+  lead_type: z.string().nullable(),
+  lead_id: z.string().nullable(),
+  start_date: z.string().nullable().default(null),
+  due_date: z.string().nullable().default(null),
+  created_at: z.string(),
+  updated_at: z.string(),
+  project_count: z.number().default(0),
+  issue_count: z.number().default(0),
+  done_count: z.number().default(0),
+}).loose();
+
+const SearchInitiativeResultSchema = InitiativeSchema.extend({
+  match_source: z.string(),
+  matched_snippet: z.string().optional(),
+}).loose();
+
+export const SearchInitiativesResponseSchema = z.object({
+  initiatives: z.array(SearchInitiativeResultSchema).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export const EMPTY_SEARCH_INITIATIVES_RESPONSE: SearchInitiativesResponse = {
+  initiatives: [],
+  total: 0,
+};
+
+export const ListInitiativesResponseSchema = z.object({
+  initiatives: z.array(InitiativeSchema).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export const EMPTY_LIST_INITIATIVES_RESPONSE = {
+  initiatives: [],
+  total: 0,
+};
+
+export const InitiativeDetailSchema = InitiativeSchema;
 
 const IssueAssigneeGroupSchema = z.object({
   id: z.string(),
