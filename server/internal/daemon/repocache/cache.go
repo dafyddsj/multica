@@ -719,6 +719,7 @@ type WorktreeParams struct {
 	AgentName           string // for branch naming
 	TaskID              string // for branch naming uniqueness
 	CoAuthoredByEnabled bool   // install prepare-commit-msg hook for Co-authored-by trailer
+	CoAuthoredByEmail   string // optional extra Co-authored-by email for this agent
 	// LockWaitTimeout bounds only the wait for another same-repository
 	// operation. Zero preserves the historical unbounded wait for internal and
 	// older callers; retry-aware HTTP checkout requests set a finite value.
