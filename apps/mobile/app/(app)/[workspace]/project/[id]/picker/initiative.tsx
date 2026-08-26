@@ -1,7 +1,3 @@
-/**
- * Initiative picker for an existing project. Reads the project from cache,
- * writes `initiative_id` via useUpdateProject.
- */
 import { useMemo } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";

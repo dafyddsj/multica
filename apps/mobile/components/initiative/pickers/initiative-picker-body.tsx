@@ -1,7 +1,3 @@
-/**
- * Pure picker body for a project's parent initiative. Clone of
- * `ProjectPickerBody` with a "No initiative" row.
- */
 import { useMemo } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";

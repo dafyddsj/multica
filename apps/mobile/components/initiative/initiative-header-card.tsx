@@ -1,8 +1,3 @@
-/**
- * Header card for initiative detail. Clone of `ProjectHeaderCard`, plus a
- * project_count line because the children of an initiative are projects,
- * not issues. Issue progress still uses done_count / issue_count.
- */
 import { Pressable, View } from "react-native";
 import type { Initiative } from "@multica/core/types";
 import { Text } from "@/components/ui/text";

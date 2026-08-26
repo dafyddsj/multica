@@ -1,11 +1,3 @@
-/**
- * Initiative list row. Clone of `ProjectRow`. Status/priority enums match
- * projects (`packages/core/initiatives/config.ts` = project enums), so this
- * reuses ProjectStatusIcon / ProjectPriorityIcon and `project-status` labels.
- *
- * Right column shows done_count/issue_count (same progress numbers as web)
- * plus updated_at. project_count is on the detail screen's child list.
- */
 import { Pressable, View } from "react-native";
 import type { Initiative } from "@multica/core/types";
 import { Text } from "@/components/ui/text";

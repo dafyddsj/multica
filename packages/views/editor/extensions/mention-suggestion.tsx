@@ -85,11 +85,9 @@ export interface MentionItem {
    * done status looking and ranking like active work. (MUL-6243)
    */
   statusCategory?: IssueStatusCategory;
-  /** Project/initiative emoji/icon snapshot for icon rendering */
   icon?: string | null;
   /** Project status snapshot for recent/current project rendering */
   projectStatus?: ProjectStatus;
-  /** Initiative status snapshot for mention ranking */
   initiativeStatus?: ProjectStatus;
   /** Present when the target should remain discoverable but cannot be selected. */
   disabledReason?: "agent_runtime_required";

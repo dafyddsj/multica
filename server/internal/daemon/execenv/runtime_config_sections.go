@@ -410,9 +410,6 @@ func writeRepositories(b *strings.Builder, ctx TaskContextForEnv) {
 	b.WriteString("\n")
 }
 
-// writeInitiativeContext emits the Initiative Context section when the
-// project's parent initiative is present. It sits above Project Context so
-// the durable product/program framing is read first.
 func writeInitiativeContext(b *strings.Builder, ctx TaskContextForEnv) {
 	if ctx.InitiativeID == "" && ctx.InitiativeTitle == "" && strings.TrimSpace(ctx.InitiativeDescription) == "" {
 		return

@@ -1,12 +1,3 @@
-/**
- * Per-initiative realtime. Mounted by the initiative detail screen;
- * cleans up on navigate-away.
- *
- *   - initiative:updated matching id → invalidate this detail
- *   - initiative:deleted matching id → drop caches, fire onDeleted
- *   - project:* → invalidate this detail (counts) so the header stays live
- *   - reconnect → invalidate this detail
- */
 import { useQueryClient } from "@tanstack/react-query";
 import { initiativeKeys } from "@/data/queries/initiatives";
 import { useWSSubscriptions } from "@/lib/use-ws-subscriptions";

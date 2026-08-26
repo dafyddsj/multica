@@ -992,7 +992,6 @@ class ApiClient {
     await this.fetch<void>(`/api/projects/${id}`, { method: "DELETE" });
   }
 
-  // --- Initiatives ---
   async listInitiatives(opts?: {
     signal?: AbortSignal;
     status?: string;

@@ -1,7 +1,3 @@
-/**
- * Initiatives browse page. Clone of `more/projects.tsx`, listed above
- * Projects in the More tab.
- */
 import { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,

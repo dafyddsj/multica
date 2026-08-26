@@ -1,7 +1,3 @@
-/**
- * Initiative detail. Properties + child projects. No board, gantt, or
- * IssueSurface — issues attach only through projects.
- */
 import { useCallback } from "react";
 import {
   ActionSheetIOS,

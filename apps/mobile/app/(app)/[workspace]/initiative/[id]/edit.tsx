@@ -1,6 +1,3 @@
-/**
- * Edit initiative title / description / icon. Clone of `project/[id]/edit.tsx`.
- */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,

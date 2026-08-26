@@ -52,8 +52,6 @@ describe("buildSearchRows", () => {
     ).toEqual([]);
   });
 
-  // MUL-5824 regression: this screen renders every project before every issue,
-  // so a cancelled project used to be the first row even next to a live issue.
   it("puts a cancelled project below a live issue instead of first", () => {
     const rows = buildSearchRows({
       query: "search",

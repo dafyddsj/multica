@@ -1,7 +1,3 @@
-/**
- * Initiative emoji icon. Clone of `ProjectIcon` with a 🎯 fallback so list
- * rows stay distinguishable from projects (📁).
- */
 import { View } from "react-native";
 import { Text } from "@/components/ui/text";
 

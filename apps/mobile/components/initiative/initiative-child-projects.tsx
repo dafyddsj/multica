@@ -1,11 +1,3 @@
-/**
- * Child projects of an initiative. Issues attach only through projects, so
- * this is a project list, not an issue board.
- *
- * Membership is `Project.initiative_id === initiativeId`, the same filter
- * `GET /api/projects?initiative_id=` applies. We read the workspace project
- * list (already patched by `project:*` WS) rather than a second fetch.
- */
 import { useMemo } from "react";
 import { View } from "react-native";
 import { useQuery } from "@tanstack/react-query";

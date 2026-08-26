@@ -1,28 +1,3 @@
-/**
- * Pinned items list — mirrors the role of web's sidebar "Pinned" section
- * (packages/views/layout/app-sidebar.tsx PinnedItemRow), one screen up the
- * navigation tree because phones have no sidebar.
- *
- * Architecture invariant (matches web): `PinnedItem` only carries metadata
- * (`item_type` + `item_id`). Title / status / icon are fetched per-row via
- * `issueDetailOptions` / `projectDetailOptions`, so when an issue's status
- * or a project's title changes via `issue:updated` / `project:updated`,
- * this list updates automatically — no cross-entity invalidate on pinKeys
- * is needed. Do NOT inline the display fields into the pin row; that
- * couples this view to a stale snapshot. See packages/core/types/pin.ts
- * top comment.
- *
- * Rendering split by `item_type`:
- *   - issue → existing `<IssueRow>`
- *   - project → existing `<ProjectRow>`
- *   - initiative → existing `<InitiativeRow>`
- *   - anything else (view, future types) → ignored, not rendered as a project
- *
- * Missing / no-permission rows: the detail query may 404 (issue/project
- * deleted, user lost access, server returned a parseWithFallback fallback
- * with an empty id). We render a low-emphasis placeholder so the user can
- * unpin it from here — otherwise a dead pin stays forever.
- */
 import { useMemo } from "react";
 import {
   ActivityIndicator,

@@ -115,11 +115,6 @@ describe("useRealtimeSync — ws instance change", () => {
     const ws2 = createMockWs();
     rerender({ ws: ws2 });
 
-    // Should have called invalidateQueries for all workspace-scoped keys
-    // (16 workspace-scoped [incl. property definitions] + 6 per-issue
-    // prefixes + the workspace working-agents projection + 5 per-chat
-    // prefixes + 1 workspaceKeys.list() + 1 cross-workspace inbox unread
-    // summary + 1 initiativeKeys.all() = 32 calls)
     expect(invalidateSpy).toHaveBeenCalledTimes(32);
   });
 

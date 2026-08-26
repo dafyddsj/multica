@@ -1,17 +1,3 @@
-/**
- * Workspace global search modal.
- *
- * Mirrors packages/views/search/search-command.tsx but is scoped to
- * search-only — mobile IA puts page nav in the More popover and
- * workspace switching in Settings, so a command-palette here would
- * duplicate them (see feedback_mobile_ia_main_vs_more).
- *
- * Result categories, ordering (live projects, then live issues, then a
- * trailing Cancelled section — see lib/search-rows.ts), debounce (300ms),
- * abort policy, and Recent rendering mirror the web source.
- * Highlight + snippet line for `match_source` matches preserves the
- * "why did this match" signal users rely on when scanning results.
- */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,

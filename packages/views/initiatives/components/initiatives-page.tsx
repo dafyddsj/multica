@@ -112,7 +112,6 @@ import { InitiativeLeadPicker } from "./initiative-lead-picker";
 import { PAGE_GUTTER, PAGE_TOOLBAR } from "../../layout/page-header";
 import { cn } from "@multica/ui/lib/utils";
 
-// Sort order maps for the enum columns (header sort needs a total order).
 const PRIORITY_ORDER: Record<InitiativePriority, number> = {
   urgent: 4,
   high: 3,
@@ -131,18 +130,9 @@ const STATUS_ORDER: Record<InitiativeStatus, number> = {
 const progressOf = (p: Initiative) =>
   p.issue_count > 0 ? p.done_count / p.issue_count : -1;
 
-// Composite "type:id" lead value so the string[] filter holds member/agent
-// refs alike.
 function leadFilterValue(p: Initiative): string | null {
   return p.lead_type && p.lead_id ? `${p.lead_type}:${p.lead_id}` : null;
 }
-
-// ---------------------------------------------------------------------------
-// Table (compact) view — ListGrid. Name + status are the core columns;
-// priority/progress/lead/issues/created collapse below @2xl, with min-width
-// + the wrapper's overflow as the escape valve. Rows use whole-row mouse
-// navigation; inline controls stop propagation so edit/menu clicks stay local.
-// ---------------------------------------------------------------------------
 
 const COLUMN_WIDTHS: Record<InitiativeColumnKey, number> = {
   priority: 116,
@@ -152,16 +142,11 @@ const COLUMN_WIDTHS: Record<InitiativeColumnKey, number> = {
   created: 104,
 };
 
-// Fixed tracks: edges 12+12, checkbox 16, name min 200, status 116,
-// kebab 28 = 384, plus the 10 gap-x-3 gaps between the wide template's
-// 11 tracks.
 const FIXED_TRACKS_WIDTH = 384 + 10 * 12;
 
-// Render/track order: checkbox, name, status (core, fixed 116px), priority,
-// progress, lead, projects, created, kebab. MUST be a literal string —
-// Tailwind can't see interpolated `grid-cols-[...]` arbitrary values, so an
-// interpolated width silently drops the whole template and the grid
-// collapses to one column.
+// MUST be a literal string — Tailwind can't see interpolated `grid-cols-[...]`
+// arbitrary values, so an interpolated width silently drops the whole template
+// and the grid collapses to one column.
 const GRID_COLS =
   "grid-cols-[0.75rem_1rem_minmax(120px,1fr)_116px_1.75rem_0.75rem] " +
   "@2xl:grid-cols-[0.75rem_1rem_minmax(200px,1fr)_116px_var(--inc-priority)_var(--inc-progress)_var(--inc-lead)_var(--inc-projects)_var(--inc-created)_1.75rem_0.75rem]";
@@ -219,8 +204,6 @@ function ProgressRing({ initiative }: { initiative: Initiative }) {
   );
 }
 
-// Compact rows own whole-row navigation; callers stop propagation around this
-// menu so action clicks do not bubble into the rowLink handler.
 function InitiativeRowActions({
   initiative,
   pinned,
@@ -401,7 +384,6 @@ function InitiativeTableRow({
         </span>
       </ListGridCell>
 
-      {/* status — core column, always visible */}
       <ListGridCell onClick={stopRowNavigation} onAuxClick={stopRowNavigation}>
         <InitiativeStatusBadge initiative={initiative} handleUpdate={handleUpdate} align="start" />
       </ListGridCell>
@@ -572,10 +554,6 @@ function InitiativeTableHeader({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Card (comfortable) view — kept from the prior page.
-// ---------------------------------------------------------------------------
-
 function InitiativeCard({
   initiative,
   pinned,
@@ -670,11 +648,6 @@ function InitiativeCard({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Toolbar — search + result count + filter + display (compact only) + view
-// toggle.
-// ---------------------------------------------------------------------------
-
 const STATUS_VALUES: InitiativeStatus[] = [
   "planned",
   "in_progress",
@@ -694,8 +667,6 @@ function countActiveFilters(f: InitiativeListFilters): number {
   return c;
 }
 
-// Batch toolbar — page-anchored (not viewport). Pin all selected (any
-// member) + Delete (workspace admin). Mirrors the other lists.
 function InitiativeBatchToolbar({
   rows,
   pinnedIds,
@@ -790,10 +761,6 @@ function InitiativeBatchToolbar({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Page
-// ---------------------------------------------------------------------------
-
 export function InitiativesPage() {
   const { t } = useT("initiatives");
   const wsId = useWorkspaceId();
@@ -850,8 +817,6 @@ export function InitiativesPage() {
   const activeFilterCount = countActiveFilters(filters);
   const hasActiveFilters = activeFilterCount > 0;
 
-  // Filter option counts derive from the full set so toggling one dimension
-  // doesn't make the others vanish.
   const leadOptions = useMemo(() => {
     const m = new Map<string, { type: string; id: string; count: number }>();
     for (const p of initiatives) {
@@ -937,7 +902,6 @@ export function InitiativesPage() {
   );
 
   return (
-    // relative: positioning anchor for the page-centered batch toolbar.
     <div className="relative flex flex-1 min-h-0 flex-col">
       <CollectionPageHeader
         icon={Target}
@@ -964,7 +928,6 @@ export function InitiativesPage() {
         />
       ) : (
         <>
-          {/* Toolbar */}
           <div className={PAGE_TOOLBAR}>
             <div className="flex min-w-0 items-center gap-2">
               <div className="relative hidden md:block">
@@ -988,7 +951,6 @@ export function InitiativesPage() {
             </div>
 
             <div className="flex shrink-0 items-center gap-1">
-              {/* Filter */}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -1100,10 +1062,6 @@ export function InitiativesPage() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              {/* Display (sort + columns). Always present — view mode is a
-                  pure presentation choice and must not reshape the toolbar.
-                  Sort applies to both views; the columns section is shown
-                  only in the table view (cards have no columns). */}
               <Popover>
                   <Tooltip>
                     <PopoverTrigger
@@ -1172,10 +1130,6 @@ export function InitiativesPage() {
                   </PopoverContent>
                 </Popover>
 
-              {/* View selector — a dropdown menu to pick the list view,
-                  aligned with the issue list's view menu. The trigger shows
-                  the active view; the menu carries every mode so new views
-                  can be added as menu items. Pure presentation. */}
               <DropdownMenu>
                 <Tooltip>
                   <DropdownMenuTrigger
@@ -1224,7 +1178,6 @@ export function InitiativesPage() {
             </div>
           </div>
 
-          {/* Body */}
           {isLoading ? (
             <LoadingState isCompact={isCompact} />
           ) : visible.length === 0 ? (

@@ -1,14 +1,3 @@
-/**
- * Mobile-owned WS cache helpers for the initiative domain. Pure functions
- * over `QueryClient` — no React, no WS plumbing.
- *
- * Web invalidates `initiativeKeys.all` (and `projectKeys.all`) on any
- * `initiative:*` prefix in `packages/core/realtime/use-realtime-sync.ts`.
- * Mobile follows the same invalidate policy for list/detail, and refreshes
- * projects only on `initiative:deleted` (children detach).
- *
- * Keys come from `data/queries/initiatives.ts`, not packages/core.
- */
 import type { QueryClient } from "@tanstack/react-query";
 import type { Initiative } from "@multica/core/types";
 import { initiativeKeys } from "@/data/queries/initiatives";

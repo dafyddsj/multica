@@ -1,8 +1,3 @@
-/**
- * Initiative properties. Same Status / Priority / Lead rows as projects
- * (`project-properties-section.tsx`). Enums match projects, so icons and
- * labels come from the project helpers.
- */
 import { Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Initiative } from "@multica/core/types";

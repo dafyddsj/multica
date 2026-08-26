@@ -1,11 +1,3 @@
-/**
- * Initiative mutations. Mirrors `useUpdateProject` / `useCreateProject` /
- * `useDeleteProject`: optimistic patch on update, await-the-server on
- * create/delete (those navigate). Web source: `packages/core/initiatives/mutations.ts`.
- *
- * Delete also invalidates project caches because the server detaches
- * children (`project.initiative_id` → null) rather than cascading.
- */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateInitiativeRequest,

@@ -1,6 +1,3 @@
-/**
- * Initiative picker for the in-progress new-project draft.
- */
 import { router } from "expo-router";
 import { InitiativePickerBody } from "@/components/initiative/pickers/initiative-picker-body";
 import { useNewProjectDraftStore } from "@/data/stores/new-project-draft-store";

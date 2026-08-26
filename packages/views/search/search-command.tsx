@@ -174,9 +174,6 @@ function IssueAssigneeAvatar({
   );
 }
 
-// Project / issue rows are rendered from three groups (Projects, Issues,
-// Cancelled — see the partition note on the results list), so the row markup
-// lives in one component each instead of being duplicated per group.
 function ProjectResultRow({
   project,
   query,
@@ -621,9 +618,6 @@ export function SearchCommand() {
   // Enter into a jump to a result the user has already typed past.
   const resultsAreStale = results.query !== query.trim();
 
-  // Cross-type cancelled demotion (MUL-5824). The two searches are ranked
-  // independently server-side, so the partition has to happen here, where they
-  // are aggregated for display. See the render note on the results list.
   const partitionedResults = useMemo(
     () => {
       const aggregated = partitionAggregatedSearchResults({
@@ -848,7 +842,6 @@ export function SearchCommand() {
               </CommandPrimitive.Group>
             )}
 
-            {/* Commands section — New Issue / New Project / Copy link / Theme, only shown when query matches */}
             {filteredCommands.length > 0 && (
               <CommandPrimitive.Group
                 heading={t(($) => $.groups.commands)}
@@ -926,18 +919,6 @@ export function SearchCommand() {
                 </CommandPrimitive.Empty>
               )}
 
-            {/*
-              Render order is the cross-type cancelled partition (MUL-5824):
-              live projects → live issues → one trailing Cancelled section
-              holding cancelled projects then cancelled issues. Projects and
-              issues arrive as two independently ranked responses, so per-type
-              ordering is not enough — the whole Projects group used to render
-              above the whole Issues group, letting one cancelled project be the
-              first row of the list. Keeping cancelled rows in a single trailing
-              section is the only arrangement where no cancelled row of either
-              type can precede a live row of the other. Direct hits stay in
-              their live section (see partitionAggregatedSearchResults).
-            */}
             {partitionedResults.liveInitiatives.length > 0 && (
               <CommandPrimitive.Group
                 heading={t(($) => $.groups.initiatives)}

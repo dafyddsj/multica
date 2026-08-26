@@ -944,7 +944,6 @@ func (h *Handler) resolveClaimProjectContext(ctx context.Context, projectID, wor
 					out.InitiativeTitle = init.Title
 					out.InitiativeDescription = init.Description.String
 				case errors.Is(initErr, pgx.ErrNoRows):
-					// Stale initiative pointer: leave initiative fields empty.
 				default:
 					return claimProjectContext{}, fmt.Errorf("get initiative: %w", initErr)
 				}

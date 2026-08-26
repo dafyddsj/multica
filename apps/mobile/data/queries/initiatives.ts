@@ -1,13 +1,3 @@
-/**
- * Workspace initiative queries. Two query shapes:
- *
- *   - List    (initiativeKeys.list)    — `Initiative[]`
- *   - Detail  (initiativeKeys.detail)  — `Initiative`
- *
- * Key shape matches `packages/core/initiatives/queries.ts`. Child projects
- * are not an initiative query: they are the project list filtered by
- * `Project.initiative_id` (same membership as `GET /api/projects?initiative_id=`).
- */
 import { queryOptions } from "@tanstack/react-query";
 import type { Initiative, Project } from "@multica/core/types";
 import { api } from "@/data/api";
@@ -44,8 +34,6 @@ export function findInitiative(
   return initiatives.find((item) => item.id === id);
 }
 
-/** Child projects of an initiative. Same filter the server applies for
- *  `listProjects({ initiative_id })`. */
 export function projectsForInitiative(
   projects: Project[],
   initiativeId: string,

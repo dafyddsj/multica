@@ -1,7 +1,3 @@
-/**
- * New initiative modal. Clone of `project/new.tsx`. Lead stays on the
- * detail screen, same as projects.
- */
 import { useCallback, useState } from "react";
 import {
   Alert,
