@@ -44,8 +44,9 @@ import {
   TooltipTrigger,
 } from "@multica/ui/components/ui/tooltip";
 import { cn } from "@multica/ui/lib/utils";
-import type { IssueStatus, IssueStatusCategory, ProjectStatus } from "@multica/core/types";
+import type { IssueStatus, IssueStatusCategory, ProjectStatus, InitiativeStatus } from "@multica/core/types";
 import { PROJECT_STATUS_CONFIG } from "@multica/core/projects/config";
+import { INITIATIVE_STATUS_CONFIG } from "@multica/core/initiatives/config";
 import type { SuggestionOptions } from "@tiptap/suggestion";
 import { PluginKey } from "@tiptap/pm/state";
 import {
@@ -88,7 +89,7 @@ export interface MentionItem {
   icon?: string | null;
   /** Project status snapshot for recent/current project rendering */
   projectStatus?: ProjectStatus;
-  initiativeStatus?: ProjectStatus;
+  initiativeStatus?: InitiativeStatus;
   /** Present when the target should remain discoverable but cannot be selected. */
   disabledReason?: "agent_runtime_required";
 }
@@ -580,7 +581,7 @@ function MentionRow({
 
   if (item.type === "project" || item.type === "initiative") {
     const statusCfg = item.type === "initiative"
-      ? (item.initiativeStatus ? PROJECT_STATUS_CONFIG[item.initiativeStatus] : null)
+      ? (item.initiativeStatus ? INITIATIVE_STATUS_CONFIG[item.initiativeStatus] : null)
       : (item.projectStatus ? PROJECT_STATUS_CONFIG[item.projectStatus] : null);
     return (
       <button
@@ -691,7 +692,7 @@ function projectToMention(p: { id: string; title: string; description?: string |
   };
 }
 
-function initiativeToMention(p: { id: string; title: string; description?: string | null; icon?: string | null; status?: ProjectStatus }): MentionItem {
+function initiativeToMention(p: { id: string; title: string; description?: string | null; icon?: string | null; status?: InitiativeStatus }): MentionItem {
   return {
     id: p.id,
     label: p.title,

@@ -938,14 +938,14 @@ func (h *Handler) resolveClaimProjectContext(ctx context.Context, projectID, wor
 					ID:          project.InitiativeID,
 					WorkspaceID: workspaceID,
 				})
-				switch {
-				case initErr == nil:
+				if initErr != nil {
+					if !errors.Is(initErr, pgx.ErrNoRows) {
+						return claimProjectContext{}, fmt.Errorf("get initiative: %w", initErr)
+					}
+				} else {
 					out.InitiativeID = uuidToString(init.ID)
 					out.InitiativeTitle = init.Title
 					out.InitiativeDescription = init.Description.String
-				case errors.Is(initErr, pgx.ErrNoRows):
-				default:
-					return claimProjectContext{}, fmt.Errorf("get initiative: %w", initErr)
 				}
 			}
 
