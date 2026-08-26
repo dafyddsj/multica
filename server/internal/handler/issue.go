@@ -3765,7 +3765,7 @@ func (h *Handler) UpdateIssue(w http.ResponseWriter, r *http.Request) {
 
 // validateAssigneePair verifies the (assignee_type, assignee_id) pair refers
 // to an existing entity in the workspace. For agent and squad assignees it
-// also rejects archived targets and runs the INVOKE gate — canInvokeAgent, not
+// also rejects archived or paused targets and runs the INVOKE gate — canInvokeAgent, not
 // the softer canAccessPrivateAgent view gate: assigning an issue produces a
 // run, so it must clear the same predicate as chat / @-mention (MUL-3963).
 // That means owner-only for a private agent, with NO workspace-admin bypass
@@ -3813,6 +3813,9 @@ func (h *Handler) validateAssigneePair(ctx context.Context, r *http.Request, wor
 		if agent.ArchivedAt.Valid {
 			return http.StatusBadRequest, "cannot assign to archived agent"
 		}
+		if agent.PausedAt.Valid {
+			return http.StatusBadRequest, "cannot assign to paused agent"
+		}
 		actorType, actorID := h.resolveActor(r, requestUserID(r), workspaceID)
 		effectiveInvoker := h.effectiveInvocationAuthorityFromRequest(r, scope, actorType, actorID, workspaceID)
 		if !h.canInvokeAgent(ctx, agent, actorType, actorID, effectiveInvoker, workspaceID) {
@@ -3841,6 +3844,9 @@ func (h *Handler) validateAssigneePair(ctx context.Context, r *http.Request, wor
 		leader, err := h.Queries.GetAgent(ctx, squad.LeaderID)
 		if err != nil || leader.ArchivedAt.Valid {
 			return http.StatusBadRequest, "squad leader is archived; cannot assign to this squad"
+		}
+		if leader.PausedAt.Valid {
+			return http.StatusBadRequest, "squad leader is paused; cannot assign to this squad"
 		}
 		actorType, actorID := h.resolveActor(r, requestUserID(r), workspaceID)
 		effectiveInvoker := h.effectiveInvocationAuthorityFromRequest(r, scope, actorType, actorID, workspaceID)
@@ -3888,7 +3894,7 @@ func (h *Handler) assigneeFallbackAgent(ctx context.Context, issue db.Issue, act
 		return db.Agent{}, false, false
 	}
 	agent, err := h.Queries.GetAgent(ctx, issue.AssigneeID)
-	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid {
+	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid || agent.PausedAt.Valid {
 		return db.Agent{}, false, false
 	}
 	if !h.canInvokeAgent(ctx, agent, actorType, actorID, opts.effectiveInvoker(), uuidToString(issue.WorkspaceID)) {

@@ -55,6 +55,7 @@ const (
 	ReasonDeferred              = dispatch.ReasonDeferred
 	ReasonInvocationNotAllowed  = dispatch.ReasonInvocationNotAllowed
 	ReasonTargetUnavailable     = dispatch.ReasonTargetUnavailable
+	ReasonAgentPaused           = dispatch.ReasonAgentPaused
 	ReasonRuntimeOffline        = dispatch.ReasonRuntimeOffline
 	ReasonRuntimeUnusable       = dispatch.ReasonRuntimeUnusable
 	ReasonAgentRuntimeRequired  = dispatch.ReasonAgentRuntimeRequired
@@ -115,6 +116,8 @@ func dispatchBlockedFallbackMessage(code DispatchReasonCode) string {
 		return "you don't have permission to use this target"
 	case ReasonTargetUnavailable:
 		return "the target is unavailable"
+	case ReasonAgentPaused:
+		return "this agent is paused"
 	case ReasonRuntimeOffline:
 		return "the target's runtime is offline"
 	case ReasonRuntimeUnusable:

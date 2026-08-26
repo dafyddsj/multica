@@ -384,6 +384,9 @@ func TestCreatingAgentsSkillCoversAgentCreationContracts(t *testing.T) {
 		"multica agent skills add <agent-id> --skill-ids <skill-id> --output json",
 		"multica agent skills list <agent-id> --output json",
 		"multica agent get <agent-id> --output json",
+		"multica agent pause <agent-id>",
+		"`agent_paused`",
+		"Archive is a different stop",
 		"255",
 		"references/creating-agents-source-map.md",
 	}

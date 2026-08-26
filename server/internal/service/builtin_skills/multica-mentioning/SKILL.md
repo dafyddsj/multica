@@ -155,9 +155,10 @@ read. Read that array after posting — it is the only place any of this shows u
   from the same comment being edited, because save cancels those old tasks
   before it re-computes triggers. It is still comment-scoped, not an agent-wide
   bypass.
-- **An archived agent, or one with no runtime bound** (likewise a squad whose
-  leader is): blocked with `target_unavailable` and `runtime_offline`
-  respectively. Both are checked only AFTER the invoke gate, so a caller who may
+- **An archived agent, a paused agent, or one with no runtime bound** (likewise
+  a squad whose leader is): blocked with `target_unavailable`, `agent_paused`,
+  and `agent_runtime_required`, respectively. These states are checked only
+  AFTER the invoke gate, so a caller who may
   not invoke the target never learns its state.
 - **A private agent you cannot invoke:** blocked — the mention path gates on
   `canInvokeAgent` for both `@agent` and `@squad`. That is the *run* gate, not

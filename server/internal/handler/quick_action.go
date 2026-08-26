@@ -215,8 +215,8 @@ type quickActionTarget struct {
 	Found     bool
 }
 
-// resolveQuickActionTarget loads the execution target. A missing/archived
-// agent, or a missing/archived squad, resolves to Found=false — the caller
+// resolveQuickActionTarget loads the execution target. A missing, archived, or
+// paused agent, or a missing/archived squad, resolves to Found=false — the caller
 // renders that as an unavailable target rather than failing the whole list.
 func (h *Handler) resolveQuickActionTarget(ctx context.Context, qa db.QuickAction) quickActionTarget {
 	switch qa.AssigneeType {
@@ -229,7 +229,7 @@ func (h *Handler) resolveQuickActionTarget(ctx context.Context, qa db.QuickActio
 			return quickActionTarget{}
 		}
 		leader, err := h.Queries.GetAgent(ctx, squad.LeaderID)
-		if err != nil || leader.ArchivedAt.Valid {
+		if err != nil || leader.ArchivedAt.Valid || leader.PausedAt.Valid {
 			return quickActionTarget{}
 		}
 		avatar := ""
@@ -246,7 +246,7 @@ func (h *Handler) resolveQuickActionTarget(ctx context.Context, qa db.QuickActio
 		}
 	default:
 		agent, err := h.Queries.GetAgent(ctx, qa.AssigneeID)
-		if err != nil || agent.ArchivedAt.Valid || uuidToString(agent.WorkspaceID) != uuidToString(qa.WorkspaceID) {
+		if err != nil || agent.ArchivedAt.Valid || agent.PausedAt.Valid || uuidToString(agent.WorkspaceID) != uuidToString(qa.WorkspaceID) {
 			return quickActionTarget{}
 		}
 		avatar := ""
@@ -350,7 +350,7 @@ func (c quickActionCatalog) resolve(qa db.QuickAction) (quickActionTarget, bool)
 			return quickActionTarget{}, false
 		}
 		leader, ok := c.agents[uuidToString(squad.LeaderID)]
-		if !ok {
+		if !ok || leader.ArchivedAt.Valid || leader.PausedAt.Valid {
 			return quickActionTarget{}, false
 		}
 		name := squad.Name
@@ -358,7 +358,7 @@ func (c quickActionCatalog) resolve(qa db.QuickAction) (quickActionTarget, bool)
 			c.publicAgents[uuidToString(leader.ID)] && leader.PermissionMode == "public_to"
 	}
 	agent, ok := c.agents[uuidToString(qa.AssigneeID)]
-	if !ok {
+	if !ok || agent.ArchivedAt.Valid || agent.PausedAt.Valid {
 		return quickActionTarget{}, false
 	}
 	return quickActionTarget{Agent: agent, Name: agent.Name, Found: true},

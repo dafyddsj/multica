@@ -82,6 +82,10 @@ func (h *Handler) CreateChatSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "agent is archived")
 		return
 	}
+	if agent.PausedAt.Valid {
+		writeError(w, http.StatusBadRequest, "agent is paused")
+		return
+	}
 	// Invocation gate: starting a chat produces agent runs, so it uses the
 	// invoke permission (MUL-3963), not the softer view gate. Agent-to-agent
 	// chat sessions are judged by the top-of-chain originator.
@@ -880,6 +884,10 @@ func (h *Handler) SendChatMessage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "chat agent is archived")
 		return
 	}
+	if agent.PausedAt.Valid {
+		writeError(w, http.StatusConflict, "agent is paused")
+		return
+	}
 	// Shared verdict: an unbound agent and a machine whose CLI cannot run are
 	// both refusals here, with their own codes. A merely offline runtime is not
 	// checked at all — chat messages queue for it, as they always have.
@@ -941,6 +949,8 @@ func (h *Handler) SendChatMessage(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "chat session is archived")
 		case errors.Is(err, service.ErrChatTaskAgentArchived):
 			writeError(w, http.StatusConflict, "chat agent is archived")
+		case errors.Is(err, service.ErrChatTaskAgentPaused):
+			writeError(w, http.StatusConflict, "agent is paused")
 		case errors.Is(err, service.ErrChatTaskAgentNoRuntime):
 			writeError(w, http.StatusConflict, "chat agent has no runtime")
 		default:
@@ -1110,6 +1120,10 @@ func (h *Handler) RegenerateChatQuickActions(w http.ResponseWriter, r *http.Requ
 	}
 	if agent.ArchivedAt.Valid {
 		writeError(w, http.StatusConflict, "chat agent is archived")
+		return
+	}
+	if agent.PausedAt.Valid {
+		writeError(w, http.StatusConflict, "agent is paused")
 		return
 	}
 	// The refresh no longer runs the agent, but it is still a user-triggered

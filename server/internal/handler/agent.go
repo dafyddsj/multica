@@ -131,6 +131,8 @@ type AgentResponse struct {
 	UpdatedAt                        string                 `json:"updated_at"`
 	ArchivedAt                       *string                `json:"archived_at"`
 	ArchivedBy                       *string                `json:"archived_by"`
+	PausedAt                         *string                `json:"paused_at"`
+	PausedBy                         *string                `json:"paused_by"`
 }
 
 // runtimeConfigGatewayTokenMask is the placeholder the API substitutes for
@@ -232,6 +234,8 @@ func (h *Handler) agentToResponse(a db.Agent) AgentResponse {
 		UpdatedAt:                timestampToString(a.UpdatedAt),
 		ArchivedAt:               timestampToPtr(a.ArchivedAt),
 		ArchivedBy:               uuidToPtr(a.ArchivedBy),
+		PausedAt:                 timestampToPtr(a.PausedAt),
+		PausedBy:                 uuidToPtr(a.PausedBy),
 	}
 }
 
@@ -2379,6 +2383,49 @@ func (h *Handler) ArchiveAgent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+func (h *Handler) PauseAgent(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	agent, ok := h.loadAgentForUser(w, r, id)
+	if !ok {
+		return
+	}
+	if !h.canManageAgent(w, r, agent) {
+		return
+	}
+	if agent.ArchivedAt.Valid {
+		writeError(w, http.StatusConflict, "agent is already archived")
+		return
+	}
+	if agent.SystemKey.Valid && agent.SystemKey.String != "" {
+		writeError(w, http.StatusBadRequest, "this agent is built into Multica and cannot be paused")
+		return
+	}
+
+	userID := requestUserID(r)
+	paused, err := h.Queries.PauseAgent(r.Context(), db.PauseAgentParams{
+		ID:       agent.ID,
+		PausedBy: parseUUID(userID),
+	})
+	if err != nil {
+		slog.Warn("pause agent failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
+		writeError(w, http.StatusInternalServerError, "failed to pause agent")
+		return
+	}
+
+	wsID := uuidToString(paused.WorkspaceID)
+	slog.Info("agent paused", append(logger.RequestAttrs(r), "agent_id", id, "workspace_id", wsID)...)
+	resp := h.agentToResponse(paused)
+	if err := h.attachAgentSkills(r.Context(), &resp, paused.ID); err != nil {
+		slog.Warn("load agent skills after pause failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
+		writeError(w, http.StatusInternalServerError, "failed to load agent skills")
+		return
+	}
+	actorType, actorID := h.resolveActor(r, userID, wsID)
+	h.publish(protocol.EventAgentPaused, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
+	redactAgentResponseForActor(&resp, actorType)
+	writeJSON(w, http.StatusOK, resp)
+}
+
 func (h *Handler) RestoreAgent(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	agent, ok := h.loadAgentForUser(w, r, id)
@@ -2411,6 +2458,42 @@ func (h *Handler) RestoreAgent(w http.ResponseWriter, r *http.Request) {
 	userID := requestUserID(r)
 	actorType, actorID := h.resolveActor(r, userID, wsID)
 	h.publish(protocol.EventAgentRestored, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
+	redactAgentResponseForActor(&resp, actorType)
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) ResumeAgent(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	agent, ok := h.loadAgentForUser(w, r, id)
+	if !ok {
+		return
+	}
+	if !h.canManageAgent(w, r, agent) {
+		return
+	}
+	if agent.SystemKey.Valid && agent.SystemKey.String != "" {
+		writeError(w, http.StatusBadRequest, "this agent is built into Multica and cannot be resumed")
+		return
+	}
+
+	resumed, err := h.Queries.ResumeAgent(r.Context(), agent.ID)
+	if err != nil {
+		slog.Warn("resume agent failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
+		writeError(w, http.StatusInternalServerError, "failed to resume agent")
+		return
+	}
+
+	wsID := uuidToString(resumed.WorkspaceID)
+	slog.Info("agent resumed", append(logger.RequestAttrs(r), "agent_id", id, "workspace_id", wsID)...)
+	resp := h.agentToResponse(resumed)
+	if err := h.attachAgentSkills(r.Context(), &resp, resumed.ID); err != nil {
+		slog.Warn("load agent skills after resume failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
+		writeError(w, http.StatusInternalServerError, "failed to load agent skills")
+		return
+	}
+	userID := requestUserID(r)
+	actorType, actorID := h.resolveActor(r, userID, wsID)
+	h.publish(protocol.EventAgentResumed, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
 	redactAgentResponseForActor(&resp, actorType)
 	writeJSON(w, http.StatusOK, resp)
 }

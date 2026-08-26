@@ -5,7 +5,7 @@
 - `server/internal/service/autopilot.go` has `DispatchAutopilot`, synchronous delivery-idempotent `AdmitAutopilotWebhookDelivery`, and worker-side `DispatchAutopilotForWebhookDelivery`; it creates `autopilot_run` and switches on `execution_mode`.
 - `create_issue` calls `dispatchCreateIssue`; `run_only` calls `dispatchRunOnly`.
 - `resolveAutopilotLeader` resolves squad-assigned autopilots to the squad leader.
-- `AgentReadiness` blocks archived/runtime-unready agents before enqueue.
+- `AgentReadiness` blocks archived, paused, and runtime-unready agents before enqueue.
 - `server/cmd/server/router.go` exposes authenticated `/api/autopilots` routes and unauthenticated webhook ingress `/api/webhooks/autopilots/{token}`.
 - `server/internal/handler/autopilot_webhook.go` durably stores public webhook deliveries, synchronously admits an idempotent run for the compatible `200 accepted|skipped` + `run_id` response, and wakes the worker.
 - `server/internal/handler/webhook_delivery_worker.go` claims queued deliveries with expiring database leases, applies per-trigger dispatch pacing, and resumes admitted runs using `autopilot_run.webhook_delivery_id` so recovery cannot duplicate a run/task.

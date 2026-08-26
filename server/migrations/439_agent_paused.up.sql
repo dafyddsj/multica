@@ -1,0 +1,2 @@
+ALTER TABLE agent ADD COLUMN paused_at TIMESTAMPTZ;
+ALTER TABLE agent ADD COLUMN paused_by UUID;

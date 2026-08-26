@@ -1363,6 +1363,8 @@ func formatAdmissionReason(ap db.Autopilot, raw string) string {
 	switch raw {
 	case "agent is archived":
 		return prefix + "agent is archived"
+	case "agent is paused":
+		return prefix + "agent is paused"
 	case "agent has no runtime bound":
 		return prefix + "agent has no runtime bound"
 	default:

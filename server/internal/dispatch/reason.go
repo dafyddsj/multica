@@ -27,6 +27,7 @@ const (
 	// ReasonTargetUnavailable: the target cannot run (archived agent, deleted /
 	// archived squad, unresolvable leader, or no assignee).
 	ReasonTargetUnavailable ReasonCode = "target_unavailable"
+	ReasonAgentPaused       ReasonCode = "agent_paused"
 	// ReasonRuntimeOffline: the target is permitted and bound to a runtime, but
 	// that runtime is not online at dispatch time. The task is not lost — the
 	// user's fix is to bring the machine back, and queued work waits for it.
