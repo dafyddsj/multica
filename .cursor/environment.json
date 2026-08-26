@@ -1,0 +1,19 @@
+{
+  "name": "Multica",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "backend",
+      "command": "export PATH=\"$PATH:/usr/local/go/bin:/usr/lib/postgresql/17/bin\"; set -a; . ./.env; set +a; cd server && go run ./cmd/server"
+    },
+    {
+      "name": "web",
+      "command": "set -a; . ./.env; set +a; corepack pnpm dev:web"
+    }
+  ],
+  "ports": [
+    { "name": "backend", "port": 8080 },
+    { "name": "web", "port": 3000 }
+  ]
+}
