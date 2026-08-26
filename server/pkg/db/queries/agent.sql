@@ -202,7 +202,10 @@ WHERE id = $1
 RETURNING *;
 
 -- name: PauseAgent :one
-UPDATE agent SET paused_at = now(), paused_by = $2, updated_at = now()
+UPDATE agent SET
+  paused_at = COALESCE(paused_at, now()),
+  paused_by = COALESCE(paused_by, $2),
+  updated_at = now()
 WHERE id = $1
 RETURNING *;
 
@@ -909,13 +912,16 @@ WHERE id = (
       AND atq.dispatched_at < now() - make_interval(secs => @claim_recovery_secs::double precision)
       AND (atq.prepare_lease_expires_at IS NULL OR atq.prepare_lease_expires_at < now())
       AND EXISTS (
-          -- Keep runtime authorization in sync with ClaimAgentTask. Lifecycle
-          -- fences do not apply because reclaim resumes already-dispatched work.
+          -- Keep this authorization fence in sync with ClaimAgentTask.
+          -- Reclaim starts work: the row is still dispatched with started_at
+          -- IS NULL, so a paused or archived agent must not be redelivered.
           SELECT 1
           FROM agent a
           JOIN agent_runtime r ON r.id = atq.runtime_id
           WHERE a.id = atq.agent_id
             AND a.runtime_id = atq.runtime_id
+            AND a.archived_at IS NULL
+            AND a.paused_at IS NULL
             AND (
                 r.visibility = 'public'
                 OR (
@@ -956,13 +962,16 @@ WHERE id IN (
       AND atq.dispatched_at < now() - make_interval(secs => @claim_recovery_secs::double precision)
       AND (atq.prepare_lease_expires_at IS NULL OR atq.prepare_lease_expires_at < now())
       AND EXISTS (
-          -- Keep runtime authorization in sync with ClaimAgentTask. Lifecycle
-          -- fences do not apply because reclaim resumes already-dispatched work.
+          -- Keep this authorization fence in sync with ClaimAgentTask.
+          -- Reclaim starts work: the row is still dispatched with started_at
+          -- IS NULL, so a paused or archived agent must not be redelivered.
           SELECT 1
           FROM agent a
           JOIN agent_runtime r ON r.id = atq.runtime_id
           WHERE a.id = atq.agent_id
             AND a.runtime_id = atq.runtime_id
+            AND a.archived_at IS NULL
+            AND a.paused_at IS NULL
             AND (
                 r.visibility = 'public'
                 OR (

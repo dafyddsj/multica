@@ -6972,7 +6972,10 @@ func (q *Queries) MergeDelegatedFailureCommentIntoPendingTask(ctx context.Contex
 }
 
 const pauseAgent = `-- name: PauseAgent :one
-UPDATE agent SET paused_at = now(), paused_by = $2, updated_at = now()
+UPDATE agent SET
+  paused_at = COALESCE(paused_at, now()),
+  paused_by = COALESCE(paused_by, $2),
+  updated_at = now()
 WHERE id = $1
 RETURNING id, workspace_id, name, avatar_url, runtime_mode, runtime_config, visibility, status, max_concurrent_tasks, owner_id, created_at, updated_at, description, runtime_id, instructions, archived_at, archived_by, custom_env, custom_args, mcp_config, model, thinking_level, composio_toolkit_allowlist, permission_mode, kind, system_key, disabled_runtime_skills, service_tier, starter_prompts, paused_at, paused_by
 `
@@ -7431,13 +7434,16 @@ WHERE id = (
       AND atq.dispatched_at < now() - make_interval(secs => $3::double precision)
       AND (atq.prepare_lease_expires_at IS NULL OR atq.prepare_lease_expires_at < now())
       AND EXISTS (
-          -- Keep runtime authorization in sync with ClaimAgentTask. Lifecycle
-          -- fences do not apply because reclaim resumes already-dispatched work.
+          -- Keep this authorization fence in sync with ClaimAgentTask.
+          -- Reclaim starts work: the row is still dispatched with started_at
+          -- IS NULL, so a paused or archived agent must not be redelivered.
           SELECT 1
           FROM agent a
           JOIN agent_runtime r ON r.id = atq.runtime_id
           WHERE a.id = atq.agent_id
             AND a.runtime_id = atq.runtime_id
+            AND a.archived_at IS NULL
+            AND a.paused_at IS NULL
             AND (
                 r.visibility = 'public'
                 OR (
@@ -7551,13 +7557,16 @@ WHERE id IN (
       AND atq.dispatched_at < now() - make_interval(secs => $3::double precision)
       AND (atq.prepare_lease_expires_at IS NULL OR atq.prepare_lease_expires_at < now())
       AND EXISTS (
-          -- Keep runtime authorization in sync with ClaimAgentTask. Lifecycle
-          -- fences do not apply because reclaim resumes already-dispatched work.
+          -- Keep this authorization fence in sync with ClaimAgentTask.
+          -- Reclaim starts work: the row is still dispatched with started_at
+          -- IS NULL, so a paused or archived agent must not be redelivered.
           SELECT 1
           FROM agent a
           JOIN agent_runtime r ON r.id = atq.runtime_id
           WHERE a.id = atq.agent_id
             AND a.runtime_id = atq.runtime_id
+            AND a.archived_at IS NULL
+            AND a.paused_at IS NULL
             AND (
                 r.visibility = 'public'
                 OR (

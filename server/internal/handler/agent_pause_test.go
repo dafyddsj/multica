@@ -32,8 +32,8 @@ func TestPauseResumeAgent(t *testing.T) {
 		newRequest(http.MethodPost, "/api/agents/"+agentID+"/pause", nil),
 		"id", agentID,
 	)).Want(http.StatusOK).JSON(&pausedAgain)
-	if pausedAgain.PausedAt == nil {
-		t.Fatal("idempotent pause cleared paused_at")
+	if pausedAgain.PausedAt == nil || *pausedAgain.PausedAt != *paused.PausedAt {
+		t.Fatalf("idempotent pause reset paused_at: first=%v second=%v", paused.PausedAt, pausedAgain.PausedAt)
 	}
 
 	var resumed AgentResponse
@@ -101,6 +101,74 @@ func TestPauseResumeAgentRejectSystemAgent(t *testing.T) {
 				t.Fatalf("%s system agent response = %q", tc.action, resp.Text())
 			}
 		})
+	}
+}
+
+func TestResumeAgentRejectsArchivedAgent(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+
+	agentID := dbfx.Agent(t, "resume-archived-agent", handlerTestRuntimeID(t), testutil.Cols{
+		"archived_at": testutil.Raw("now()"),
+		"archived_by": testUserID,
+		"paused_at":   testutil.Raw("now()"),
+		"paused_by":   testUserID,
+	})
+	resp := testutil.Call(t, testHandler.ResumeAgent, testutil.WithURLParams(
+		newRequest(http.MethodPost, "/api/agents/"+agentID+"/resume", nil),
+		"id", agentID,
+	)).Want(http.StatusConflict)
+	if !strings.Contains(resp.Text(), "archived") {
+		t.Fatalf("resume archived response = %q", resp.Text())
+	}
+	if dbfx.Count(t, `SELECT count(*) FROM agent WHERE id = $1 AND paused_at IS NOT NULL`, agentID) != 1 {
+		t.Fatal("resume cleared pause on an archived agent")
+	}
+}
+
+func TestPauseAgentBlocksStaleDispatchReclaim(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+
+	runtimeID := handlerTestRuntimeID(t)
+	agentID := dbfx.Agent(t, "pause-reclaim-agent", runtimeID)
+	taskID := dbfx.Task(t, agentID, testutil.Cols{
+		"runtime_id":               runtimeID,
+		"status":                   "dispatched",
+		"dispatched_at":            testutil.Raw("now() - interval '10 minutes'"),
+		"prepare_lease_expires_at": testutil.Raw("now() - interval '1 minute'"),
+	})
+
+	testutil.Call(t, testHandler.PauseAgent, testutil.WithURLParams(
+		newRequest(http.MethodPost, "/api/agents/"+agentID+"/pause", nil),
+		"id", agentID,
+	)).Want(http.StatusOK)
+	if _, err := testHandler.Queries.ReclaimStaleDispatchedTaskForRuntime(t.Context(), db.ReclaimStaleDispatchedTaskForRuntimeParams{
+		RuntimeID:         parseUUID(runtimeID),
+		PrepareLeaseSecs:  60,
+		ClaimRecoverySecs: 30,
+		RuntimeStaleSecs:  300,
+	}); !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("reclaim paused dispatched task: got %v, want pgx.ErrNoRows", err)
+	}
+
+	testutil.Call(t, testHandler.ResumeAgent, testutil.WithURLParams(
+		newRequest(http.MethodPost, "/api/agents/"+agentID+"/resume", nil),
+		"id", agentID,
+	)).Want(http.StatusOK)
+	reclaimed, err := testHandler.Queries.ReclaimStaleDispatchedTaskForRuntime(t.Context(), db.ReclaimStaleDispatchedTaskForRuntimeParams{
+		RuntimeID:         parseUUID(runtimeID),
+		PrepareLeaseSecs:  60,
+		ClaimRecoverySecs: 30,
+		RuntimeStaleSecs:  300,
+	})
+	if err != nil {
+		t.Fatalf("reclaim after resume: %v", err)
+	}
+	if uuidToString(reclaimed.ID) != taskID {
+		t.Fatalf("reclaimed task = %s, want %s", uuidToString(reclaimed.ID), taskID)
 	}
 }
 

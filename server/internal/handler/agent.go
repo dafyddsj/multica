@@ -2401,6 +2401,7 @@ func (h *Handler) PauseAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	alreadyPaused := agent.PausedAt.Valid
 	userID := requestUserID(r)
 	paused, err := h.Queries.PauseAgent(r.Context(), db.PauseAgentParams{
 		ID:       agent.ID,
@@ -2421,7 +2422,9 @@ func (h *Handler) PauseAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actorType, actorID := h.resolveActor(r, userID, wsID)
-	h.publish(protocol.EventAgentPaused, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
+	if !alreadyPaused {
+		h.publish(protocol.EventAgentPaused, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
+	}
 	redactAgentResponseForActor(&resp, actorType)
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -2475,7 +2478,12 @@ func (h *Handler) ResumeAgent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "this agent is built into Multica and cannot be resumed")
 		return
 	}
+	if agent.ArchivedAt.Valid {
+		writeError(w, http.StatusConflict, "cannot resume an archived agent")
+		return
+	}
 
+	alreadyActive := !agent.PausedAt.Valid
 	resumed, err := h.Queries.ResumeAgent(r.Context(), agent.ID)
 	if err != nil {
 		slog.Warn("resume agent failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
@@ -2493,7 +2501,9 @@ func (h *Handler) ResumeAgent(w http.ResponseWriter, r *http.Request) {
 	}
 	userID := requestUserID(r)
 	actorType, actorID := h.resolveActor(r, userID, wsID)
-	h.publish(protocol.EventAgentResumed, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
+	if !alreadyActive {
+		h.publish(protocol.EventAgentResumed, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
+	}
 	redactAgentResponseForActor(&resp, actorType)
 	writeJSON(w, http.StatusOK, resp)
 }

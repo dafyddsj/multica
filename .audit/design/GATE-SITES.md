@@ -15,7 +15,12 @@ Every `ArchivedAt.Valid` / `archived_at` check that refuses new work.
 - `server/internal/handler/quick_action.go` if it checks archive
 - `server/internal/service/issue_trigger.go`
 - `server/internal/service/autopilot.go` if it checks archive besides readiness
-- Claim fences in `server/pkg/db/queries/agent.sql` (ClaimAgentTask and every "Keep this authorization fence" copy)
+- Claim fences in `server/pkg/db/queries/agent.sql` (`ClaimAgentTask`, `ListQueuedClaimCandidatesByRuntime`, `ListQueuedClaimCandidatesByRuntimes`, reclaim queries, and every "Keep this authorization fence" copy).
+- `server/internal/handler/issue_child_done.go`, `source_context.go`
+- `packages/views/issues/blocked-trigger-copy.ts` (`agent_paused`)
+- `packages/views/editor/extensions/slash-command-suggestion.tsx`
+- `packages/views/modals/quick-create-issue.tsx`
+- `packages/views/chat` archived banner / composer twin for paused
 - `server/cmd/multica/cmd_agent.go` pause/resume next to archive/restore
 - `server/cmd/server/router.go` POST pause / resume
 - `server/pkg/protocol/events.go` agent:paused / agent:resumed

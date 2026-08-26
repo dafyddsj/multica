@@ -25,16 +25,18 @@ Call sites that already reject archive grow a paused branch with its own wording
 - chat create → `agent is paused`
 - `AgentReadiness` → blocked, `reason_code: agent_paused`
 - mention / comment / autopilot admission use that readiness verdict
-- Claim SQL adds `a.paused_at IS NULL` on every fence that already joins `agent`
+- Claim SQL adds `a.paused_at IS NULL` and `a.archived_at IS NULL` on queued claim, candidate-list, and reclaim fences. A stale dispatched row has `started_at IS NULL`, so reclaim starts work. `PromoteDueDeferred` may still queue; claim holds those rows until resume. `StartTask` is already in-flight.
 
 Clients:
 
 ```
-agentAcceptsNewWork(agent) // !archived_at && !paused_at
-deriveAgentPresenceDetail  // archived wins, then paused, then runtime
+canAcceptNewWork(agent) // lifecycle === active
+deriveAgentPresenceDetail  // lifecycle first, then runtime, then workload
 ```
 
-Pickers filter with `agentAcceptsNewWork`. Presence shows Paused. Workload still reflects real running/queued counts so a paused agent that is finishing a run reads as Paused + Working.
+Pickers filter with `canAcceptNewWork`. Presence shows Paused. Workload still reflects real running and queued counts so a paused agent that is finishing a run reads as Paused plus Working.
+
+Lifecycle is a third presence axis, not a value of `AgentAvailability`. Archived and paused are not runtime colors. The how explorers and arena candidate 3 (cursor-grok-4.6-high-fast) both hit this.
 
 ## Shape
 
