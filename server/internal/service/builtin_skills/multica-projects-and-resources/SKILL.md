@@ -7,6 +7,10 @@ allowed-tools: Bash(multica *)
 
 # Multica Projects and Resources
 
+Projects are time-boxed containers of issues (a sprint, a launch, a workstream). Durable products, services, and programs live on an initiative. See `multica-initiatives` when the user wants that parent layer, or when attaching a project with `--initiative`.
+
+## Quick start
+
 ## Quick start
 
 Projects are durable context containers. Resources attached to a project can affect future agent tasks.

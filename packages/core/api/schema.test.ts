@@ -333,6 +333,24 @@ describe("ApiClient schema fallback", () => {
     });
   });
 
+  describe("searchInitiatives", () => {
+    it("falls back to an empty result when the response is malformed", async () => {
+      stubFetchJson({ initiatives: "not-an-array", total: 0 });
+      const client = new ApiClient("https://api.example.test");
+      const res = await client.searchInitiatives({ q: "platform" });
+      expect(res).toEqual({ initiatives: [], total: 0 });
+    });
+  });
+
+  describe("listInitiatives", () => {
+    it("falls back to an empty list when the response is malformed", async () => {
+      stubFetchJson({ initiatives: "not-an-array", total: 1 });
+      const client = new ApiClient("https://api.example.test");
+      const res = await client.listInitiatives();
+      expect(res).toEqual({ initiatives: [], total: 0 });
+    });
+  });
+
   describe("listAutopilots", () => {
     const baseAutopilot = {
       id: "ap-1",

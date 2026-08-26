@@ -1403,6 +1403,17 @@ describe("SearchProjectsResponseSchema date drift", () => {
     expect(parsed.projects[0]?.start_date).toBeNull();
     expect(parsed.projects[0]?.due_date).toBeNull();
   });
+
+  it("defaults missing initiative_id to null without dropping results", () => {
+    const parsed = parseWithFallback(
+      { projects: [baseProject], total: 1 },
+      SearchProjectsResponseSchema,
+      EMPTY_SEARCH_PROJECTS_RESPONSE,
+      ENDPOINT,
+    );
+    expect(parsed).not.toBe(EMPTY_SEARCH_PROJECTS_RESPONSE);
+    expect(parsed.projects[0]?.initiative_id).toBeNull();
+  });
 });
 
 // The "run now" flow branches on run.status/reason_code to avoid a false-success
