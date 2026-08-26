@@ -1,17 +1,6 @@
 /**
- * Project detail screen. Single column, scrolling:
- *
- *   Header card (icon + title + description, tap → edit)
- *   Properties section (Status / Priority / Lead — tap chip → picker)
- *   Resources section (read-only by default, "Add" button → resource form)
- *   Related issues (Open / Done bucketed list)
- *
- * Per-record realtime: `useProjectRealtime(id, onDeleted=back)` subscribes
- * to `project:updated` (full replace) and `project:deleted` (pop back).
- *
- * Right-top "…" menu (ActionSheetIOS) → Edit / Delete. Delete asks for
- * confirmation via `Alert.alert` per iOS HIG (destructive actions need
- * a second tap).
+ * Initiative detail. Properties + child projects. No board, gantt, or
+ * IssueSurface — issues attach only through projects.
  */
 import { useCallback } from "react";
 import {
@@ -29,63 +18,52 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Text } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { ProjectHeaderCard } from "@/components/project/project-header-card";
-import { ProjectPropertiesSection } from "@/components/project/project-properties-section";
-import { ProjectRelatedIssues } from "@/components/project/project-related-issues";
-import { ProjectResourcesSection } from "@/components/project/project-resources-section";
-import {
-  projectDetailOptions,
-  projectResourcesOptions,
-} from "@/data/queries/projects";
-import { issueKeys } from "@/data/queries/issue-keys";
-import { useDeleteProject } from "@/data/mutations/projects";
+import { InitiativeHeaderCard } from "@/components/initiative/initiative-header-card";
+import { InitiativePropertiesSection } from "@/components/initiative/initiative-properties-section";
+import { InitiativeChildProjects } from "@/components/initiative/initiative-child-projects";
+import { initiativeDetailOptions } from "@/data/queries/initiatives";
+import { projectKeys } from "@/data/queries/projects";
 import { pinListOptions } from "@/data/queries/pins";
+import { useDeleteInitiative } from "@/data/mutations/initiatives";
 import { useCreatePin, useDeletePin } from "@/data/mutations/pins";
 import { useAuthStore } from "@/data/auth-store";
-import { useProjectRealtime } from "@/data/realtime/use-project-realtime";
+import { useInitiativeRealtime } from "@/data/realtime/use-initiative-realtime";
+import { useNewProjectDraftStore } from "@/data/stores/new-project-draft-store";
 import { useWorkspaceStore } from "@/data/workspace-store";
 
-export default function ProjectDetail() {
+export default function InitiativeDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
   const wsSlug = useWorkspaceStore((s) => s.currentWorkspaceSlug);
   const qc = useQueryClient();
 
-  const detail = useQuery(projectDetailOptions(wsId, id));
-  const deleteProject = useDeleteProject(id);
+  const detail = useQuery(initiativeDetailOptions(wsId, id));
+  const deleteInitiative = useDeleteInitiative(id);
 
-  // Per-record realtime — when another client deletes the project we're
-  // viewing, pop back so the user isn't stranded on a 404.
-  useProjectRealtime(id, () => router.back());
+  useInitiativeRealtime(id, () => router.back());
 
   const onRefresh = useCallback(async () => {
     await Promise.all([
       detail.refetch(),
-      qc.invalidateQueries({ queryKey: projectResourcesOptions(wsId, id).queryKey }),
-      qc.invalidateQueries({
-        queryKey: [...issueKeys.list(wsId), "byProject", id],
-      }),
+      qc.invalidateQueries({ queryKey: projectKeys.list(wsId) }),
     ]);
-  }, [detail, qc, wsId, id]);
+  }, [detail, qc, wsId]);
 
-  const project = detail.data;
-
-  // EMPTY_PROJECT carries an empty id — parseWithFallback returned the
-  // fallback because the response shape drifted. Treat as "not found".
-  const projectMissing = !project || project.id === "";
+  const initiative = detail.data;
+  const initiativeMissing = !initiative || initiative.id === "";
 
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const { data: pins } = useQuery(pinListOptions(wsId, userId));
   const isPinned =
-    !!project &&
+    !!initiative &&
     !!pins?.some(
-      (p) => p.item_type === "project" && p.item_id === project.id,
+      (p) => p.item_type === "initiative" && p.item_id === initiative.id,
     );
   const createPin = useCreatePin();
   const deletePin = useDeletePin();
 
   const onPressMore = () => {
-    if (!project) return;
+    if (!initiative) return;
     const wsUrl = process.env.EXPO_PUBLIC_WEB_URL;
     const options = [
       "Cancel",
@@ -104,19 +82,25 @@ export default function ProjectDetail() {
       (i) => {
         const label = options[i];
         if (label === "Pin") {
-          createPin.mutate({ item_type: "project", item_id: project.id });
+          createPin.mutate({
+            item_type: "initiative",
+            item_id: initiative.id,
+          });
           return;
         }
         if (label === "Unpin") {
-          deletePin.mutate({ itemType: "project", itemId: project.id });
+          deletePin.mutate({
+            itemType: "initiative",
+            itemId: initiative.id,
+          });
           return;
         }
         if (label === "Edit details") {
-          if (wsSlug) router.push(`/${wsSlug}/project/${id}/edit`);
+          if (wsSlug) router.push(`/${wsSlug}/initiative/${id}/edit`);
           return;
         }
         if (label === "Open on web" && wsUrl) {
-          Linking.openURL(`${wsUrl}/${wsSlug}/projects/${id}`);
+          Linking.openURL(`${wsUrl}/${wsSlug}/initiatives/${id}`);
           return;
         }
         if (i === destructiveIndex) {
@@ -128,15 +112,15 @@ export default function ProjectDetail() {
 
   const onDelete = () => {
     Alert.alert(
-      "Delete project?",
-      "This cannot be undone. Issues in this project will become unassigned from any project.",
+      "Delete initiative?",
+      "Projects stay in the workspace and are detached from this initiative. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            deleteProject.mutate(undefined, {
+            deleteInitiative.mutate(undefined, {
               onSuccess: () => router.back(),
             });
           },
@@ -145,18 +129,24 @@ export default function ProjectDetail() {
     );
   };
 
+  const onAddProject = () => {
+    if (!wsSlug || !initiative) return;
+    useNewProjectDraftStore.getState().setInitiative(initiative);
+    router.push(`/${wsSlug}/project/new`);
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["bottom"]}>
       <Stack.Screen
         options={{
-          title: project?.title || "Project",
+          title: initiative?.title || "Initiative",
           headerBackTitle: "Back",
-          headerRight: project
+          headerRight: initiative
             ? () => (
                 <IconButton
                   name="ellipsis-horizontal"
                   onPress={onPressMore}
-                  accessibilityLabel="Project actions"
+                  accessibilityLabel="Initiative actions"
                 />
               )
             : undefined,
@@ -166,10 +156,10 @@ export default function ProjectDetail() {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator />
         </View>
-      ) : detail.error || projectMissing ? (
+      ) : detail.error || initiativeMissing ? (
         <View className="flex-1 items-center justify-center px-6 gap-3">
           <Text className="text-sm text-destructive text-center">
-            Failed to load project:{" "}
+            Failed to load initiative:{" "}
             {detail.error instanceof Error
               ? detail.error.message
               : "not found"}
@@ -189,55 +179,38 @@ export default function ProjectDetail() {
           }
           keyboardDismissMode="on-drag"
         >
-          <ProjectHeaderCard
-            project={project}
+          <InitiativeHeaderCard
+            initiative={initiative}
             onEdit={() => {
-              if (wsSlug) router.push(`/${wsSlug}/project/${id}/edit`);
+              if (wsSlug) router.push(`/${wsSlug}/initiative/${id}/edit`);
             }}
           />
-          <ProjectPropertiesSection
-            project={project}
+          <InitiativePropertiesSection
+            initiative={initiative}
             onPressStatus={() => {
               if (wsSlug)
                 router.push({
-                  pathname: "/[workspace]/project/[id]/picker/status",
+                  pathname: "/[workspace]/initiative/[id]/picker/status",
                   params: { workspace: wsSlug, id },
                 });
             }}
             onPressPriority={() => {
               if (wsSlug)
                 router.push({
-                  pathname: "/[workspace]/project/[id]/picker/priority",
+                  pathname: "/[workspace]/initiative/[id]/picker/priority",
                   params: { workspace: wsSlug, id },
                 });
             }}
             onPressLead={() => {
               if (wsSlug)
                 router.push({
-                  pathname: "/[workspace]/project/[id]/picker/lead",
-                  params: { workspace: wsSlug, id },
-                });
-            }}
-            onPressInitiative={() => {
-              if (wsSlug)
-                router.push({
-                  pathname: "/[workspace]/project/[id]/picker/initiative",
-                  params: { workspace: wsSlug, id },
-                });
-            }}
-          />
-          <ProjectResourcesSection
-            projectId={id}
-            onAdd={() => {
-              if (wsSlug)
-                router.push({
-                  pathname: "/[workspace]/project/[id]/add-resource",
+                  pathname: "/[workspace]/initiative/[id]/picker/lead",
                   params: { workspace: wsSlug, id },
                 });
             }}
           />
           <View className="h-3" />
-          <ProjectRelatedIssues projectId={id} />
+          <InitiativeChildProjects initiativeId={id} onAdd={onAddProject} />
         </ScrollView>
       )}
     </SafeAreaView>

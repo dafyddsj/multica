@@ -1,21 +1,13 @@
 /**
- * Project properties section. Tappable rows for Status / Priority / Lead.
- * Each row opens a picker sheet via the corresponding `onPress*` callback.
- *
- * Layout mirrors iOS Settings rows: label on left, current value on right
- * with a disclosure chevron, full-width separator below each row. Tapping
- * anywhere on the row triggers the picker.
- *
- * Lead supports both member and agent (Project.lead_type), resolved via
- * useActorLookup so it shares the same lookup with my-issues + issue detail.
+ * Initiative properties. Same Status / Priority / Lead rows as projects
+ * (`project-properties-section.tsx`). Enums match projects, so icons and
+ * labels come from the project helpers.
  */
 import { Pressable, View } from "react-native";
-import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import type { Project } from "@multica/core/types";
+import type { Initiative } from "@multica/core/types";
 import { Text } from "@/components/ui/text";
 import { ActorAvatar } from "@/components/ui/actor-avatar";
-import { InitiativeIcon } from "@/components/ui/initiative-icon";
 import { ProjectStatusIcon } from "@/components/ui/project-status-icon";
 import { ProjectPriorityIcon } from "@/components/ui/project-priority-icon";
 import {
@@ -23,36 +15,26 @@ import {
   projectStatusLabel,
 } from "@/lib/project-status";
 import { useActorLookup } from "@/data/use-actor-name";
-import {
-  findInitiative,
-  initiativeListOptions,
-} from "@/data/queries/initiatives";
-import { useWorkspaceStore } from "@/data/workspace-store";
 import { useColorScheme } from "@/lib/use-color-scheme";
 import { THEME } from "@/lib/theme";
 
 interface Props {
-  project: Project;
+  initiative: Initiative;
   onPressStatus: () => void;
   onPressPriority: () => void;
   onPressLead: () => void;
-  onPressInitiative: () => void;
 }
 
-export function ProjectPropertiesSection({
-  project,
+export function InitiativePropertiesSection({
+  initiative,
   onPressStatus,
   onPressPriority,
   onPressLead,
-  onPressInitiative,
 }: Props) {
   const { getName } = useActorLookup();
-  const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const { data: initiatives = [] } = useQuery(initiativeListOptions(wsId));
-  const initiative = findInitiative(initiatives, project.initiative_id);
   const leadName =
-    project.lead_type && project.lead_id
-      ? getName(project.lead_type, project.lead_id)
+    initiative.lead_type && initiative.lead_id
+      ? getName(initiative.lead_type, initiative.lead_id)
       : null;
 
   return (
@@ -60,10 +42,10 @@ export function ProjectPropertiesSection({
       <Row
         label="Status"
         onPress={onPressStatus}
-        left={<ProjectStatusIcon status={project.status} size={16} />}
+        left={<ProjectStatusIcon status={initiative.status} size={16} />}
         right={
           <Text className="text-sm text-foreground">
-            {projectStatusLabel(project.status)}
+            {projectStatusLabel(initiative.status)}
           </Text>
         }
       />
@@ -71,10 +53,10 @@ export function ProjectPropertiesSection({
       <Row
         label="Priority"
         onPress={onPressPriority}
-        left={<ProjectPriorityIcon priority={project.priority} size={16} />}
+        left={<ProjectPriorityIcon priority={initiative.priority} size={16} />}
         right={
           <Text className="text-sm text-foreground">
-            {projectPriorityLabel(project.priority)}
+            {projectPriorityLabel(initiative.priority)}
           </Text>
         }
       />
@@ -85,8 +67,8 @@ export function ProjectPropertiesSection({
         left={
           leadName ? (
             <ActorAvatar
-              type={project.lead_type}
-              id={project.lead_id}
+              type={initiative.lead_type}
+              id={initiative.lead_id}
               size={20}
               showPresence
             />
@@ -103,29 +85,6 @@ export function ProjectPropertiesSection({
             }
           >
             {leadName ?? "Unassigned"}
-          </Text>
-        }
-      />
-      <Separator />
-      <Row
-        label="Initiative"
-        onPress={onPressInitiative}
-        left={
-          initiative ? (
-            <InitiativeIcon icon={initiative.icon} size="sm" />
-          ) : (
-            <View style={{ width: 18, height: 18 }} />
-          )
-        }
-        right={
-          <Text
-            className={
-              initiative
-                ? "text-sm text-foreground"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            {initiative?.title ?? "None"}
           </Text>
         }
       />

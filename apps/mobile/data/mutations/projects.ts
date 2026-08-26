@@ -23,6 +23,7 @@ import type {
   UpdateProjectRequest,
 } from "@multica/core/types";
 import { api } from "@/data/api";
+import { initiativeKeys } from "@/data/queries/initiatives";
 import { projectKeys } from "@/data/queries/projects";
 import { useWorkspaceStore } from "@/data/workspace-store";
 
@@ -42,6 +43,9 @@ export function useCreateProject() {
       qc.setQueryData<Project[]>(projectKeys.list(wsId), (old) =>
         old ? [project, ...old.filter((p) => p.id !== project.id)] : [project],
       );
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: initiativeKeys.all(wsId) });
     },
   });
 }
@@ -97,6 +101,9 @@ export function useUpdateProject(projectId: string) {
           : old,
       );
     },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: initiativeKeys.all(wsId) });
+    },
   });
 }
 
@@ -124,6 +131,7 @@ export function useDeleteProject(projectId: string) {
     onSettled: () => {
       qc.removeQueries({ queryKey: projectKeys.detail(wsId, projectId) });
       qc.removeQueries({ queryKey: projectKeys.resources(wsId, projectId) });
+      qc.invalidateQueries({ queryKey: initiativeKeys.all(wsId) });
     },
   });
 }

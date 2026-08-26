@@ -1,19 +1,6 @@
 /**
- * New project modal. Mirrors `new-issue.tsx` shape — vertical form, header
- * Cancel / Create buttons. Title is required; everything else has a default
- * (status=planned, priority=none, no lead, no description, no icon).
- *
- * Lead is intentionally NOT exposed in the create form. Web does the same:
- * lead assignment is a follow-up action because most users create the
- * project from a "I need to track this stream of work" intent and figure
- * out who's leading it later. The picker lives on the detail screen.
- *
- * Status / priority cross-route through `useNewProjectDraftStore` so the
- * formSheet picker routes can read/write them — same pattern as
- * new-issue.tsx + new-issue-picker/* (see new-project-draft-store.ts).
- *
- * On success: dismiss modal → navigate to the new project's detail page so
- * the user can immediately add a lead / attach issues / configure properties.
+ * New initiative modal. Clone of `project/new.tsx`. Lead stays on the
+ * detail screen, same as projects.
  */
 import { useCallback, useState } from "react";
 import {
@@ -35,54 +22,45 @@ import {
 } from "@/components/ui/input-tokens";
 import { ProjectStatusIcon } from "@/components/ui/project-status-icon";
 import { ProjectPriorityIcon } from "@/components/ui/project-priority-icon";
-import { InitiativeIcon } from "@/components/ui/initiative-icon";
 import {
   projectPriorityLabel,
   projectStatusLabel,
 } from "@/lib/project-status";
-import { useCreateProject } from "@/data/mutations/projects";
-import { useNewProjectDraftStore } from "@/data/stores/new-project-draft-store";
+import { useCreateInitiative } from "@/data/mutations/initiatives";
+import { useNewInitiativeDraftStore } from "@/data/stores/new-initiative-draft-store";
 import { useWorkspaceStore } from "@/data/workspace-store";
 
-/**
- * Typed map of new-project picker route pathnames. Keeps `router.push` calls
- * compile-checked rather than depending on free-form template strings —
- * same approach as `create-form-attribute-row.tsx`.
- */
-type NewProjectPickerField = "status" | "priority" | "initiative";
-const NEW_PROJECT_PICKER_PATHNAMES = {
-  status: "/[workspace]/new-project-picker/status",
-  priority: "/[workspace]/new-project-picker/priority",
-  initiative: "/[workspace]/new-project-picker/initiative",
-} as const satisfies Record<NewProjectPickerField, string>;
+type NewInitiativePickerField = "status" | "priority";
+const NEW_INITIATIVE_PICKER_PATHNAMES = {
+  status: "/[workspace]/new-initiative-picker/status",
+  priority: "/[workspace]/new-initiative-picker/priority",
+} as const satisfies Record<NewInitiativePickerField, string>;
 
-export default function NewProject() {
+export default function NewInitiative() {
   const wsSlug = useWorkspaceStore((s) => s.currentWorkspaceSlug);
-  const create = useCreateProject();
+  const create = useCreateInitiative();
 
   const [title, setTitle] = useState("");
   const [icon, setIcon] = useState("");
   const [description, setDescription] = useState("");
-  const status = useNewProjectDraftStore((s) => s.status);
-  const priority = useNewProjectDraftStore((s) => s.priority);
-  const initiative = useNewProjectDraftStore((s) => s.initiative);
-  const resetDraft = useNewProjectDraftStore((s) => s.reset);
+  const status = useNewInitiativeDraftStore((s) => s.status);
+  const priority = useNewInitiativeDraftStore((s) => s.priority);
+  const resetDraft = useNewInitiativeDraftStore((s) => s.reset);
 
   const dirty =
     title.length > 0 ||
     icon.length > 0 ||
     description.length > 0 ||
     status !== "planned" ||
-    priority !== "none" ||
-    initiative !== null;
+    priority !== "none";
 
   const canCreate = title.trim().length > 0 && !create.isPending;
 
   const openPicker = useCallback(
-    (field: NewProjectPickerField) => {
+    (field: NewInitiativePickerField) => {
       if (!wsSlug) return;
       router.push({
-        pathname: NEW_PROJECT_PICKER_PATHNAMES[field],
+        pathname: NEW_INITIATIVE_PICKER_PATHNAMES[field],
         params: { workspace: wsSlug },
       });
     },
@@ -95,21 +73,17 @@ export default function NewProject() {
       router.back();
       return;
     }
-    Alert.alert(
-      "Discard project?",
-      "Your draft will be lost.",
-      [
-        { text: "Keep editing", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => {
-            resetDraft();
-            router.back();
-          },
+    Alert.alert("Discard initiative?", "Your draft will be lost.", [
+      { text: "Keep editing", style: "cancel" },
+      {
+        text: "Discard",
+        style: "destructive",
+        onPress: () => {
+          resetDraft();
+          router.back();
         },
-      ],
-    );
+      },
+    ]);
   }, [dirty, resetDraft]);
 
   const onCreate = useCallback(() => {
@@ -121,24 +95,18 @@ export default function NewProject() {
         icon: icon.trim() || undefined,
         status,
         priority,
-        ...(initiative ? { initiative_id: initiative.id } : {}),
       },
       {
-        onSuccess: (project) => {
+        onSuccess: (initiative) => {
           resetDraft();
           router.back();
-          // Wait for the modal dismiss animation to finish before pushing
-          // the detail screen. `InteractionManager` resolves once iOS
-          // says all in-flight animations / interactions are done — more
-          // robust than a hard-coded `setTimeout(150)` if iOS timing
-          // changes or the device is under load.
           InteractionManager.runAfterInteractions(() => {
-            if (wsSlug) router.push(`/${wsSlug}/project/${project.id}`);
+            if (wsSlug) router.push(`/${wsSlug}/initiative/${initiative.id}`);
           });
         },
         onError: (err) => {
           Alert.alert(
-            "Failed to create project",
+            "Failed to create initiative",
             err instanceof Error ? err.message : "Unknown error",
           );
         },
@@ -152,7 +120,6 @@ export default function NewProject() {
     icon,
     status,
     priority,
-    initiative,
     wsSlug,
     resetDraft,
   ]);
@@ -195,7 +162,7 @@ export default function NewProject() {
             <TextInput
               value={icon}
               onChangeText={(v) => setIcon(v.slice(0, 4))}
-              placeholder="📦"
+              placeholder="🎯"
               placeholderTextColor={MOBILE_PLACEHOLDER_COLOR}
               className="text-2xl text-foreground bg-secondary/50 rounded-md px-3 py-2 self-start min-w-[60px] text-center"
               maxLength={4}
@@ -206,7 +173,7 @@ export default function NewProject() {
             <TextInput
               value={title}
               onChangeText={setTitle}
-              placeholder="Project title"
+              placeholder="Initiative title"
               placeholderTextColor={MOBILE_PLACEHOLDER_COLOR}
               className="text-base text-foreground bg-secondary/50 rounded-md px-3 py-2"
               autoFocus
@@ -218,7 +185,7 @@ export default function NewProject() {
             <AutosizeTextArea
               value={description}
               onChangeText={setDescription}
-              placeholder="What is this project about?"
+              placeholder="What is this initiative about?"
               className="bg-secondary/50 rounded-md px-3 py-2"
               minHeight={MIN_BODY_INPUT_HEIGHT_PX}
             />
@@ -252,26 +219,6 @@ export default function NewProject() {
               </Field>
             </View>
           </View>
-
-          <Field label="Initiative">
-            <Pressable
-              onPress={() => openPicker("initiative")}
-              className="flex-row items-center gap-2 bg-secondary/50 rounded-md px-3 py-2.5"
-            >
-              {initiative ? (
-                <InitiativeIcon icon={initiative.icon} size="sm" />
-              ) : null}
-              <Text
-                className={
-                  initiative
-                    ? "text-sm text-foreground flex-1"
-                    : "text-sm text-muted-foreground flex-1"
-                }
-              >
-                {initiative?.title ?? "No initiative"}
-              </Text>
-            </Pressable>
-          </Field>
         </ScrollView>
       </KeyboardAvoidingView>
     </>
