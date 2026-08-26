@@ -580,6 +580,12 @@ export interface Agent {
    * account defaults remain authoritative.
    */
   service_tier?: string;
+  /**
+   * Optional extra Co-authored-by address for this agent's commits. Empty or
+   * omitted means no extra trailer. The workspace GitHub toggle still controls
+   * the shared Multica trailer. Older backends omit the field.
+   */
+  co_authored_by_email?: string;
   owner_id: string | null;
   skills: AgentSkillSummary[];
   /** Runtime-local skills this agent must not inherit. Older servers omit it. */
@@ -794,6 +800,11 @@ export interface UpdateAgentRequest {
    * clears it, and a non-empty value stores a runtime-catalog ID.
    */
   service_tier?: string;
+  /**
+   * Extra Co-authored-by email. Omitted preserves the saved value, `""`
+   * clears it, and a non-empty value stores the canonical address.
+   */
+  co_authored_by_email?: string;
 }
 
 /**
