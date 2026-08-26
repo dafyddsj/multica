@@ -32,11 +32,13 @@ import type {
   IssueStatusCategory,
   SearchIssueResult,
   SearchProjectResult,
+  SearchInitiativeResult,
 } from "@multica/core/types";
 import { Text } from "@/components/ui/text";
 import { StatusIcon } from "@/components/ui/status-icon";
 import { PriorityIcon } from "@/components/ui/priority-icon";
 import { ProjectIcon } from "@/components/ui/project-icon";
+import { InitiativeIcon } from "@/components/ui/initiative-icon";
 import { ProjectStatusIcon } from "@/components/ui/project-status-icon";
 import { api } from "@/data/api";
 import { useWorkspaceStore } from "@/data/workspace-store";
@@ -53,6 +55,7 @@ import { buildSearchRows, type RowItem } from "@/lib/search-rows";
 const DEBOUNCE_MS = 300;
 const ISSUE_LIMIT = 20;
 const PROJECT_LIMIT = 10;
+const INITIATIVE_LIMIT = 10;
 const RECENT_LIMIT = 5;
 
 // =====================================================
@@ -263,6 +266,53 @@ function SearchProjectRow({ item, query, slug }: SearchProjectRowProps) {
   );
 }
 
+interface SearchInitiativeRowProps {
+  item: SearchInitiativeResult;
+  query: string;
+  slug: string | null;
+}
+
+function SearchInitiativeRow({ item, query, slug }: SearchInitiativeRowProps) {
+  const showSnippet =
+    item.match_source === "description" && !!item.matched_snippet;
+  return (
+    <Pressable
+      onPress={() => navigateOnTap(slug, `/${slug}/initiative/${item.id}`)}
+      className="active:bg-secondary px-4 py-3"
+    >
+      <View className="flex-row items-center gap-3">
+        <InitiativeIcon icon={item.icon} size="md" />
+        <View className="flex-1">
+          <HighlightText
+            text={item.title}
+            query={query}
+            className="text-sm text-foreground"
+            numberOfLines={1}
+          />
+        </View>
+        <View className="flex-row items-center gap-1.5 shrink-0">
+          <ProjectStatusIcon status={item.status} size={12} />
+          <Text className="text-xs text-muted-foreground">
+            {projectStatusLabel(item.status)}
+          </Text>
+        </View>
+      </View>
+      {showSnippet ? (
+        <View className="flex-row items-start mt-1 pl-[36px]">
+          <View className="flex-1">
+            <HighlightText
+              text={item.matched_snippet ?? ""}
+              query={query}
+              className="text-xs text-muted-foreground"
+              numberOfLines={1}
+            />
+          </View>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 interface RecentRowProps {
   item: Issue;
   slug: string | null;
@@ -305,9 +355,10 @@ function RecentRow({ item, slug }: RecentRowProps) {
 interface SearchResultsState {
   issues: SearchIssueResult[];
   projects: SearchProjectResult[];
+  initiatives: SearchInitiativeResult[];
 }
 
-const EMPTY_RESULTS: SearchResultsState = { issues: [], projects: [] };
+const EMPTY_RESULTS: SearchResultsState = { issues: [], projects: [], initiatives: [] };
 
 export default function SearchModal() {
   const wsId = useWorkspaceStore((s) => s.currentWorkspaceId);
@@ -367,7 +418,7 @@ export default function SearchModal() {
       const controller = new AbortController();
       abortRef.current = controller;
       try {
-        const [issueRes, projectRes] = await Promise.all([
+        const [issueRes, projectRes, initiativeRes] = await Promise.all([
           api.searchIssues(
             { q: q.trim(), limit: ISSUE_LIMIT, include_closed: true },
             { signal: controller.signal },
@@ -376,9 +427,17 @@ export default function SearchModal() {
             { q: q.trim(), limit: PROJECT_LIMIT, include_closed: true },
             { signal: controller.signal },
           ),
+          api.searchInitiatives(
+            { q: q.trim(), limit: INITIATIVE_LIMIT, include_closed: true },
+            { signal: controller.signal },
+          ),
         ]);
         if (!controller.signal.aborted) {
-          setResults({ issues: issueRes.issues, projects: projectRes.projects });
+          setResults({
+            issues: issueRes.issues,
+            projects: projectRes.projects,
+            initiatives: initiativeRes.initiatives,
+          });
           setIsLoading(false);
         }
       } catch {
@@ -400,7 +459,9 @@ export default function SearchModal() {
 
   const trimmedQuery = query.trim();
   const hasResults =
-    results.issues.length > 0 || results.projects.length > 0;
+    results.issues.length > 0 ||
+    results.projects.length > 0 ||
+    results.initiatives.length > 0;
 
   // Build the FlatList data. One flat array of discriminated rows means a
   // single virtualised list covers Recent (empty-state) and the search results
@@ -412,6 +473,7 @@ export default function SearchModal() {
         query,
         issues: results.issues,
         projects: results.projects,
+        initiatives: results.initiatives,
         recentIssues,
       }),
     [query, results, recentIssues],
@@ -430,6 +492,10 @@ export default function SearchModal() {
           return <SearchIssueRow item={item.issue} query={item.query} slug={slug} />;
         case "project":
           return <SearchProjectRow item={item.project} query={item.query} slug={slug} />;
+        case "initiative":
+          return (
+            <SearchInitiativeRow item={item.initiative} query={item.query} slug={slug} />
+          );
         case "recent":
           return <RecentRow item={item.issue} slug={slug} />;
       }
@@ -449,7 +515,7 @@ export default function SearchModal() {
           <TextInput
             value={query}
             onChangeText={handleChange}
-            placeholder="Search issues and projects"
+            placeholder="Search issues, projects, and initiatives"
             placeholderTextColor="#a1a1aa"
             autoFocus
             autoCorrect={false}

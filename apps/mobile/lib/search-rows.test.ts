@@ -3,6 +3,7 @@ import type {
   Issue,
   SearchIssueResult,
   SearchProjectResult,
+  SearchInitiativeResult,
 } from "@multica/core/types";
 import { buildSearchRows } from "./search-rows";
 
@@ -116,5 +117,36 @@ describe("buildSearchRows", () => {
       recentIssues: [],
     });
     expect(shape(rows)).toEqual(["#Projects", "p-p1", "#Issues", "i-i1"]);
+  });
+
+  it("puts live initiatives above live projects and cancelled work last", () => {
+    const rows = buildSearchRows({
+      query: "search",
+      issues: [issue({ id: "i-live", title: "search issue", status: "todo" })],
+      projects: [project({ id: "p-live", title: "search project", status: "planned" })],
+      initiatives: [
+        {
+          id: "n-live",
+          title: "search live",
+          status: "in_progress",
+        } as SearchInitiativeResult,
+        {
+          id: "n-dead",
+          title: "search dead",
+          status: "cancelled",
+        } as SearchInitiativeResult,
+      ],
+      recentIssues: [],
+    });
+    expect(shape(rows)).toEqual([
+      "#Initiatives",
+      "n-n-live",
+      "#Projects",
+      "p-p-live",
+      "#Issues",
+      "i-i-live",
+      "#Cancelled",
+      "n-n-dead",
+    ]);
   });
 });
