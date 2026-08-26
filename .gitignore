@@ -78,3 +78,7 @@ data/
 # Python (agent tooling)
 __pycache__/
 *.pyc
+
+# verify-multica run state and proof artifacts (skill files stay tracked)
+.cursor/skills/verify-multica/artifacts/
+.cursor/skills/verify-multica/.run-state

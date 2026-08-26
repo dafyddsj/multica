@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+# Drive this Multica checkout's local web environment for verification.
+# See SKILL.md. Never kill by process name. Never run make destroy.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+STATE_FILE="$SCRIPT_DIR/.run-state"
+ARTIFACTS_DIR="$SCRIPT_DIR/artifacts"
+
+repo_root() {
+  local dir="$SCRIPT_DIR"
+  while [ "$dir" != / ]; do
+    if [ -f "$dir/Makefile" ] && [ -f "$dir/scripts/dev-env.sh" ]; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+    dir="$(dirname "$dir")"
+  done
+  echo "control-multica: could not find the Multica repo root above $SCRIPT_DIR" >&2
+  exit 1
+}
+
+REPO_ROOT="$(repo_root)"
+cd "$REPO_ROOT"
+
+die() { echo "control-multica: $*" >&2; exit 1; }
+
+status_json() {
+  make status ARGS=--json
+}
+
+field() {
+  # field <json> <python expr on obj>
+  python3 -c 'import json,sys; obj=json.loads(sys.argv[1]); '"$2"'' "$1"
+}
+
+load_status() {
+  STATUS_JSON="$(status_json)" || die "make status --json failed. This checkout may have no registered environment. Run: $0 launch"
+}
+
+urls_from_status() {
+  load_status
+  BACKEND_PORT="$(field "$STATUS_JSON" 'print(obj["backend_port"])')"
+  FRONTEND_PORT="$(field "$STATUS_JSON" 'print(obj["frontend_port"])')"
+  API_STATE="$(field "$STATUS_JSON" 'print(obj["components"]["api"]["state"])')"
+  WEB_STATE="$(field "$STATUS_JSON" 'print(obj["components"]["web"]["state"])')"
+  API_DETAIL="$(field "$STATUS_JSON" 'print(obj["components"]["api"]["detail"])')"
+  WEB_ADDR="$(field "$STATUS_JSON" 'print(obj["components"]["web"]["address"])')"
+  API_ADDR="$(field "$STATUS_JSON" 'print(obj["components"]["api"]["address"])')"
+  ENV_DIR="$(field "$STATUS_JSON" 'print(obj["dir"])')"
+  ENV_NAME="$(field "$STATUS_JSON" 'print(obj["name"])')"
+  WEB_URL="http://localhost:${FRONTEND_PORT}"
+  API_URL="http://localhost:${BACKEND_PORT}"
+}
+
+expected_commit() {
+  git -C "$REPO_ROOT" rev-parse --short HEAD
+}
+
+dev_email() {
+  printf '%s\n' "${MULTICA_DEV_EMAIL:-dev@localhost}"
+}
+
+dev_code() {
+  if [ -f "$REPO_ROOT/.env.worktree" ]; then
+    # shellcheck disable=SC1091
+    code="$(grep -E '^MULTICA_DEV_VERIFICATION_CODE=' "$REPO_ROOT/.env.worktree" | tail -n1 | cut -d= -f2- || true)"
+    if [ -n "$code" ]; then
+      printf '%s\n' "$code"
+      return
+    fi
+  fi
+  if [ -f "$REPO_ROOT/.env" ]; then
+    # shellcheck disable=SC1091
+    code="$(grep -E '^MULTICA_DEV_VERIFICATION_CODE=' "$REPO_ROOT/.env" | tail -n1 | cut -d= -f2- || true)"
+    if [ -n "$code" ]; then
+      printf '%s\n' "$code"
+      return
+    fi
+  fi
+  printf '%s\n' "${MULTICA_DEV_VERIFICATION_CODE:-888888}"
+}
+
+write_state() {
+  mkdir -p "$(dirname "$STATE_FILE")"
+  cat >"$STATE_FILE" <<EOF
+launched=$1
+pid=$$
+repo=$REPO_ROOT
+started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+EOF
+}
+
+read_launched() {
+  [ -f "$STATE_FILE" ] || { printf '0\n'; return; }
+  grep -E '^launched=' "$STATE_FILE" | cut -d= -f2
+}
+
+cmd_urls() {
+  urls_from_status
+  cat <<EOF
+env		$ENV_NAME
+dir		$ENV_DIR
+web		$WEB_URL
+api		$API_URL
+health		$API_URL/health
+sign-in		$(dev_email)  ·  code $(dev_code)
+artifacts	$ARTIFACTS_DIR
+EOF
+}
+
+cmd_doctor() {
+  urls_from_status
+
+  if [ "$ENV_DIR" != "$REPO_ROOT" ]; then
+    die "make status dir is $ENV_DIR, not this checkout ($REPO_ROOT). Refuse to drive another environment."
+  fi
+
+  if [ "$API_STATE" != running ]; then
+    die "api is '$API_STATE' (want running). Address: ${API_ADDR:--}. Run: $0 launch"
+  fi
+  if [ "$WEB_STATE" != running ]; then
+    die "web is '$WEB_STATE' (want running). Address: ${WEB_ADDR:--}. Run: $0 launch"
+  fi
+
+  local health expected health_commit
+  health="$(curl -sf --max-time 3 "$API_URL/health")" \
+    || die "GET $API_URL/health failed. The listener is not this checkout's API."
+  expected="$(expected_commit)"
+  health_commit="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("commit",""))' "$health")"
+  if [ "$health_commit" != "$expected" ]; then
+    die "/health commit is '$health_commit', this checkout is '$expected'. Refuse to drive a stale or foreign API. $API_DETAIL"
+  fi
+
+  curl -sf --max-time 15 "$WEB_URL" >/dev/null \
+    || die "GET $WEB_URL failed."
+
+  echo "control-multica doctor: ok"
+  echo "  env     $ENV_NAME"
+  echo "  web     $WEB_URL  ($WEB_STATE)"
+  echo "  api     $API_URL  commit $health_commit  $API_DETAIL"
+  echo "  sign-in $(dev_email) / $(dev_code)"
+}
+
+need_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "missing on PATH: $1 (install it, then retry launch)"
+}
+
+cmd_prereqs() {
+  need_cmd go
+  need_cmd docker
+  need_cmd node
+  need_cmd pnpm
+  echo "control-multica prereqs: ok (go docker node pnpm)"
+}
+
+cmd_launch() {
+  cmd_prereqs
+  # Subshell so doctor's `exit 1` cannot abort launch before `make up`.
+  if (cmd_doctor) >/dev/null 2>&1; then
+    if [ ! -f "$STATE_FILE" ]; then
+      write_state 0
+    fi
+    echo "control-multica launch: reused this checkout's already-running environment"
+    cmd_doctor
+    return 0
+  fi
+
+  echo "control-multica launch: make up C=api,web"
+  make up C=api,web
+  write_state 1
+  cmd_doctor
+}
+
+cmd_cleanup() {
+  local launched
+  launched="$(read_launched)"
+  if [ "$launched" = 1 ]; then
+    echo "control-multica cleanup: make down (keeps the database; leaves $ARTIFACTS_DIR)"
+    make down
+  else
+    echo "control-multica cleanup: did not start this environment; leaving it running"
+  fi
+  rm -f "$STATE_FILE"
+  echo "control-multica cleanup: proof artifacts remain in $ARTIFACTS_DIR"
+}
+
+cmd_artifacts() {
+  local feature="${1:-}"
+  [ -n "$feature" ] || die "usage: $0 artifacts <feature-id>"
+  local dir="$ARTIFACTS_DIR/$feature"
+  mkdir -p "$dir"
+  printf '%s\n' "$dir"
+}
+
+usage() {
+  cat <<EOF
+usage: control-multica <command>
+
+  launch      Start this checkout with make up C=api,web, or reuse it if doctor already passes
+  prereqs     Read-only: go, docker, node, pnpm on PATH
+  doctor      Read-only: this checkout owns api+web, /health commit matches HEAD, web answers
+  urls        Print web, api, local sign-in email/code, artifacts dir
+  artifacts <feature-id>
+              Create and print artifacts/<feature-id>
+  cleanup     make down only if this run launched the env. Never destroy. Never delete artifacts
+
+Run from any directory. All commands bind to the repo that contains this script.
+EOF
+}
+
+cmd="${1:-}"
+shift || true
+case "$cmd" in
+  launch) cmd_launch "$@" ;;
+  doctor) cmd_doctor "$@" ;;
+  prereqs) cmd_prereqs "$@" ;;
+  urls) cmd_urls "$@" ;;
+  artifacts) cmd_artifacts "$@" ;;
+  cleanup) cmd_cleanup "$@" ;;
+  -h|--help|help|"") usage ;;
+  *) die "unknown command: $cmd" ;;
+esac
