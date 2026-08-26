@@ -366,7 +366,8 @@ export function AgentDetailInspector({
             align="start"
           >
             <Input
-              type="email"
+              type="text"
+              inputMode="email"
               name="agent-co-authored-by-email"
               autoComplete="off"
               aria-label={t(($) => $.inspector.prop_co_authored_by_email)}
