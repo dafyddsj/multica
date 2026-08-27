@@ -69,7 +69,7 @@ Changes take effect after restarting the backend / compose stack. The web UI rea
 | `CLERK_SECRET_KEY` | Clerk secret key (`sk_…`). Required together with the publishable key. |
 | `CLERK_PUBLISHABLE_KEY` | Clerk publishable key (`pk_…`). Advertised on `/api/config` when both keys are set. |
 
-When both are set, the API verifies Clerk session JWTs for human requests and hides native `/auth/send-code`, `/auth/verify-code`, and `/auth/google`. Machine tokens stay native. Either key empty keeps native email OTP / Google. Paste values into `.env` from `.env.example`. Do not commit real keys. Restart the backend / compose stack after changing them.
+When both are set, the API verifies Clerk session JWTs for human requests and hides native `/auth/send-code`, `/auth/verify-code`, and `/auth/google`. The Next app mounts `@clerk/nextjs` `ClerkProvider` from the same pair. Machine tokens stay native. Either key empty keeps native email OTP / Google. Paste values into `.env` from `.env.example`. Do not commit real keys. Restart the API and the web app after changing them.
 
 ### Signup Controls (Optional)
 

@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Inter, Geist_Mono, Source_Serif_4 } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@multica/ui/components/ui/sonner";
 import { cn } from "@multica/ui/lib/utils";
 import { WebProviders } from "@/components/web-providers";
+import { clerkPublishableKeyFromEnv } from "@/lib/clerk-env";
 import type { SupportedLocale } from "@multica/core/i18n";
 import { RESOURCES } from "@multica/views/locales";
 import { getRequestLocale } from "@/lib/request-locale";
@@ -139,6 +141,19 @@ export default async function RootLayout({
   const resources = { [locale]: RESOURCES[locale] };
   const apiBaseUrl = resolveBrowserApiBaseUrl(process.env);
   const wsUrl = resolveBrowserWsUrl(process.env);
+  const clerkPublishableKey = clerkPublishableKeyFromEnv();
+
+  const app = (
+    <WebProviders
+      locale={locale}
+      resources={resources}
+      apiBaseUrl={apiBaseUrl}
+      wsUrl={wsUrl}
+      clerkPublishableKey={clerkPublishableKey}
+    >
+      {children}
+    </WebProviders>
+  );
 
   return (
     <html
@@ -166,14 +181,11 @@ export default async function RootLayout({
           />
         )}
         <ThemeProvider>
-          <WebProviders
-            locale={locale}
-            resources={resources}
-            apiBaseUrl={apiBaseUrl}
-            wsUrl={wsUrl}
-          >
-            {children}
-          </WebProviders>
+          {clerkPublishableKey ? (
+            <ClerkProvider publishableKey={clerkPublishableKey}>{app}</ClerkProvider>
+          ) : (
+            app
+          )}
           <Toaster />
         </ThemeProvider>
       </body>

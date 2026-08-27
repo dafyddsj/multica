@@ -1,7 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { MULTICA_LOCALE_HEADER } from "./lib/locale-routing";
 import { config, proxy } from "./proxy";
+
+const clerkEnvKeys = [
+  "CLERK_SECRET_KEY",
+  "CLERK_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+] as const;
+
+beforeEach(() => {
+  for (const key of clerkEnvKeys) {
+    delete process.env[key];
+  }
+});
 
 function makeRequest(
   path: string,
@@ -35,9 +47,15 @@ function withoutRuntimeUpstreams(run: () => void) {
   const previousDocsUrl = process.env.DOCS_URL;
   const previousPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
   const previousPort = process.env.PORT;
+  const previousClerkSecret = process.env.CLERK_SECRET_KEY;
+  const previousClerkPublishable = process.env.CLERK_PUBLISHABLE_KEY;
+  const previousClerkNextPublishable = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   delete process.env.REMOTE_API_URL;
   delete process.env.DOCS_URL;
   delete process.env.NEXT_PUBLIC_API_URL;
+  delete process.env.CLERK_SECRET_KEY;
+  delete process.env.CLERK_PUBLISHABLE_KEY;
+  delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   process.env.PORT = "3000";
 
   try {
@@ -47,6 +65,9 @@ function withoutRuntimeUpstreams(run: () => void) {
     restoreEnv("DOCS_URL", previousDocsUrl);
     restoreEnv("NEXT_PUBLIC_API_URL", previousPublicApiUrl);
     restoreEnv("PORT", previousPort);
+    restoreEnv("CLERK_SECRET_KEY", previousClerkSecret);
+    restoreEnv("CLERK_PUBLISHABLE_KEY", previousClerkPublishable);
+    restoreEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", previousClerkNextPublishable);
   }
 }
 

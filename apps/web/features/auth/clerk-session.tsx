@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAuth, useClerk } from "@clerk/clerk-react";
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { getApi } from "@multica/core/api";
 
 export function useClerkSessionBridge(): {

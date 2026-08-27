@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { LOCALE_COOKIE } from "@multica/core/i18n";
 import {
   MULTICA_LOCALE_HEADER,
@@ -6,6 +7,7 @@ import {
 } from "./lib/locale-routing";
 import { runtimeRewriteDestination } from "./config/runtime-urls";
 import { isOfficialMarketingHost } from "./lib/public-host";
+import { clerkOverlayKeys } from "./lib/clerk-env";
 
 // Old workspace-scoped route segments that existed before the URL refactor
 // (pre-#1131). Any URL with these as the FIRST segment is a legacy URL that
@@ -47,7 +49,7 @@ function nextWithLocale(req: NextRequest): NextResponse {
 // NextResponse / cookies / matcher) is identical; the only behavioral
 // change is the runtime — proxy is forced to nodejs and cannot opt into
 // edge.
-export function proxy(req: NextRequest) {
+function appProxy(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl;
   const runtimeDestination = runtimeRewriteDestination(pathname, process.env);
   if (runtimeDestination) {
@@ -110,6 +112,20 @@ export function proxy(req: NextRequest) {
   // --- Default: forward locale header to RSC, no redirect/rewrite ---
   // Covers logged-out root path, /login, /:slug/*, and everything else.
   return nextWithLocale(req);
+}
+
+const unusedFetchEvent = {
+  waitUntil() {},
+  passThroughOnException() {},
+} as NextFetchEvent;
+
+export function proxy(req: NextRequest, event: NextFetchEvent = unusedFetchEvent) {
+  const keys = clerkOverlayKeys();
+  if (!keys) return appProxy(req);
+  return clerkMiddleware((_auth, request) => appProxy(request), {
+    secretKey: keys.secretKey,
+    publishableKey: keys.publishableKey,
+  })(req, event);
 }
 
 export const config = {

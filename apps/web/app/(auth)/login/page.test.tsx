@@ -82,7 +82,7 @@ vi.mock("@/features/auth/auth-cookie", () => ({
   setLoggedInCookie: vi.fn(),
 }));
 
-vi.mock("@clerk/clerk-react", () => ({
+vi.mock("@clerk/nextjs", () => ({
   SignIn: () => <div>Clerk Sign In</div>,
   useAuth: () => ({
     isLoaded: true,

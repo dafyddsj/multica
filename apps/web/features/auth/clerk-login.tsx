@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SignIn, useAuth } from "@clerk/clerk-react";
+import { SignIn, useAuth } from "@clerk/nextjs";
 import { useAuthStore } from "@multica/core/auth";
 import { api } from "@multica/core/api";
 import { workspaceKeys } from "@multica/core/workspace/queries";

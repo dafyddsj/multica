@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
+import { ClerkFailed, ClerkLoaded, ClerkLoading } from "@clerk/nextjs";
 import { CoreProvider } from "@multica/core/platform";
 import { createBrowserCookieLocaleAdapter } from "@multica/core/i18n/browser";
 import type { LocaleResources, SupportedLocale } from "@multica/core/i18n";
 import { useWelcomeStore } from "@multica/core/onboarding";
 import { getApi } from "@multica/core/api";
+import { configStore } from "@multica/core/config";
+import { Loader2 } from "lucide-react";
 import packageJson from "../package.json";
 import { WebNavigationProvider } from "@/platform/navigation";
 import { WebScrollRestorationProvider } from "@/platform/scroll-restoration";
@@ -14,7 +17,6 @@ import {
   clearLoggedInCookie,
 } from "@/features/auth/auth-cookie";
 import { detectWebOS } from "@/platform/client-os";
-import { ClerkAuthGate } from "@/features/auth/clerk-shell";
 import { useClerkSessionBridge } from "@/features/auth/clerk-session";
 
 // Legacy token in localStorage → keep this session in token mode so users who
@@ -64,19 +66,43 @@ function resetLocalSession() {
   }
 }
 
+function seedClerkPublishableKey(clerkPublishableKey: string) {
+  if (!clerkPublishableKey) return;
+  const state = configStore.getState();
+  if (state.clerkPublishableKey === clerkPublishableKey) return;
+  state.setAuthConfig({
+    allowSignup: state.allowSignup,
+    googleClientId: state.googleClientId,
+    clerkPublishableKey,
+    workspaceCreationDisabled: state.workspaceCreationDisabled,
+    vcsIntegrationAvailable: state.vcsIntegrationAvailable,
+  });
+}
+
+function ClerkBootSpinner() {
+  return (
+    <div className="flex min-h-svh items-center justify-center">
+      <Loader2 className="size-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
+
 export function WebProviders({
   children,
   locale,
   resources,
   apiBaseUrl,
   wsUrl,
+  clerkPublishableKey = "",
 }: {
   children: React.ReactNode;
   locale: SupportedLocale;
   resources: Record<string, LocaleResources>;
   apiBaseUrl?: string;
   wsUrl?: string;
+  clerkPublishableKey?: string;
 }) {
+  seedClerkPublishableKey(clerkPublishableKey);
   const cookieAuth = !hasLegacyToken();
   // Stable identity reference so downstream effects keyed on it don't see a
   // new object on every parent render.
@@ -86,38 +112,21 @@ export function WebProviders({
   );
   const localeAdapter = useMemo(() => createBrowserCookieLocaleAdapter(), []);
   const resolvedWsUrl = wsUrl || deriveWsUrl();
+  const shared = {
+    apiBaseUrl,
+    wsUrl: resolvedWsUrl,
+    cookieAuth,
+    identity,
+    locale,
+    resources,
+    localeAdapter,
+  };
 
-  return (
-    <ClerkAuthGate apiBaseUrl={apiBaseUrl}>
-      {(clerkKey) =>
-        clerkKey ? (
-          <ClerkReadyProviders
-            apiBaseUrl={apiBaseUrl}
-            wsUrl={resolvedWsUrl}
-            cookieAuth={cookieAuth}
-            identity={identity}
-            locale={locale}
-            resources={resources}
-            localeAdapter={localeAdapter}
-          >
-            {children}
-          </ClerkReadyProviders>
-        ) : (
-          <NativeProviders
-            apiBaseUrl={apiBaseUrl}
-            wsUrl={resolvedWsUrl}
-            cookieAuth={cookieAuth}
-            identity={identity}
-            locale={locale}
-            resources={resources}
-            localeAdapter={localeAdapter}
-          >
-            {children}
-          </NativeProviders>
-        )
-      }
-    </ClerkAuthGate>
-  );
+  if (clerkPublishableKey) {
+    return <ClerkReadyProviders {...shared}>{children}</ClerkReadyProviders>;
+  }
+
+  return <NativeProviders {...shared}>{children}</NativeProviders>;
 }
 
 function NativeProviders({
@@ -160,20 +169,31 @@ function ClerkReadyProviders({
   localeAdapter: ReturnType<typeof createBrowserCookieLocaleAdapter>;
 }) {
   const clerk = useClerkSessionBridge();
-  if (!clerk.loaded) return null;
   return (
-    <CoreProvider
-      {...props}
-      resolveAccessToken={clerk.resolveAccessToken}
-      onLogin={setLoggedInCookie}
-      onLogout={() => {
-        resetLocalSession();
-        void clerk.signOut();
-      }}
-    >
-      <WebNavigationProvider>
-        <WebScrollRestorationProvider>{children}</WebScrollRestorationProvider>
-      </WebNavigationProvider>
-    </CoreProvider>
+    <>
+      <ClerkLoading>
+        <ClerkBootSpinner />
+      </ClerkLoading>
+      <ClerkFailed>
+        <div className="flex min-h-svh items-center justify-center text-body text-muted-foreground">
+          Couldn&apos;t load Clerk sign-in.
+        </div>
+      </ClerkFailed>
+      <ClerkLoaded>
+        <CoreProvider
+          {...props}
+          resolveAccessToken={clerk.resolveAccessToken}
+          onLogin={setLoggedInCookie}
+          onLogout={() => {
+            resetLocalSession();
+            void clerk.signOut();
+          }}
+        >
+          <WebNavigationProvider>
+            <WebScrollRestorationProvider>{children}</WebScrollRestorationProvider>
+          </WebNavigationProvider>
+        </CoreProvider>
+      </ClerkLoaded>
+    </>
   );
 }
