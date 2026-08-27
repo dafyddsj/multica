@@ -614,6 +614,19 @@ describe("AgentTaskListSchema", () => {
     expect(parsed[0]?.delivered_comment_ids).toBeUndefined();
   });
 
+  it("keeps a task row when optional lane fields are missing or malformed", () => {
+    const parsed = AgentTaskListSchema.parse([
+      {
+        ...task,
+        execution_lane: 12,
+        model_override: { id: "x" },
+      },
+    ]);
+    expect(parsed[0]?.id).toBe("task-1");
+    expect(parsed[0]?.execution_lane).toBeUndefined();
+    expect(parsed[0]?.model_override).toBeUndefined();
+  });
+
   it("degrades malformed optional coverage without dropping task rows", () => {
     const parsed = AgentTaskListSchema.parse([
       {

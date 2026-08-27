@@ -2077,10 +2077,10 @@ func (h *Handler) buildClaimedTaskResponse(r *http.Request, task *db.AgentTaskQu
 	// changing task state, but Agent mutations do not stay locked through HTTP
 	// response assembly. Recheck the freshly loaded Agent here so a rebind or
 	// owner change that committed after the claim cannot reach the daemon.
-	if agent.RuntimeID != task.RuntimeID {
+	if !taskRuntimeMatchesAgent(*task, agent) {
 		slog.Warn("daemon claim: agent runtime changed before delivery; refusing dispatch",
 			"task_id", uuidToString(task.ID),
-			"agent_id", uuidToString(task.AgentID),
+			"agent_id", uuidToString(agent.ID),
 			"task_runtime_id", uuidToString(task.RuntimeID),
 			"agent_runtime_id", uuidToString(agent.RuntimeID),
 		)
@@ -2170,6 +2170,7 @@ func (h *Handler) buildClaimedTaskResponse(r *http.Request, task *db.AgentTaskQu
 	if rc := bytes.TrimSpace(agent.RuntimeConfig); len(rc) > 0 && !bytes.Equal(rc, []byte("{}")) && !bytes.Equal(rc, []byte("null")) {
 		runtimeConfig = json.RawMessage(agent.RuntimeConfig)
 	}
+	claimSel := applyClaimLaneSelection(agent, *task, h.agentExecutionLanesEnabled(r.Context()))
 	resp.Agent = &TaskAgentData{
 		ID:                    uuidToString(agent.ID),
 		Name:                  agent.Name,
@@ -2177,9 +2178,9 @@ func (h *Handler) buildClaimedTaskResponse(r *http.Request, task *db.AgentTaskQu
 		CustomEnv:             customEnv,
 		CustomArgs:            customArgs,
 		McpConfig:             mcpConfig,
-		Model:                 agent.Model.String,
-		ThinkingLevel:         agent.ThinkingLevel.String,
-		ServiceTier:           agent.ServiceTier.String,
+		Model:                 claimSel.Model,
+		ThinkingLevel:         claimSel.ThinkingLevel,
+		ServiceTier:           claimSel.ServiceTier,
 		CoAuthoredByEmail:     agent.CoAuthoredByEmail.String,
 		RuntimeConfig:         runtimeConfig,
 		DisabledRuntimeSkills: disabledRuntimeSkillsFor(agent.DisabledRuntimeSkills, runtimeID, runtime.Provider),

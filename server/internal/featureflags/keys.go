@@ -23,6 +23,10 @@ const (
 	// gate pinned Task/Run execution: disabling discovery and management must not
 	// mutate an immutable execution manifest that is already in flight.
 	PluginsV1 = "plugins_v1"
+	// AgentExecutionLanes gates lightweight and failover model slots on an
+	// agent, plus the enqueue/retry hop that uses them. Off (default) keeps
+	// today's single-model dispatch.
+	AgentExecutionLanes = "agent_execution_lanes"
 	// MemoryV1 gates the Multica-owned memory API, CLI, Labs toggle, and
 	// claim-time recall. Off by default. A workspace still needs its Labs
 	// setting memory_enabled before any row is readable.
@@ -48,6 +52,7 @@ var frontendPublicFlags = []string{
 	BillingWorkspaceSubscriptions,
 	ComposioMCPApps,
 	PluginsV1,
+	AgentExecutionLanes,
 	MemoryV1,
 }
 
@@ -61,6 +66,10 @@ func ComposioMCPAppsEnabled(ctx context.Context, flags *featureflag.Service) boo
 
 func PluginsV1Enabled(ctx context.Context, flags *featureflag.Service) bool {
 	return flags.IsEnabled(ctx, PluginsV1, false)
+}
+
+func AgentExecutionLanesEnabled(ctx context.Context, flags *featureflag.Service) bool {
+	return flags.IsEnabled(ctx, AgentExecutionLanes, false)
 }
 
 func MemoryV1Enabled(ctx context.Context, flags *featureflag.Service) bool {

@@ -1813,6 +1813,8 @@ export const AgentTaskSchema = z.object({
   // `.catch(undefined)` collapses a bad array to "no usage recorded", which
   // the UI already renders as an em dash.
   usage: z.array(TaskUsageSchema).optional().catch(undefined),
+  execution_lane: z.string().optional().catch(undefined),
+  model_override: z.string().optional().catch(undefined),
 }).loose();
 
 export const AgentTaskListSchema = z.array(AgentTaskSchema);
@@ -2016,6 +2018,13 @@ export const StoredAgentDraftSchema = z.object({
   model: z.string().catch(""),
   thinking_level: z.string().catch(""),
   service_tier: z.string().catch(""),
+  lightweight_model: z.string().catch(""),
+  lightweight_thinking_level: z.string().catch(""),
+  start_lightweight: z.boolean().catch(true),
+  failover_runtime_id: z.string().catch(""),
+  failover_model: z.string().catch(""),
+  failover_thinking_level: z.string().catch(""),
+  failover_service_tier: z.string().catch(""),
   skill_ids: z.array(z.string()).catch([]),
   permission_scope: z
     .enum(["private", "workspace", "members"])

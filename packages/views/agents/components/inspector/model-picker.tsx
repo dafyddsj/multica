@@ -33,6 +33,7 @@ export function ModelPicker({
   canEdit = true,
   variant = "chip",
   showLabel = true,
+  emptyLabel,
   onChange,
 }: {
   runtimeId: string | null;
@@ -42,6 +43,8 @@ export function ModelPicker({
   canEdit?: boolean;
   variant?: "chip" | "field";
   showLabel?: boolean;
+  /** Label shown when no model is selected. Defaults to the provider default. */
+  emptyLabel?: string;
   onChange: (next: string) => Promise<void> | void;
 }) {
   const { t } = useT("agents");
@@ -75,7 +78,7 @@ export function ModelPicker({
   );
   const canCreate = trimmedSearch.length > 0 && !exactMatch;
 
-  const triggerLabel = value || t(($) => $.pickers.model_default);
+  const triggerLabel = value || emptyLabel || t(($) => $.pickers.model_default);
   const triggerTitle = t(($) => $.pickers.model_tooltip, { value: triggerLabel });
 
   const select = async (id: string) => {
