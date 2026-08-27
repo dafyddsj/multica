@@ -70,14 +70,12 @@ reset_stub_state() {
 }
 
 expected_paths=(
-  /
   /login
   /workspaces/new
   /_warmup/issues
   /_warmup/inbox
   /_warmup/agents
   /_warmup/settings
-  /_warmup/issues/_warmup
 )
 
 # ---------------------------------------------------------------------------

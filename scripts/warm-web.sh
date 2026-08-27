@@ -10,24 +10,25 @@ cd "$ROOT_DIR"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 FRONTEND_ORIGIN="${FRONTEND_ORIGIN:-http://127.0.0.1:${FRONTEND_PORT}}"
 WARM_WEB_WAIT_SECS="${WARM_WEB_WAIT_SECS:-180}"
-WARM_WEB_LISTEN_SECS="${WARM_WEB_LISTEN_SECS:-2}"
+WARM_WEB_CONNECT_SECS="${WARM_WEB_CONNECT_SECS:-2}"
 WARM_WEB_ROUTE_SECS="${WARM_WEB_ROUTE_SECS:-120}"
 SLUG="${WARM_WEB_SLUG:-_warmup}"
 
+# Login plus the signed-in shell pages verify-multica drives. Skip the
+# marketing homepage and issue-detail: those compile the rest of views and
+# have wedged next-server at ~12GB RSS on a 15GB cloud box.
 paths=(
-  /
   /login
   /workspaces/new
   "/${SLUG}/issues"
   "/${SLUG}/inbox"
   "/${SLUG}/agents"
   "/${SLUG}/settings"
-  "/${SLUG}/issues/${SLUG}"
 )
 
 http_code() {
   local url=$1 timeout=$2 code
-  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time "$timeout" "$url" || true)"
+  code="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout "$WARM_WEB_CONNECT_SECS" --max-time "$timeout" "$url" || true)"
   printf '%s' "$code"
 }
 
@@ -40,7 +41,7 @@ connected() {
 ready=0
 deadline=$((SECONDS + WARM_WEB_WAIT_SECS))
 while [ "$SECONDS" -lt "$deadline" ]; do
-  if connected "${FRONTEND_ORIGIN}/" "$WARM_WEB_LISTEN_SECS"; then
+  if connected "${FRONTEND_ORIGIN}/login" "$WARM_WEB_ROUTE_SECS"; then
     ready=1
     break
   fi
@@ -48,7 +49,7 @@ while [ "$SECONDS" -lt "$deadline" ]; do
 done
 
 if [ "$ready" -ne 1 ]; then
-  echo "warm-web: Next never listened on ${FRONTEND_ORIGIN}/" >&2
+  echo "warm-web: Next never listened on ${FRONTEND_ORIGIN}/login" >&2
   exit 1
 fi
 
