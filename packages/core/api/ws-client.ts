@@ -99,6 +99,10 @@ export class WSClient {
         );
         return;
       }
+      if (this.cookieAuth) {
+        this.onAuthenticated();
+        return;
+      }
 
       this.onAuthenticated();
     };
