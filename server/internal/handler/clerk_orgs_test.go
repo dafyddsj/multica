@@ -30,6 +30,10 @@ func (stubHandlerOrgs) AddMember(context.Context, string, string, string) error 
 func (stubHandlerOrgs) UpdateMember(context.Context, string, string, string) error {
 	return nil
 }
+func (stubHandlerOrgs) UpdateLogo(context.Context, string, string, clerk.ImageFile) error {
+	return nil
+}
+func (stubHandlerOrgs) DeleteLogo(context.Context, string) error { return nil }
 
 func TestGetMe_SyncsClerkOrganization(t *testing.T) {
 	if testHandler == nil {
@@ -149,6 +153,10 @@ func (explodingOrgs) AddMember(context.Context, string, string, string) error {
 func (explodingOrgs) UpdateMember(context.Context, string, string, string) error {
 	return errors.New("clerk down")
 }
+func (explodingOrgs) UpdateLogo(context.Context, string, string, clerk.ImageFile) error {
+	return errors.New("clerk down")
+}
+func (explodingOrgs) DeleteLogo(context.Context, string) error { return errors.New("clerk down") }
 
 func TestListWorkspaces_DoesNotSyncClerkOrganizations(t *testing.T) {
 	if testHandler == nil {
@@ -195,6 +203,10 @@ func (*recordingOrgs) AddMember(context.Context, string, string, string) error {
 func (*recordingOrgs) UpdateMember(context.Context, string, string, string) error {
 	return nil
 }
+func (*recordingOrgs) UpdateLogo(context.Context, string, string, clerk.ImageFile) error {
+	return nil
+}
+func (*recordingOrgs) DeleteLogo(context.Context, string) error { return nil }
 
 func TestCreateWorkspace_DeletesClerkOrgWhenLocalCreateFails(t *testing.T) {
 	if testHandler == nil {

@@ -18,8 +18,9 @@ type EmailStore interface {
 // and must not call Clerk Users.Get. GetMe is the refresh point, same
 // as SyncOrgs.
 //
-// Name and avatar are left alone. After first bind those are Multica
-// profile fields (UpdateMe / account tab).
+// Name and avatar are left alone inbound. After first bind those are
+// Multica profile fields. Avatar writes from UpdateMe / UpdateWorkspace
+// push a real image to Clerk separately (see handler/clerk_avatars.go).
 func (c *Client) SyncProfile(ctx context.Context, user db.User, store EmailStore) (db.User, error) {
 	if c == nil || c.Profiles == nil {
 		return user, nil

@@ -775,5 +775,9 @@ func (h *Handler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.AvatarURL != nil {
+		h.pushClerkUserAvatar(r.Context(), updatedUser, params.AvatarUrl.String)
+	}
+
 	writeJSON(w, http.StatusOK, h.userToResponse(updatedUser))
 }

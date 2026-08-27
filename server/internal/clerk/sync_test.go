@@ -33,6 +33,10 @@ func (stubOrgs) AddMember(context.Context, string, string, string) error {
 func (stubOrgs) UpdateMember(context.Context, string, string, string) error {
 	return nil
 }
+func (stubOrgs) UpdateLogo(context.Context, string, string, ImageFile) error {
+	return nil
+}
+func (stubOrgs) DeleteLogo(context.Context, string) error { return nil }
 
 type memoryOrgStore struct {
 	workspaces []db.Workspace

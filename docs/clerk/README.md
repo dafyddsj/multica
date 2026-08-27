@@ -15,6 +15,7 @@ Product docs for native sign-in stay in `apps/docs/content/docs/auth-setup.mdx`.
 - Machine prefixes stay native: `mul_`, `mat_`, `mdt_`, `mcn_`, `mpi_`, `mpc_`.
 - Workspace create / delete, member role / remove / leave, invite accept, and share-link join dual-write the mapped Clerk org when `clerk_org_id` is set.
 - `GET /api/me` pulls Clerk org memberships into Multica (`SyncOrgs`) and refreshes the bound user's **email** from Clerk (`SyncProfile`). `GET /api/workspaces` does not sync.
+- User / workspace avatar updates in Multica push a real image to Clerk (`UpdateProfileImage` / `UpdateLogo`). Emoji avatars stay Multica-only.
 - Signup allowlists (`ALLOW_SIGNUP`, `ALLOWED_EMAILS`) are not re-checked on the Clerk path. `IsTemporarilyDisabledUser` still is.
 
 ## Overlay off vs on
@@ -30,7 +31,9 @@ Product docs for native sign-in stay in `apps/docs/content/docs/auth-setup.mdx`.
 
 ## Identity
 
-Clerk is the identity plane for **email** after bind. Name, avatar, language, timezone, and profile blurb stay Multica (`UpdateMe` / Settings → Profile).
+Clerk is the identity plane for **email** after bind. Name, language, timezone, and profile blurb stay Multica (`UpdateMe` / Settings → Profile). `GetMe` copies Clerk's primary email onto the bound user (`SyncProfile`). It does **not** overwrite Multica name or avatar from Clerk.
+
+Avatar writes go the other way when the value is a real image. `UpdateMe` uploads the bound user's profile image to Clerk; `UpdateWorkspace` uploads the bound org logo. Clerk only accepts a multipart file, so this path reads storage objects and `data:image/…;base64,…` URIs. `emoji:` markers cannot be sent and are skipped. Overlay-off, unbound users/workspaces, and Clerk upload failures leave the Multica write in place (warn, do not 502). Third-party `https://` profile URLs are not fetched (no SSRF).
 
 `Resolve` (every authenticated request) verifies the JWT and maps to a Multica user. It does **not** call Clerk `Users.Get` on the already-bound path. Email refresh runs on `GetMe` so we do not add a Clerk HTTP call to every API request.
 
@@ -63,6 +66,7 @@ Treat it as out of bounds for day-to-day member work. Dashboard create / add / k
 | Env gate | `server/internal/clerk/env.go`, `apps/web/lib/clerk-env.ts` |
 | JWT → Multica user | `server/internal/clerk/resolve.go` |
 | Email refresh | `server/internal/clerk/profile.go` |
+| Avatar push | `server/internal/clerk/images.go`, `server/internal/handler/clerk_avatars.go` |
 | Org sync | `server/internal/clerk/sync.go` |
 | Roles | `server/internal/clerk/role.go` |
 | Handler attach | `server/internal/handler/clerk_orgs.go` |
