@@ -8,6 +8,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/events"
 	"github.com/multica-ai/multica/server/internal/executionlane"
 	"github.com/multica-ai/multica/server/internal/featureflags"
+	"github.com/multica-ai/multica/server/internal/testutil"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/featureflag"
@@ -94,6 +95,15 @@ func TestFailTaskHopsLightweightToPrimary(t *testing.T) {
 	}
 	if !childFresh {
 		t.Fatal("hop child must force a fresh session")
+	}
+	var childAttempt, childMax int32
+	if err := pool.QueryRow(ctx, `
+		SELECT attempt, max_attempts FROM agent_task_queue WHERE retry_of_task_id = $1`, taskID).
+		Scan(&childAttempt, &childMax); err != nil {
+		t.Fatalf("read hop budget: %v", err)
+	}
+	if childAttempt > childMax {
+		t.Fatalf("hop child attempt=%d max_attempts=%d", childAttempt, childMax)
 	}
 }
 
@@ -325,5 +335,206 @@ func TestInitialLaneStampUsesLightweightWhenEnabled(t *testing.T) {
 	})
 	if disabled.Lane.String != string(executionlane.LanePrimary) || disabled.ModelOverride.Valid {
 		t.Fatalf("disabled stamp = %+v", disabled)
+	}
+}
+
+func TestFailTaskHopsLightweightClearsEmptyPrimaryOverride(t *testing.T) {
+	pool := newResolveOriginatorPool(t)
+	ctx := context.Background()
+	_, _, agentID, _ := seedAttributionFixture(t, pool)
+
+	var runtimeID string
+	if err := pool.QueryRow(ctx, `SELECT runtime_id::text FROM agent WHERE id = $1`, agentID).Scan(&runtimeID); err != nil {
+		t.Fatalf("load agent runtime: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		UPDATE agent
+		SET model = NULL,
+		    lightweight_model = 'haiku',
+		    start_lightweight = TRUE
+		WHERE id = $1`, agentID); err != nil {
+		t.Fatalf("stamp empty primary: %v", err)
+	}
+
+	var taskID string
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO agent_task_queue
+			(agent_id, runtime_id, status, priority, attempt, max_attempts,
+			 started_at, execution_lane, model_override)
+		VALUES ($1, $2, 'running', 0, 1, 1, now(), 'lightweight', 'haiku')
+		RETURNING id`, agentID, runtimeID).Scan(&taskID); err != nil {
+		t.Fatalf("seed running task: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(),
+			`DELETE FROM agent_task_queue WHERE id = $1 OR retry_of_task_id = $1`, taskID)
+	})
+
+	svc := &TaskService{
+		Queries:      db.New(pool),
+		TxStarter:    pool,
+		Bus:          events.New(),
+		FeatureFlags: executionLanesTestFlags(true),
+	}
+	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
+		"model haiku not found", "", "", "",
+		string(taskfailure.ReasonAgentModelNotFoundOrUnavailable),
+		false, "", ""); err != nil {
+		t.Fatalf("FailTask: %v", err)
+	}
+
+	var childLane, childModel string
+	if err := pool.QueryRow(ctx, `
+		SELECT execution_lane, COALESCE(model_override, '')
+		FROM agent_task_queue WHERE retry_of_task_id = $1`, taskID).
+		Scan(&childLane, &childModel); err != nil {
+		t.Fatalf("read hop child: %v", err)
+	}
+	if childLane != string(executionlane.LanePrimary) {
+		t.Fatalf("child lane = %q, want primary", childLane)
+	}
+	if childModel != "" {
+		t.Fatalf("empty primary must clear lightweight override, got %q", childModel)
+	}
+}
+
+func TestClaimTaskForRuntimeAcceptsCrossRuntimeFailoverHop(t *testing.T) {
+	pool := newResolveOriginatorPool(t)
+	ctx := context.Background()
+	workspaceID, userID, agentID, _ := seedAttributionFixture(t, pool)
+
+	var primaryRuntime string
+	if err := pool.QueryRow(ctx, `SELECT runtime_id::text FROM agent WHERE id = $1`, agentID).Scan(&primaryRuntime); err != nil {
+		t.Fatalf("load primary runtime: %v", err)
+	}
+	fx := testutil.New(pool, workspaceID, userID)
+	failoverRuntime := fx.Runtime(t, "failover-runtime", testutil.Cols{
+		"visibility": "public",
+		"owner_id":   userID,
+	})
+	if _, err := pool.Exec(ctx, `
+		UPDATE agent
+		SET failover_model = 'sonnet', failover_runtime_id = $2
+		WHERE id = $1`, agentID, failoverRuntime); err != nil {
+		t.Fatalf("stamp failover runtime: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		UPDATE agent_runtime SET last_seen_at = now(), status = 'online'
+		WHERE id IN ($1, $2)`, primaryRuntime, failoverRuntime); err != nil {
+		t.Fatalf("freshen runtimes: %v", err)
+	}
+
+	var taskID string
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO agent_task_queue
+			(agent_id, runtime_id, status, priority, attempt, max_attempts, started_at, execution_lane)
+		VALUES ($1, $2, 'running', 0, 1, 1, now(), 'primary')
+		RETURNING id`, agentID, primaryRuntime).Scan(&taskID); err != nil {
+		t.Fatalf("seed running task: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(),
+			`DELETE FROM agent_task_queue WHERE id = $1 OR retry_of_task_id = $1`, taskID)
+	})
+
+	svc := &TaskService{
+		Queries:      db.New(pool),
+		TxStarter:    pool,
+		Bus:          events.New(),
+		FeatureFlags: executionLanesTestFlags(true),
+	}
+	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
+		"rate limit exceeded", "", "", "",
+		string(taskfailure.ReasonAgentProviderCapacityOrRateLimit),
+		false, "", ""); err != nil {
+		t.Fatalf("FailTask: %v", err)
+	}
+
+	var childID, childRuntime, childLane string
+	if err := pool.QueryRow(ctx, `
+		SELECT id::text, runtime_id::text, execution_lane
+		FROM agent_task_queue WHERE retry_of_task_id = $1`, taskID).
+		Scan(&childID, &childRuntime, &childLane); err != nil {
+		t.Fatalf("read hop child: %v", err)
+	}
+	if childLane != string(executionlane.LaneFailover) || childRuntime != failoverRuntime {
+		t.Fatalf("want failover on %s, got %s/%s", failoverRuntime, childLane, childRuntime)
+	}
+
+	claimed, err := svc.ClaimTaskForRuntime(ctx, util.MustParseUUID(failoverRuntime))
+	if err != nil {
+		t.Fatalf("ClaimTaskForRuntime: %v", err)
+	}
+	if claimed == nil {
+		t.Fatal("failover runtime must claim the hop child")
+	}
+	if util.UUIDToString(claimed.ID) != childID {
+		t.Fatalf("claimed %s, want hop child %s", util.UUIDToString(claimed.ID), childID)
+	}
+}
+
+func TestClaimRuntimeAllowed(t *testing.T) {
+	primary := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
+	failover := pgtype.UUID{Bytes: [16]byte{2}, Valid: true}
+	other := pgtype.UUID{Bytes: [16]byte{3}, Valid: true}
+	agent := db.Agent{RuntimeID: primary, FailoverRuntimeID: failover}
+	if !claimRuntimeAllowed(agent, primary) {
+		t.Fatal("primary runtime must be allowed")
+	}
+	if !claimRuntimeAllowed(agent, failover) {
+		t.Fatal("failover runtime must be allowed to attempt a claim")
+	}
+	if claimRuntimeAllowed(agent, other) {
+		t.Fatal("foreign runtime must still be rejected")
+	}
+}
+
+func TestFailTaskDoesNotHopFromFailoverLane(t *testing.T) {
+	pool := newResolveOriginatorPool(t)
+	ctx := context.Background()
+	_, _, agentID, _ := seedAttributionFixture(t, pool)
+
+	var runtimeID string
+	if err := pool.QueryRow(ctx, `SELECT runtime_id::text FROM agent WHERE id = $1`, agentID).Scan(&runtimeID); err != nil {
+		t.Fatalf("load runtime: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE agent SET failover_model = 'sonnet' WHERE id = $1`, agentID); err != nil {
+		t.Fatalf("stamp failover: %v", err)
+	}
+
+	var taskID string
+	if err := pool.QueryRow(ctx, `
+		INSERT INTO agent_task_queue
+			(agent_id, runtime_id, status, priority, attempt, max_attempts,
+			 started_at, execution_lane, model_override)
+		VALUES ($1, $2, 'running', 0, 1, 1, now(), 'failover', 'sonnet')
+		RETURNING id`, agentID, runtimeID).Scan(&taskID); err != nil {
+		t.Fatalf("seed failover task: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(),
+			`DELETE FROM agent_task_queue WHERE id = $1 OR retry_of_task_id = $1`, taskID)
+	})
+
+	svc := &TaskService{
+		Queries:      db.New(pool),
+		TxStarter:    pool,
+		Bus:          events.New(),
+		FeatureFlags: executionLanesTestFlags(true),
+	}
+	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
+		"rate limit exceeded", "", "", "",
+		string(taskfailure.ReasonAgentProviderCapacityOrRateLimit),
+		false, "", ""); err != nil {
+		t.Fatalf("FailTask: %v", err)
+	}
+
+	var n int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*) FROM agent_task_queue WHERE retry_of_task_id = $1`, taskID).Scan(&n); err != nil {
+		t.Fatalf("count children: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("failover lane must stop, got %d children", n)
 	}
 }

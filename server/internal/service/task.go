@@ -3418,7 +3418,10 @@ func (s *TaskService) claimTask(ctx context.Context, agentID, runtimeID pgtype.U
 		// before its state transition; the claim handler then rechecks the freshly
 		// loaded Agent before returning any payload. Runtime mutation teardown is
 		// responsible for serializing and settling the remaining queued rows.
-		if runtimeID.Valid && agent.RuntimeID != runtimeID {
+		// Failover children are the one exception: their stamped runtime is
+		// agent.failover_runtime_id, and the SQL claim still requires
+		// execution_lane='failover' plus retry_of_task_id.
+		if runtimeID.Valid && !claimRuntimeAllowed(agent, runtimeID) {
 			outcome = "runtime_mismatch"
 			return nil
 		}
@@ -4700,7 +4703,7 @@ func (s *TaskService) FailTask(ctx context.Context, taskID pgtype.UUID, errMsg, 
 					"agent_id", util.UUIDToString(parent.AgentID), "error", aerr)
 			} else if sel, ok := s.nextLaneHop(ctx, parent, agent, failureReason); ok {
 				wantLaneHop = true
-				laneHopParams = retryParamsForLaneHop(taskID, sel, s.buildRuntimeMCPOverlay(ctx, parent.OriginatorUserID, agent))
+				laneHopParams = retryParamsForLaneHop(parent, sel, s.buildRuntimeMCPOverlay(ctx, parent.OriginatorUserID, agent))
 			}
 		}
 	}

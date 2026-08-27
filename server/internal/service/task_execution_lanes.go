@@ -63,20 +63,29 @@ func (s *TaskService) nextLaneHop(ctx context.Context, parent db.AgentTaskQueue,
 	)
 }
 
-func retryParamsForLaneHop(parentID pgtype.UUID, sel executionlane.Selection, overlay runtimeMCPOverlayData) db.CreateRetryTaskParams {
+func claimRuntimeAllowed(agent db.Agent, runtimeID pgtype.UUID) bool {
+	if agent.RuntimeID == runtimeID {
+		return true
+	}
+	return agent.FailoverRuntimeID.Valid && agent.FailoverRuntimeID == runtimeID
+}
+
+func retryParamsForLaneHop(parent db.AgentTaskQueue, sel executionlane.Selection, overlay runtimeMCPOverlayData) db.CreateRetryTaskParams {
 	params := db.CreateRetryTaskParams{
-		NewTaskID:            dbid.NewV7(),
-		ID:                   parentID,
-		ForceFreshSession:    pgtype.Bool{Bool: true, Valid: true},
+		NewTaskID:         dbid.NewV7(),
+		ID:                parent.ID,
+		ForceFreshSession: pgtype.Bool{Bool: true, Valid: true},
+		// A hop is independent of the infra retry budget. Persist a ceiling
+		// that matches the child's attempt so the row does not read
+		// attempt=N / max_attempts=1 (MUL-4910).
+		MaxAttempts:          pgtype.Int4{Int32: parent.Attempt + 1, Valid: true},
 		ExecutionLane:        pgtype.Text{String: string(sel.Lane), Valid: true},
-		ModelOverride:        pgtype.Text{String: sel.Model, Valid: sel.Model != ""},
+		ModelOverride:        pgtype.Text{String: sel.Model, Valid: true},
 		RuntimeMcpOverlay:    overlay.Overlay,
 		RuntimeConnectedApps: overlay.ConnectedApps,
 	}
 	if sel.RuntimeID != "" {
-		if id, err := util.ParseUUID(sel.RuntimeID); err == nil {
-			params.RuntimeID = id
-		}
+		params.RuntimeID = util.MustParseUUID(sel.RuntimeID)
 	}
 	return params
 }
