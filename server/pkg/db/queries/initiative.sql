@@ -17,9 +17,9 @@ FOR UPDATE;
 -- name: CreateInitiative :one
 INSERT INTO initiative (
     workspace_id, title, description, icon, status,
-    lead_type, lead_id, priority, start_date, due_date
+    lead_type, lead_id, priority, start_date, due_date, issue_prefix
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 ) RETURNING *;
 
 -- name: UpdateInitiative :one
@@ -33,6 +33,7 @@ UPDATE initiative SET
     lead_id = sqlc.narg('lead_id'),
     start_date = sqlc.narg('start_date'),
     due_date = sqlc.narg('due_date'),
+    issue_prefix = sqlc.narg('issue_prefix'),
     updated_at = now()
 WHERE id = $1
 RETURNING *;
@@ -64,3 +65,21 @@ WHERE workspace_id = $1 AND initiative_id = $2;
 UPDATE project
 SET initiative_id = NULL, updated_at = now()
 WHERE initiative_id = $1 AND workspace_id = $2;
+
+-- name: ListProjectInitiativeIssuePrefixes :many
+-- Project → initiative prefix map for one workspace. Powers issue identifier
+-- rendering so a list can apply overrides without an N+1.
+SELECT p.id, i.issue_prefix
+FROM project p
+JOIN initiative i ON i.id = p.initiative_id
+WHERE p.workspace_id = $1
+  AND i.issue_prefix IS NOT NULL
+  AND i.issue_prefix <> '';
+
+-- name: ListInitiativeIssuePrefixes :many
+-- Every non-empty initiative prefix in the workspace. Identifier lookup
+-- accepts these in addition to the workspace prefix.
+SELECT issue_prefix FROM initiative
+WHERE workspace_id = $1
+  AND issue_prefix IS NOT NULL
+  AND issue_prefix <> '';

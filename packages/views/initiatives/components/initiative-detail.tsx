@@ -477,6 +477,27 @@ export function InitiativeDetail({ initiativeId }: { initiativeId: string }) {
           <PropRow label={t(($) => $.detail.prop_due_date)}>
             <ProjectDueDatePicker dueDate={initiative.due_date} onUpdate={handleUpdateField} />
           </PropRow>
+          <PropRow label={t(($) => $.detail.prop_issue_prefix)}>
+            <Input
+              key={initiative.issue_prefix ?? "none"}
+              type="text"
+              defaultValue={initiative.issue_prefix ?? ""}
+              onBlur={(event) => {
+                const next = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+                const current = initiative.issue_prefix ?? "";
+                if (next !== current) {
+                  handleUpdateField({ issue_prefix: next || null });
+                }
+              }}
+              placeholder={t(($) => $.detail.prop_issue_prefix_placeholder)}
+              aria-label={t(($) => $.detail.prop_issue_prefix)}
+              maxLength={10}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              className="h-7 font-mono uppercase"
+            />
+          </PropRow>
         </div>}
       </div>
 

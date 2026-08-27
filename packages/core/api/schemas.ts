@@ -1334,6 +1334,7 @@ const InitiativeSchema = z.object({
   lead_id: z.string().nullable(),
   start_date: z.string().nullable().default(null),
   due_date: z.string().nullable().default(null),
+  issue_prefix: z.string().nullable().optional().default(null),
   created_at: z.string(),
   updated_at: z.string(),
   project_count: z.number().default(0),

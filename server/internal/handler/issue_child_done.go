@@ -270,8 +270,8 @@ func (h *Handler) notifyParentsOfBatchChildDone(ctx context.Context, completed [
 // its historical byte-identical copy, while a batch that finished several
 // children at once must not claim "the last sub-issue just finished".
 func (h *Handler) postChildDoneComment(ctx context.Context, parent, completed db.Issue, children []db.Issue, staged bool, closedStage int32, batch bool) {
-	prefix := h.getIssuePrefix(ctx, completed.WorkspaceID)
-	identifier := prefix + "-" + strconv.Itoa(int(completed.Number))
+	prefixes := h.loadIssuePrefixSet(ctx, completed.WorkspaceID)
+	identifier := prefixes.forProject(completed.ProjectID) + "-" + strconv.Itoa(int(completed.Number))
 	childID := uuidToString(completed.ID)
 	title := sanitizeChildTitleForSystemComment(completed.Title)
 	parentID := uuidToString(parent.ID)

@@ -92,6 +92,21 @@ func normalizeIssuePrefix(raw string) (string, bool) {
 	return prefix, true
 }
 
+func parseOptionalInitiativeIssuePrefix(w http.ResponseWriter, raw *string) (pgtype.Text, bool) {
+	if raw == nil {
+		return pgtype.Text{}, true
+	}
+	prefix, ok := normalizeIssuePrefix(*raw)
+	if !ok {
+		writeError(w, http.StatusBadRequest, issuePrefixFormatError)
+		return pgtype.Text{}, false
+	}
+	if prefix == "" {
+		return pgtype.Text{}, true
+	}
+	return pgtype.Text{String: prefix, Valid: true}, true
+}
+
 const issuePrefixFormatError = "issue prefix must be 1-10 uppercase letters or digits"
 
 type WorkspaceResponse struct {

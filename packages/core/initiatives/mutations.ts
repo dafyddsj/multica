@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { initiativeKeys } from "./queries";
 import { projectKeys } from "../projects/queries";
+import { issueKeys } from "../issues/queries";
 import { useWorkspaceId } from "../hooks";
 import type {
   Initiative,
@@ -60,6 +61,9 @@ export function useUpdateInitiative() {
     onSettled: (_data, _err, vars) => {
       qc.invalidateQueries({ queryKey: initiativeKeys.detail(wsId, vars.id) });
       qc.invalidateQueries({ queryKey: initiativeKeys.list(wsId) });
+      if (vars.issue_prefix !== undefined) {
+        qc.invalidateQueries({ queryKey: issueKeys.all(wsId) });
+      }
     },
   });
 }

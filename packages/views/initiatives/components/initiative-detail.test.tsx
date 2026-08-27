@@ -69,6 +69,7 @@ vi.mock("@multica/core/paths", () => ({
     initiatives: () => "/test-workspace/initiatives",
     projectDetail: (id: string) => `/test-workspace/projects/${id}`,
   }),
+  useCurrentWorkspace: () => ({ id: "workspace-1", settings: {} }),
 }));
 
 vi.mock("@multica/core/workspace/hooks", () => ({
@@ -77,6 +78,10 @@ vi.mock("@multica/core/workspace/hooks", () => ({
 
 vi.mock("@multica/core/modals", () => ({
   useModalStore: { getState: () => ({ open: vi.fn() }) },
+}));
+
+vi.mock("../../memory", () => ({
+  MemoryPanel: () => null,
 }));
 
 vi.mock("sonner", () => ({
@@ -207,6 +212,7 @@ const INITIATIVE: Initiative = {
   lead_id: null,
   start_date: null,
   due_date: null,
+  issue_prefix: null,
   created_at: "2026-06-01T00:00:00Z",
   updated_at: "2026-06-01T00:00:00Z",
   project_count: 1,

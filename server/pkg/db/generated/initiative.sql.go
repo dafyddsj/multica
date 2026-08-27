@@ -30,10 +30,10 @@ func (q *Queries) ClearProjectInitiativeByInitiative(ctx context.Context, arg Cl
 const createInitiative = `-- name: CreateInitiative :one
 INSERT INTO initiative (
     workspace_id, title, description, icon, status,
-    lead_type, lead_id, priority, start_date, due_date
+    lead_type, lead_id, priority, start_date, due_date, issue_prefix
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-) RETURNING id, workspace_id, title, description, icon, status, priority, lead_type, lead_id, start_date, due_date, created_at, updated_at
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+) RETURNING id, workspace_id, title, description, icon, status, priority, lead_type, lead_id, start_date, due_date, created_at, updated_at, issue_prefix
 `
 
 type CreateInitiativeParams struct {
@@ -47,6 +47,7 @@ type CreateInitiativeParams struct {
 	Priority    string      `json:"priority"`
 	StartDate   pgtype.Date `json:"start_date"`
 	DueDate     pgtype.Date `json:"due_date"`
+	IssuePrefix pgtype.Text `json:"issue_prefix"`
 }
 
 func (q *Queries) CreateInitiative(ctx context.Context, arg CreateInitiativeParams) (Initiative, error) {
@@ -61,6 +62,7 @@ func (q *Queries) CreateInitiative(ctx context.Context, arg CreateInitiativePara
 		arg.Priority,
 		arg.StartDate,
 		arg.DueDate,
+		arg.IssuePrefix,
 	)
 	var i Initiative
 	err := row.Scan(
@@ -77,6 +79,7 @@ func (q *Queries) CreateInitiative(ctx context.Context, arg CreateInitiativePara
 		&i.DueDate,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IssuePrefix,
 	)
 	return i, err
 }
@@ -96,7 +99,7 @@ func (q *Queries) DeleteInitiative(ctx context.Context, arg DeleteInitiativePara
 }
 
 const getInitiativeInWorkspace = `-- name: GetInitiativeInWorkspace :one
-SELECT id, workspace_id, title, description, icon, status, priority, lead_type, lead_id, start_date, due_date, created_at, updated_at FROM initiative
+SELECT id, workspace_id, title, description, icon, status, priority, lead_type, lead_id, start_date, due_date, created_at, updated_at, issue_prefix FROM initiative
 WHERE id = $1 AND workspace_id = $2
 `
 
@@ -122,6 +125,7 @@ func (q *Queries) GetInitiativeInWorkspace(ctx context.Context, arg GetInitiativ
 		&i.DueDate,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IssuePrefix,
 	)
 	return i, err
 }
@@ -195,8 +199,37 @@ func (q *Queries) GetInitiativeProjectCounts(ctx context.Context, initiativeIds 
 	return items, nil
 }
 
+const listInitiativeIssuePrefixes = `-- name: ListInitiativeIssuePrefixes :many
+SELECT issue_prefix FROM initiative
+WHERE workspace_id = $1
+  AND issue_prefix IS NOT NULL
+  AND issue_prefix <> ''
+`
+
+// Every non-empty initiative prefix in the workspace. Identifier lookup
+// accepts these in addition to the workspace prefix.
+func (q *Queries) ListInitiativeIssuePrefixes(ctx context.Context, workspaceID pgtype.UUID) ([]pgtype.Text, error) {
+	rows, err := q.db.Query(ctx, listInitiativeIssuePrefixes, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.Text{}
+	for rows.Next() {
+		var issue_prefix pgtype.Text
+		if err := rows.Scan(&issue_prefix); err != nil {
+			return nil, err
+		}
+		items = append(items, issue_prefix)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listInitiatives = `-- name: ListInitiatives :many
-SELECT id, workspace_id, title, description, icon, status, priority, lead_type, lead_id, start_date, due_date, created_at, updated_at FROM initiative
+SELECT id, workspace_id, title, description, icon, status, priority, lead_type, lead_id, start_date, due_date, created_at, updated_at, issue_prefix FROM initiative
 WHERE workspace_id = $1
   AND ($2::text IS NULL OR status = $2)
   AND ($3::text IS NULL OR priority = $3)
@@ -232,6 +265,7 @@ func (q *Queries) ListInitiatives(ctx context.Context, arg ListInitiativesParams
 			&i.DueDate,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IssuePrefix,
 		); err != nil {
 			return nil, err
 		}
@@ -273,6 +307,42 @@ func (q *Queries) ListProjectIDsByInitiative(ctx context.Context, arg ListProjec
 	return items, nil
 }
 
+const listProjectInitiativeIssuePrefixes = `-- name: ListProjectInitiativeIssuePrefixes :many
+SELECT p.id, i.issue_prefix
+FROM project p
+JOIN initiative i ON i.id = p.initiative_id
+WHERE p.workspace_id = $1
+  AND i.issue_prefix IS NOT NULL
+  AND i.issue_prefix <> ''
+`
+
+type ListProjectInitiativeIssuePrefixesRow struct {
+	ID          pgtype.UUID `json:"id"`
+	IssuePrefix pgtype.Text `json:"issue_prefix"`
+}
+
+// Project → initiative prefix map for one workspace. Powers issue identifier
+// rendering so a list can apply overrides without an N+1.
+func (q *Queries) ListProjectInitiativeIssuePrefixes(ctx context.Context, workspaceID pgtype.UUID) ([]ListProjectInitiativeIssuePrefixesRow, error) {
+	rows, err := q.db.Query(ctx, listProjectInitiativeIssuePrefixes, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProjectInitiativeIssuePrefixesRow{}
+	for rows.Next() {
+		var i ListProjectInitiativeIssuePrefixesRow
+		if err := rows.Scan(&i.ID, &i.IssuePrefix); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockInitiativeForDelete = `-- name: LockInitiativeForDelete :one
 SELECT id FROM initiative
 WHERE id = $1 AND workspace_id = $2
@@ -302,9 +372,10 @@ UPDATE initiative SET
     lead_id = $8,
     start_date = $9,
     due_date = $10,
+    issue_prefix = $11,
     updated_at = now()
 WHERE id = $1
-RETURNING id, workspace_id, title, description, icon, status, priority, lead_type, lead_id, start_date, due_date, created_at, updated_at
+RETURNING id, workspace_id, title, description, icon, status, priority, lead_type, lead_id, start_date, due_date, created_at, updated_at, issue_prefix
 `
 
 type UpdateInitiativeParams struct {
@@ -318,6 +389,7 @@ type UpdateInitiativeParams struct {
 	LeadID      pgtype.UUID `json:"lead_id"`
 	StartDate   pgtype.Date `json:"start_date"`
 	DueDate     pgtype.Date `json:"due_date"`
+	IssuePrefix pgtype.Text `json:"issue_prefix"`
 }
 
 func (q *Queries) UpdateInitiative(ctx context.Context, arg UpdateInitiativeParams) (Initiative, error) {
@@ -332,6 +404,7 @@ func (q *Queries) UpdateInitiative(ctx context.Context, arg UpdateInitiativePara
 		arg.LeadID,
 		arg.StartDate,
 		arg.DueDate,
+		arg.IssuePrefix,
 	)
 	var i Initiative
 	err := row.Scan(
@@ -348,6 +421,7 @@ func (q *Queries) UpdateInitiative(ctx context.Context, arg UpdateInitiativePara
 		&i.DueDate,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IssuePrefix,
 	)
 	return i, err
 }

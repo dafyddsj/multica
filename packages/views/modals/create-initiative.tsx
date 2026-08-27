@@ -67,6 +67,7 @@ export function CreateInitiativeModal({ onClose }: { onClose: () => void }) {
   const [icon, setIcon] = useState<string | undefined>(draft.icon);
   const [startDate, setStartDate] = useState<string>(draft.startDate ?? "");
   const [dueDate, setDueDate] = useState<string>(draft.dueDate ?? "");
+  const [issuePrefix, setIssuePrefix] = useState("");
   const [startDatePickerOpen, setStartDatePickerOpen] = useState(false);
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
@@ -111,6 +112,7 @@ export function CreateInitiativeModal({ onClose }: { onClose: () => void }) {
         lead_id: leadId,
         start_date: startDate || undefined,
         due_date: dueDate || undefined,
+        issue_prefix: issuePrefix || undefined,
       });
       clearDraft();
       onClose();
@@ -381,6 +383,21 @@ export function CreateInitiativeModal({ onClose }: { onClose: () => void }) {
               onOpenChange={setDueDatePickerOpen}
             />
           )}
+
+          <input
+            type="text"
+            value={issuePrefix}
+            onChange={(event) =>
+              setIssuePrefix(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))
+            }
+            placeholder={t(($) => $.create_initiative.issue_prefix_placeholder)}
+            aria-label={t(($) => $.create_initiative.issue_prefix)}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={10}
+            className="h-7 w-36 rounded-md border bg-transparent px-2 font-mono text-caption uppercase outline-none placeholder:normal-case placeholder:font-sans"
+          />
 
           {(!startDate || !dueDate) && (
             <DropdownMenu>

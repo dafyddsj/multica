@@ -474,7 +474,7 @@ SELECT i.id, i.workspace_id, i.title, i.description, i.status, i.priority,
 	}
 	committed = true
 
-	prefix := baseHandler.getIssuePrefix(r.Context(), compiled.workspaceID)
+	prefixes := baseHandler.loadIssuePrefixSet(r.Context(), compiled.workspaceID)
 	issueIDs := make([]pgtype.UUID, len(scanned))
 	for index, row := range scanned {
 		issueIDs[index] = row.issue.ID
@@ -487,7 +487,7 @@ SELECT i.id, i.workspace_id, i.title, i.description, i.status, i.priority,
 	fillTableRow := baseHandler.newStatusCategoryFiller(r.Context(), compiled.workspaceID)
 	responseRows := make([]issueTableRowResponse, len(scanned))
 	for index, row := range scanned {
-		issue := issueListRowToResponse(row.issue, prefix)
+		issue := issueListRowToResponse(row.issue, prefixes.forProject(row.issue.ProjectID))
 		fillTableRow(&issue)
 		labels := labelsByIssue[issue.ID]
 		if labels == nil {

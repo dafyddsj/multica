@@ -773,6 +773,7 @@ type Initiative struct {
 	DueDate     pgtype.Date        `json:"due_date"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	IssuePrefix pgtype.Text        `json:"issue_prefix"`
 }
 
 type Issue struct {

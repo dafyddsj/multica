@@ -33,6 +33,7 @@ type InitiativeResponse struct {
 	LeadID       *string `json:"lead_id"`
 	StartDate    *string `json:"start_date"`
 	DueDate      *string `json:"due_date"`
+	IssuePrefix  *string `json:"issue_prefix"`
 	CreatedAt    string  `json:"created_at"`
 	UpdatedAt    string  `json:"updated_at"`
 	ProjectCount int64   `json:"project_count"`
@@ -56,6 +57,7 @@ func initiativeToResponse(i db.Initiative) InitiativeResponse {
 		LeadID:      uuidToPtr(i.LeadID),
 		StartDate:   dateToPtr(i.StartDate),
 		DueDate:     dateToPtr(i.DueDate),
+		IssuePrefix: textToPtr(i.IssuePrefix),
 		CreatedAt:   timestampToString(i.CreatedAt),
 		UpdatedAt:   timestampToString(i.UpdatedAt),
 	}
@@ -93,6 +95,7 @@ type CreateInitiativeRequest struct {
 	LeadID      *string `json:"lead_id"`
 	StartDate   *string `json:"start_date"`
 	DueDate     *string `json:"due_date"`
+	IssuePrefix *string `json:"issue_prefix"`
 }
 
 type UpdateInitiativeRequest struct {
@@ -105,6 +108,7 @@ type UpdateInitiativeRequest struct {
 	LeadID      *string `json:"lead_id"`
 	StartDate   *string `json:"start_date"`
 	DueDate     *string `json:"due_date"`
+	IssuePrefix *string `json:"issue_prefix"`
 }
 
 func (h *Handler) resolveInitiativeInWorkspace(w http.ResponseWriter, r *http.Request, workspaceID pgtype.UUID, raw *string) (pgtype.UUID, bool) {
@@ -280,6 +284,10 @@ func (h *Handler) CreateInitiative(w http.ResponseWriter, r *http.Request) {
 		}
 		dueDate = d
 	}
+	issuePrefix, ok := parseOptionalInitiativeIssuePrefix(w, req.IssuePrefix)
+	if !ok {
+		return
+	}
 
 	initiative, err := h.Queries.CreateInitiative(r.Context(), db.CreateInitiativeParams{
 		WorkspaceID: wsUUID,
@@ -292,6 +300,7 @@ func (h *Handler) CreateInitiative(w http.ResponseWriter, r *http.Request) {
 		Priority:    priority,
 		StartDate:   startDate,
 		DueDate:     dueDate,
+		IssuePrefix: issuePrefix,
 	})
 	if err != nil {
 		h.writeInitiativeWriteError(w, r, err, "create")
@@ -345,6 +354,7 @@ func (h *Handler) UpdateInitiative(w http.ResponseWriter, r *http.Request) {
 		LeadID:      prev.LeadID,
 		StartDate:   prev.StartDate,
 		DueDate:     prev.DueDate,
+		IssuePrefix: prev.IssuePrefix,
 	}
 	if req.Title != nil {
 		params.Title = pgtype.Text{String: *req.Title, Valid: true}
@@ -416,6 +426,13 @@ func (h *Handler) UpdateInitiative(w http.ResponseWriter, r *http.Request) {
 		} else {
 			params.DueDate = pgtype.Date{Valid: false}
 		}
+	}
+	if _, ok := rawFields["issue_prefix"]; ok {
+		issuePrefix, ok := parseOptionalInitiativeIssuePrefix(w, req.IssuePrefix)
+		if !ok {
+			return
+		}
+		params.IssuePrefix = issuePrefix
 	}
 	initiative, err := h.Queries.UpdateInitiative(r.Context(), params)
 	if err != nil {

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { projectKeys } from "./queries";
 import { initiativeKeys } from "../initiatives/queries";
+import { issueKeys } from "../issues/queries";
 import { useWorkspaceId } from "../hooks";
 import { useRecentContextStore } from "../chat/recent-context-store";
 import { clearIssueSurfaceViewState } from "../issues/stores/surface-view-store";
@@ -53,6 +54,9 @@ export function useUpdateProject() {
       qc.invalidateQueries({ queryKey: projectKeys.detail(wsId, vars.id) });
       qc.invalidateQueries({ queryKey: projectKeys.list(wsId) });
       qc.invalidateQueries({ queryKey: initiativeKeys.all(wsId) });
+      if (vars.initiative_id !== undefined) {
+        qc.invalidateQueries({ queryKey: issueKeys.all(wsId) });
+      }
     },
   });
 }
