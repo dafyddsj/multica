@@ -288,4 +288,22 @@ func TestInitiativeIssuePrefixOverridesWorkspace(t *testing.T) {
 		"X-User-ID", testUserID, "X-Workspace-ID", testWorkspaceID,
 	)
 	testutil.Call(t, testHandler.GetIssue, foreignReq).Want(http.StatusNotFound)
+
+	var workspacePrefix string
+	dbfx.QueryRow(t, `SELECT issue_prefix FROM workspace WHERE id = $1`, testWorkspaceID).Scan(&workspacePrefix)
+	if workspacePrefix != "" && workspacePrefix != "MOB" {
+		workspaceIdent := workspacePrefix + "-" + strings.TrimPrefix(created.Identifier, "MOB-")
+		wsReq := testutil.WithHeaders(
+			testutil.WithURLParams(
+				testutil.JSONRequest("GET", "/api/issues/"+workspaceIdent, nil),
+				"id", workspaceIdent,
+			),
+			"X-User-ID", testUserID, "X-Workspace-ID", testWorkspaceID,
+		)
+		var viaWorkspace IssueResponse
+		testutil.Call(t, testHandler.GetIssue, wsReq).Want(http.StatusOK).JSON(&viaWorkspace)
+		if viaWorkspace.ID != created.ID {
+			t.Fatalf("GetIssue(%q) = %s, want %s", workspaceIdent, viaWorkspace.ID, created.ID)
+		}
+	}
 }

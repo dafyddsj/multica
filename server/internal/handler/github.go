@@ -1385,12 +1385,12 @@ func (h *Handler) resolveCloseIntentPolicy(ctx context.Context, insts []db.Githu
 		if !autoLink {
 			continue
 		}
-		prefix := issuePrefixForWorkspace(ws)
 		for _, id := range idents {
-			number, ok := issueNumberForPrefix(id, prefix)
-			if !ok {
+			parts := splitIdentifier(id)
+			if parts == nil || !h.knownIssuePrefix(ctx, inst.WorkspaceID, parts.prefix) {
 				continue
 			}
+			number := parts.number
 			if _, err := h.Queries.GetIssueByNumber(ctx, db.GetIssueByNumberParams{
 				WorkspaceID: inst.WorkspaceID,
 				Number:      number,
@@ -1609,7 +1609,6 @@ func (h *Handler) mirrorPullRequestForWorkspace(ctx context.Context, wsID pgtype
 		// a terminal event, later edit/synchronize webhooks must not rewrite
 		// the merge-time close decision.
 		preserveCloseIntent := p.Action != "closed" && (state == "merged" || state == "closed")
-		prefix := h.getIssuePrefix(ctx, wsID)
 		// reevalIssues collects each issue whose link row we just touched so
 		// we can re-run the auto-advance gate against the persisted aggregate
 		// after every link upsert in this event. Driving the gate off
@@ -1621,7 +1620,7 @@ func (h *Handler) mirrorPullRequestForWorkspace(ctx context.Context, wsID pgtype
 		// MUL-1 still advances.
 		reevalIssues := make([]db.Issue, 0, len(idents))
 		for _, id := range idents {
-			issue, ok := h.lookupIssueByIdentifier(ctx, wsID, prefix, id)
+			issue, ok := h.lookupIssueByIdentifier(ctx, wsID, id)
 			if !ok {
 				continue
 			}
@@ -1876,16 +1875,16 @@ func issueNumberForPrefix(identifier, prefix string) (int32, bool) {
 }
 
 // lookupIssueByIdentifier looks up an issue in the given workspace by its
-// "PREFIX-NUMBER" identifier. Returns the row + true if the prefix matches
-// the workspace's configured prefix and the number resolves to a real issue.
-func (h *Handler) lookupIssueByIdentifier(ctx context.Context, workspaceID pgtype.UUID, prefix, identifier string) (db.Issue, bool) {
-	number, ok := issueNumberForPrefix(identifier, prefix)
-	if !ok {
+// "PREFIX-NUMBER" identifier. The prefix may be the workspace prefix or any
+// initiative override in that workspace; the number is workspace-unique.
+func (h *Handler) lookupIssueByIdentifier(ctx context.Context, workspaceID pgtype.UUID, identifier string) (db.Issue, bool) {
+	parts := splitIdentifier(identifier)
+	if parts == nil || !h.knownIssuePrefix(ctx, workspaceID, parts.prefix) {
 		return db.Issue{}, false
 	}
 	issue, err := h.Queries.GetIssueByNumber(ctx, db.GetIssueByNumberParams{
 		WorkspaceID: workspaceID,
-		Number:      number,
+		Number:      parts.number,
 	})
 	if err != nil {
 		return db.Issue{}, false

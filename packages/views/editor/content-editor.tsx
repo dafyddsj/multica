@@ -46,6 +46,7 @@ import type { UploadResult } from "@multica/core/hooks/use-file-upload";
 import { useWorkspaceSlug } from "@multica/core/paths";
 import { useQueryClient } from "@tanstack/react-query";
 import { issueIdentifierOptions } from "@multica/core/issues/queries";
+import { initiativeListOptions } from "@multica/core/initiatives/queries";
 import { workspaceListOptions } from "@multica/core/workspace/queries";
 import { isIssueIdentifier } from "@multica/ui/markdown";
 import type { Attachment } from "@multica/core/types";
@@ -527,10 +528,16 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       const workspaces = await queryClient.fetchQuery(workspaceListOptions());
       const ws = workspaces.find((w) => w.slug === slug);
       if (!ws) return null;
-      const prefix = ws.issue_prefix;
+      const initiatives = await queryClient.fetchQuery(initiativeListOptions(ws.id));
+      const knownPrefixes = [
+        ws.issue_prefix,
+        ...initiatives.map((initiative) => initiative.issue_prefix),
+      ].filter((value): value is string => Boolean(value));
       if (
-        prefix &&
-        !identifier.toUpperCase().startsWith(`${prefix.toUpperCase()}-`)
+        knownPrefixes.length > 0 &&
+        !knownPrefixes.some((known) =>
+          identifier.toUpperCase().startsWith(`${known.toUpperCase()}-`),
+        )
       ) {
         return null;
       }

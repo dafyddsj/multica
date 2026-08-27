@@ -71,6 +71,7 @@ import {
   EMPTY_MEMORY_LIST_RESPONSE,
   InitiativeDetailSchema,
 } from "./schemas";
+import type { Initiative } from "../types";
 import { IssueViewSchema, IssueViewListSchema } from "./schemas";
 import {
   ListIssueStatusesResponseSchema,
@@ -2103,7 +2104,7 @@ describe("InitiativeDetailSchema", () => {
   };
 
   it("defaults missing issue_prefix to null without dropping the initiative", () => {
-    const parsed = parseWithFallback(
+    const parsed = parseWithFallback<Initiative | null>(
       baseInitiative,
       InitiativeDetailSchema,
       null,
