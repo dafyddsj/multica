@@ -459,6 +459,33 @@ func TestDashboardInitiativeFilter(t *testing.T) {
 		t.Errorf("daily project A + initiative B: expected 0, got %d", crossed)
 	}
 
+	type runtimeRow struct {
+		TaskCount int `json:"task_count"`
+	}
+	sumRuntime := func(query string) int {
+		t.Helper()
+		var rows []runtimeRow
+		testutil.Call(t, testHandler.GetDashboardRunTimeDaily, newRequest(
+			"GET",
+			"/api/dashboard/runtime/daily?days=1&"+dashboardFixtureTZParam+query,
+			nil,
+		)).Want(http.StatusOK).JSON(&rows)
+		var total int
+		for _, row := range rows {
+			total += row.TaskCount
+		}
+		return total
+	}
+	if got := sumRuntime("&initiative_id=" + initiativeA); got < 1 {
+		t.Errorf("runtime initiative A: expected >=1 task, got %d", got)
+	}
+	if got := sumRuntime("&initiative_id=" + initiativeB); got < 1 {
+		t.Errorf("runtime initiative B: expected >=1 task, got %d", got)
+	}
+	if got := sumRuntime("&project_id=" + projectA + "&initiative_id=" + initiativeB); got != 0 {
+		t.Errorf("runtime project A + initiative B: expected 0, got %d", got)
+	}
+
 	testutil.Call(t, testHandler.GetDashboardUsageDaily, newRequest(
 		"GET",
 		"/api/dashboard/usage/daily?initiative_id=not-a-uuid",

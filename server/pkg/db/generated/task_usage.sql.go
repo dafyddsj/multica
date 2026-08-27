@@ -117,7 +117,8 @@ WHERE a.workspace_id = $1
   AND atq.completed_at >= $2::timestamptz
   AND ($3::uuid IS NULL OR i.project_id = $3)
   AND ($4::uuid IS NULL OR i.project_id IN (
-      SELECT id FROM project WHERE initiative_id = $4
+      SELECT id FROM project
+      WHERE workspace_id = $1 AND initiative_id = $4
   ))
 GROUP BY atq.agent_id
 ORDER BY total_seconds DESC
@@ -201,7 +202,8 @@ WHERE a.workspace_id = $1
   AND atq.completed_at >= $2::timestamptz
   AND ($3::uuid IS NULL OR i.project_id = $3)
   AND ($4::uuid IS NULL OR i.project_id IN (
-      SELECT id FROM project WHERE initiative_id = $4
+      SELECT id FROM project
+      WHERE workspace_id = $1 AND initiative_id = $4
   ))
 GROUP BY atq.agent_id, 2
 ORDER BY atq.agent_id, 2
@@ -270,7 +272,8 @@ WHERE a.workspace_id = $1
   AND atq.completed_at >= $3::timestamptz
   AND ($4::uuid IS NULL OR i.project_id = $4)
   AND ($5::uuid IS NULL OR i.project_id IN (
-      SELECT id FROM project WHERE initiative_id = $5
+      SELECT id FROM project
+      WHERE workspace_id = $1 AND initiative_id = $5
   ))
 GROUP BY 1, 2
 ORDER BY 1 DESC, 2
@@ -357,7 +360,8 @@ WHERE a.workspace_id = $1
   AND atq.completed_at >= $3::timestamptz
   AND ($4::uuid IS NULL OR i.project_id = $4)
   AND ($5::uuid IS NULL OR i.project_id IN (
-      SELECT id FROM project WHERE initiative_id = $5
+      SELECT id FROM project
+      WHERE workspace_id = $1 AND initiative_id = $5
   ))
 GROUP BY DATE(atq.completed_at AT TIME ZONE $2::text)
 ORDER BY DATE(atq.completed_at AT TIME ZONE $2::text) DESC
@@ -451,7 +455,8 @@ WHERE task_usage_hourly.workspace_id = $1
   AND bucket_hour >= $2::timestamptz
   AND ($3::uuid IS NULL OR project_id = $3)
   AND ($4::uuid IS NULL OR project_id IN (
-      SELECT id FROM project WHERE initiative_id = $4
+      SELECT id FROM project
+      WHERE workspace_id = $1 AND initiative_id = $4
   ))
 GROUP BY agent_id, LOWER(provider), model
 ORDER BY agent_id, LOWER(provider), model
@@ -553,7 +558,8 @@ WHERE task_usage_hourly.workspace_id = $1
   AND bucket_hour >= $3::timestamptz
   AND ($4::uuid IS NULL OR project_id = $4)
   AND ($5::uuid IS NULL OR project_id IN (
-      SELECT id FROM project WHERE initiative_id = $5
+      SELECT id FROM project
+      WHERE workspace_id = $1 AND initiative_id = $5
   ))
 GROUP BY DATE(bucket_hour AT TIME ZONE $2::text), LOWER(provider), model
 ORDER BY DATE(bucket_hour AT TIME ZONE $2::text) DESC, LOWER(provider), model
@@ -586,7 +592,8 @@ type ListDashboardUsageDailyRow struct {
 // Daily per-(date, provider, model) token aggregates for the workspace, served
 // from the UTC-bucketed `task_usage_hourly` table and
 // sliced to calendar days under the caller-supplied @tz. Optionally
-// scoped to a single project via sqlc.narg('project_id'). Powers the
+// scoped to a single project via sqlc.narg('project_id') and/or to every
+// project under an initiative via sqlc.narg('initiative_id'). Powers the
 // workspace dashboard's daily cost chart.
 // The viewer's tz is applied here at query time, so a viewer in
 // Asia/Shanghai gets their "today" cut at +08 and one in

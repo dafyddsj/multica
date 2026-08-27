@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_INITIATIVES,
   ALL_PROJECTS,
+  projectValueForInitiativeChange,
   projectsForInitiative,
   resolveDashboardInitiativeId,
   resolveDashboardProjectId,
@@ -36,5 +37,23 @@ describe("projectsForInitiative / resolveDashboardProjectId", () => {
   it("keeps the full list when no initiative is selected", () => {
     expect(projectsForInitiative(projects, null)).toEqual(projects);
     expect(resolveDashboardProjectId("proj-3", projects)).toBe("proj-3");
+  });
+});
+
+describe("projectValueForInitiativeChange", () => {
+  it("clears a project that the next initiative does not contain", () => {
+    expect(projectValueForInitiativeChange("proj-1", null, "init-2", projects)).toBe(ALL_PROJECTS);
+  });
+
+  it("clears a project that the previous initiative had hidden", () => {
+    expect(projectValueForInitiativeChange("proj-1", "init-2", null, projects)).toBe(ALL_PROJECTS);
+  });
+
+  it("keeps a project that belongs to the newly selected initiative", () => {
+    expect(projectValueForInitiativeChange("proj-1", null, "init-1", projects)).toBe("proj-1");
+  });
+
+  it("keeps a visible project when broadening to all initiatives", () => {
+    expect(projectValueForInitiativeChange("proj-1", "init-1", null, projects)).toBe("proj-1");
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { BarChart3, RefreshCw } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@multica/ui/components/ui/button";
@@ -67,6 +67,7 @@ import { InitiativeFilter, ProjectFilter, TimeRangeFilter } from "./dashboard-fi
 import {
   ALL_INITIATIVES,
   ALL_PROJECTS,
+  projectValueForInitiativeChange,
   projectsForInitiative,
   resolveDashboardInitiativeId,
   resolveDashboardProjectId,
@@ -212,6 +213,17 @@ export function DashboardPage() {
   const projectId = useMemo(
     () => resolveDashboardProjectId(projectValue, scopedProjects),
     [projectValue, scopedProjects],
+  );
+
+  const handleInitiativeChange = useCallback(
+    (nextValue: string) => {
+      const nextInitiativeId = resolveDashboardInitiativeId(nextValue, initiatives);
+      setProjectValue((current) =>
+        projectValueForInitiativeChange(current, initiativeId, nextInitiativeId, projects),
+      );
+      setInitiativeValue(nextValue);
+    },
+    [initiativeId, initiatives, projects],
   );
 
   // The weekly charts paint `ceil(days / 7)` trailing calendar weeks anchored
@@ -543,7 +555,7 @@ export function DashboardPage() {
             <InitiativeFilter
               initiatives={initiatives}
               initiativeValue={initiativeValue}
-              onInitiativeChange={setInitiativeValue}
+              onInitiativeChange={handleInitiativeChange}
             />
             <ProjectFilter
               projects={scopedProjects}

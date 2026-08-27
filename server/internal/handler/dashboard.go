@@ -24,7 +24,8 @@ import (
 // All of them accept ?days=N (defaults to 30, capped at 365) and optional
 // ?project_id=<uuid> / ?initiative_id=<uuid> scope filters. The two combine
 // with AND: a project filter wins when it belongs to the initiative, and an
-// initiative filter includes every project under that initiative. With neither
+// initiative filter includes every project that currently belongs to that
+// initiative (membership is live, not stamped at usage time). With neither
 // param the data spans the whole workspace.
 //
 // Cutoff convention: the three date-bucketed series use parseSinceParamInTZ

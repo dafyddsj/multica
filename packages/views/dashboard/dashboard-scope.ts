@@ -33,3 +33,19 @@ export function resolveDashboardProjectId(
 ): string | null {
   return resolveDashboardScopeId(value, ALL_PROJECTS, projects);
 }
+
+/** Drop a project that the previous initiative hid, or that the next one excludes. */
+export function projectValueForInitiativeChange<T extends { id: string; initiative_id: string | null }>(
+  projectValue: string,
+  previousInitiativeId: string | null,
+  nextInitiativeId: string | null,
+  projects: T[],
+): string {
+  if (projectValue === ALL_PROJECTS) return ALL_PROJECTS;
+  const previousScoped = projectsForInitiative(projects, previousInitiativeId);
+  const nextScoped = projectsForInitiative(projects, nextInitiativeId);
+  const wasHidden = !previousScoped.some((project) => project.id === projectValue);
+  const missing = !nextScoped.some((project) => project.id === projectValue);
+  if (wasHidden || missing) return ALL_PROJECTS;
+  return projectValue;
+}
