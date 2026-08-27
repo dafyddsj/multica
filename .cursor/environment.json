@@ -9,7 +9,7 @@
     },
     {
       "name": "web",
-      "command": "set -a; . ./.env; set +a; corepack pnpm dev:web"
+      "command": "set -a; . ./.env; set +a; export NODE_OPTIONS=\"${NODE_OPTIONS:---max-old-space-size=8192}\"; corepack pnpm dev:web"
     }
   ],
   "ports": [

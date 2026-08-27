@@ -793,6 +793,10 @@ jobs:
         if: runner.os != 'Windows'
         run: bash scripts/install.test.sh
 
+      - name: Test web warmup
+        if: runner.os != 'Windows'
+        run: bash scripts/warm-web.test.sh
+
       - name: Test PowerShell installer
         if: runner.os == 'Windows'
         shell: pwsh

@@ -36,12 +36,12 @@ Run first whenever anything looks off:
 .cursor/skills/verify-multica/control-multica doctor
 ```
 
-It is read-only. It must show all of:
+It does not start or stop services. It compiles demo routes through `scripts/warm-web.sh` when Next is already up. It must show all of:
 
 - `make status --json` `dir` equals this repo root
 - `components.api.state` and `components.web.state` are `running`
 - `GET http://localhost:<backend_port>/health` returns JSON whose `commit` equals `git rev-parse --short HEAD`
-- `GET http://localhost:<frontend_port>` succeeds
+- doctor runs `scripts/warm-web.sh` so login/issues/inbox/agents/settings are compiled before drive
 
 If doctor fails, do not drive. Launch or fix identity first.
 
