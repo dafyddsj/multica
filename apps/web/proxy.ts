@@ -117,7 +117,7 @@ function appProxy(req: NextRequest): NextResponse {
 const unusedFetchEvent = {
   waitUntil() {},
   passThroughOnException() {},
-} as NextFetchEvent;
+} as unknown as NextFetchEvent;
 
 export function proxy(req: NextRequest, event: NextFetchEvent = unusedFetchEvent) {
   const keys = clerkOverlayKeys();

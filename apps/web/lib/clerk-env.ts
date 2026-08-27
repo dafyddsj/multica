@@ -3,8 +3,11 @@ export type ClerkOverlayKeys = {
   publishableKey: string;
 };
 
+/** Env bag for overlay gating. process.env is assignable; tests can pass partials. */
+export type ClerkEnvBag = Record<string, string | undefined>;
+
 export function clerkOverlayKeys(
-  env: NodeJS.ProcessEnv = process.env,
+  env: ClerkEnvBag = process.env,
 ): ClerkOverlayKeys | null {
   const secretKey = env.CLERK_SECRET_KEY?.trim() ?? "";
   const publishableKey = (
@@ -17,13 +20,13 @@ export function clerkOverlayKeys(
 }
 
 export function clerkPublishableKeyFromEnv(
-  env: NodeJS.ProcessEnv = process.env,
+  env: ClerkEnvBag = process.env,
 ): string {
   return clerkOverlayKeys(env)?.publishableKey ?? "";
 }
 
 export function applyClerkPublishableKeyAlias(
-  env: NodeJS.ProcessEnv = process.env,
+  env: ClerkEnvBag = process.env,
 ): void {
   const publishable = env.CLERK_PUBLISHABLE_KEY?.trim() ?? "";
   if (publishable && !env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) {

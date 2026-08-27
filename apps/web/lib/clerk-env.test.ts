@@ -4,6 +4,7 @@ import {
   applyClerkPublishableKeyAlias,
   clerkOverlayKeys,
   clerkPublishableKeyFromEnv,
+  type ClerkEnvBag,
 } from "./clerk-env";
 
 describe("clerkOverlayKeys", () => {
@@ -56,13 +57,13 @@ describe("clerkPublishableKeyFromEnv", () => {
 
 describe("applyClerkPublishableKeyAlias", () => {
   it("copies CLERK_PUBLISHABLE_KEY into NEXT_PUBLIC_ when that slot is empty", () => {
-    const env: NodeJS.ProcessEnv = { CLERK_PUBLISHABLE_KEY: "pk_test_x" };
+    const env: ClerkEnvBag = { CLERK_PUBLISHABLE_KEY: "pk_test_x" };
     applyClerkPublishableKeyAlias(env);
     expect(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY).toBe("pk_test_x");
   });
 
   it("does not overwrite an existing NEXT_PUBLIC_ publishable key", () => {
-    const env: NodeJS.ProcessEnv = {
+    const env: ClerkEnvBag = {
       CLERK_PUBLISHABLE_KEY: "pk_test_api",
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_next",
     };
