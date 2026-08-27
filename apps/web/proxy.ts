@@ -120,12 +120,8 @@ const unusedFetchEvent = {
 } as NextFetchEvent;
 
 export function proxy(req: NextRequest, event: NextFetchEvent = unusedFetchEvent) {
-  const keys = clerkOverlayKeys();
-  if (!keys) return appProxy(req);
-  return clerkMiddleware((_auth, request) => appProxy(request), {
-    secretKey: keys.secretKey,
-    publishableKey: keys.publishableKey,
-  })(req, event);
+  if (!clerkOverlayKeys()) return appProxy(req);
+  return clerkMiddleware((_auth, request) => appProxy(request))(req, event);
 }
 
 export const config = {

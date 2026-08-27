@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { clerkOverlayKeys, clerkPublishableKeyFromEnv } from "./clerk-env";
+import {
+  applyClerkPublishableKeyAlias,
+  clerkOverlayKeys,
+  clerkPublishableKeyFromEnv,
+} from "./clerk-env";
 
 describe("clerkOverlayKeys", () => {
   it("returns null unless both secret and publishable keys are set", () => {
@@ -47,5 +51,22 @@ describe("clerkPublishableKeyFromEnv", () => {
         CLERK_PUBLISHABLE_KEY: "pk_test_x",
       }),
     ).toBe("pk_test_x");
+  });
+});
+
+describe("applyClerkPublishableKeyAlias", () => {
+  it("copies CLERK_PUBLISHABLE_KEY into NEXT_PUBLIC_ when that slot is empty", () => {
+    const env: NodeJS.ProcessEnv = { CLERK_PUBLISHABLE_KEY: "pk_test_x" };
+    applyClerkPublishableKeyAlias(env);
+    expect(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY).toBe("pk_test_x");
+  });
+
+  it("does not overwrite an existing NEXT_PUBLIC_ publishable key", () => {
+    const env: NodeJS.ProcessEnv = {
+      CLERK_PUBLISHABLE_KEY: "pk_test_api",
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_next",
+    };
+    applyClerkPublishableKeyAlias(env);
+    expect(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY).toBe("pk_test_next");
   });
 });

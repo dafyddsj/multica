@@ -21,3 +21,12 @@ export function clerkPublishableKeyFromEnv(
 ): string {
   return clerkOverlayKeys(env)?.publishableKey ?? "";
 }
+
+export function applyClerkPublishableKeyAlias(
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  const publishable = env.CLERK_PUBLISHABLE_KEY?.trim() ?? "";
+  if (publishable && !env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) {
+    env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = publishable;
+  }
+}
