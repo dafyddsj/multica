@@ -422,7 +422,9 @@
     "agents_group": "エージェント",
     "squads_group": "スクワッド",
     "agent_runtime_required": "このエージェントを選択する前にランタイムをバインドしてください",
-    "squad_runtime_required": "選択する前に、このスクワッドのリーダーにランタイムをバインドしてください"
+    "agent_paused": "選択する前に、このエージェントを再開してください",
+    "squad_runtime_required": "選択する前に、このスクワッドのリーダーにランタイムをバインドしてください",
+    "squad_paused": "選択する前に、このスクワッドのリーダーを再開してください"
   },
   "timezone_picker": {
     "search_placeholder": "タイムゾーンを検索..."

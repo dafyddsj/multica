@@ -62,7 +62,7 @@ import { ClearablePillButton, PillButton } from "../common/pill-button";
 import { ProjectPicker } from "../projects/components/project-picker";
 import { DueDatePicker, PriorityIcon, PriorityPicker } from "../issues/components";
 import { canAssignAgent } from "../issues/components/pickers/assignee-picker";
-import { isAgentRuntimeBound } from "@multica/core/agents";
+import { agentAcceptsNewWork, isAgentRuntimeBound } from "@multica/core/agents";
 import {
   PropertyPicker,
   PickerItem,
@@ -159,7 +159,7 @@ export function AgentCreatePanel({
     () =>
       agents.filter(
         (a) =>
-          !a.archived_at &&
+          agentAcceptsNewWork(a) &&
           isAgentRuntimeBound(a) &&
           canAssignAgent(a, userId, memberRole),
       ),

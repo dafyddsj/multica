@@ -498,12 +498,14 @@
     "trigger_blocked_runtime_offline": "This target's runtime is offline",
     "trigger_blocked_runtime_unusable": "This target's agent CLI can't run on its machine — reinstall it there",
     "trigger_blocked_agent_runtime_required": "This target has no runtime — bind one to run it",
+    "trigger_blocked_agent_paused": "This target is paused",
     "trigger_blocked_generic": "This target won't be triggered",
     "trigger_blocked_short_invocation_not_allowed": "Not found or no permission",
     "trigger_blocked_short_target_unavailable": "Unavailable",
     "trigger_blocked_short_runtime_offline": "Runtime offline",
     "trigger_blocked_short_runtime_unusable": "CLI can't run",
     "trigger_blocked_short_agent_runtime_required": "Needs a runtime",
+    "trigger_blocked_short_agent_paused": "Paused",
     "trigger_blocked_short_generic": "Won't start",
     "send_reply_failed": "Failed to send reply",
     "delete_failed": "Failed to delete comment",
@@ -746,7 +748,9 @@
       "agents_group": "Agents",
       "squads_group": "Squads",
       "agent_runtime_required": "Bind a runtime before assigning work to this agent",
-      "squad_runtime_required": "Bind a runtime to this squad's leader before assigning work"
+      "agent_paused": "Resume this agent before assigning work",
+      "squad_runtime_required": "Bind a runtime to this squad's leader before assigning work",
+      "squad_paused": "Resume this squad's leader before assigning work"
     },
     "start_date": {
       "trigger_label": "Start date",

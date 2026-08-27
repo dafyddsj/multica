@@ -615,7 +615,7 @@ func sanitizeMentionLabel(name string) string {
 //     for the same parent (e.g. two children finishing back-to-back). It also
 //     bounds any re-trigger, since a leader waking on the parent does not by
 //     itself push a child back into a terminal transition.
-//   - Readiness: archived agents / missing runtimes are silently skipped
+//   - Readiness: archived or paused agents and missing runtimes are silently skipped
 //     so a closed-out agent does not surface as a phantom assignee.
 func (h *Handler) dispatchParentAssigneeTrigger(ctx context.Context, parent db.Issue, systemComment db.Comment) {
 	if !parent.AssigneeType.Valid || !parent.AssigneeID.Valid {
@@ -648,7 +648,7 @@ func (h *Handler) triggerChildDoneAgent(ctx context.Context, parent db.Issue, tr
 		ID:          parent.AssigneeID,
 		WorkspaceID: parent.WorkspaceID,
 	})
-	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid {
+	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid || agent.PausedAt.Valid {
 		return
 	}
 
@@ -705,7 +705,7 @@ func (h *Handler) triggerChildDoneSquad(ctx context.Context, parent db.Issue, tr
 	}
 
 	agent, err := h.Queries.GetAgent(ctx, squad.LeaderID)
-	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid {
+	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid || agent.PausedAt.Valid {
 		return
 	}
 

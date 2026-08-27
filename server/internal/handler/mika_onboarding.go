@@ -109,6 +109,10 @@ func (h *Handler) StartMikaOnboarding(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "chat agent is archived")
 		return
 	}
+	if agent.PausedAt.Valid {
+		writeError(w, http.StatusConflict, "agent is paused")
+		return
+	}
 	if !agent.RuntimeID.Valid {
 		writeError(w, http.StatusConflict, "chat agent has no runtime")
 		return

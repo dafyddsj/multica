@@ -365,6 +365,34 @@ describe("deriveAgentPresenceDetail", () => {
     expect(detail.runningCount).toBe(0);
     expect(detail.queuedCount).toBe(0);
   });
+
+  it("reports paused over runtime health and keeps real workload", () => {
+    const detail = deriveAgentPresenceDetail({
+      agent: makeAgent({ paused_at: "2026-08-26T10:00:00Z" }),
+      runtime: makeRuntime(),
+      tasks: [makeTask({ status: "running" }), makeTask({ status: "queued" })],
+      now: NOW,
+    });
+    expect(detail.availability).toBe("paused");
+    expect(detail.workload).toBe("working");
+    expect(detail.runningCount).toBe(1);
+    expect(detail.queuedCount).toBe(1);
+  });
+
+  it("lets archived win over paused", () => {
+    const detail = deriveAgentPresenceDetail({
+      agent: makeAgent({
+        archived_at: "2026-08-26T12:00:00Z",
+        paused_at: "2026-08-26T10:00:00Z",
+      }),
+      runtime: makeRuntime(),
+      tasks: [makeTask({ status: "running" })],
+      now: NOW,
+    });
+    expect(detail.availability).toBe("archived");
+    expect(detail.workload).toBe("idle");
+    expect(detail.runningCount).toBe(0);
+  });
 });
 
 describe("buildPresenceMap", () => {

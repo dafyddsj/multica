@@ -1171,6 +1171,9 @@ func (s *TaskService) enqueueIssueTaskWithCommentPlan(ctx context.Context, issue
 		slog.Debug("task enqueue skipped: agent is archived", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agent.ID))
 		return db.AgentTaskQueue{}, fmt.Errorf("agent is archived")
 	}
+	if agent.PausedAt.Valid {
+		return db.AgentTaskQueue{}, fmt.Errorf("agent is paused")
+	}
 	if !agent.RuntimeID.Valid {
 		slog.Error("task enqueue failed", "issue_id", util.UUIDToString(issue.ID), "error", "agent has no runtime")
 		return db.AgentTaskQueue{}, fmt.Errorf("agent has no runtime")
@@ -1324,6 +1327,9 @@ func (s *TaskService) enqueueMentionTaskWithCommentPlan(ctx context.Context, iss
 		slog.Debug("mention task enqueue skipped: agent is archived", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID))
 		return db.AgentTaskQueue{}, fmt.Errorf("agent is archived")
 	}
+	if agent.PausedAt.Valid {
+		return db.AgentTaskQueue{}, fmt.Errorf("agent is paused")
+	}
 	if !agent.RuntimeID.Valid {
 		slog.Error("mention task enqueue failed: agent has no runtime", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID))
 		return db.AgentTaskQueue{}, fmt.Errorf("agent has no runtime")
@@ -1403,6 +1409,9 @@ func (s *TaskService) EnqueueDeferredAssigneeFallback(ctx context.Context, issue
 	if agent.ArchivedAt.Valid {
 		slog.Debug("deferred fallback enqueue skipped: agent is archived", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID))
 		return db.AgentTaskQueue{}, fmt.Errorf("agent is archived")
+	}
+	if agent.PausedAt.Valid {
+		return db.AgentTaskQueue{}, fmt.Errorf("agent is paused")
 	}
 	if !agent.RuntimeID.Valid {
 		slog.Error("deferred fallback enqueue failed: agent has no runtime", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID))
@@ -1504,7 +1513,7 @@ const QuickCreateContextType = "quick_create"
 // autopilot link — the user's natural-language prompt is stored in the
 // task's context JSONB and the agent is expected to translate it into a
 // `multica issue create` call. Pre-validates that the agent is reachable
-// (not archived, has a runtime) so the API can reject up-front rather than
+// (not archived or paused, has a runtime) so the API can reject up-front rather than
 // queue a task no one will ever claim.
 //
 // projectID is optional (zero-valued pgtype.UUID when the user didn't pick
@@ -1534,6 +1543,9 @@ func (s *TaskService) enqueueQuickCreateTask(ctx context.Context, workspaceID, r
 	}
 	if agent.ArchivedAt.Valid {
 		return db.AgentTaskQueue{}, fmt.Errorf("agent is archived")
+	}
+	if agent.PausedAt.Valid {
+		return db.AgentTaskQueue{}, fmt.Errorf("agent is paused")
 	}
 	if !agent.RuntimeID.Valid {
 		return db.AgentTaskQueue{}, fmt.Errorf("agent has no runtime")
@@ -1692,7 +1704,7 @@ func (s *TaskService) RetrySourceContextQuickCreate(ctx context.Context, workspa
 		return nil, ErrSourceContextRetryUnavailable
 	}
 	agent, err := s.Queries.GetAgent(ctx, parent.AgentID)
-	if err != nil || agent.ArchivedAt.Valid || !agent.RuntimeID.Valid {
+	if err != nil || agent.ArchivedAt.Valid || agent.PausedAt.Valid || !agent.RuntimeID.Valid {
 		return nil, ErrSourceContextRetryUnavailable
 	}
 	if canInvoke != nil && !canInvoke(agent) {
@@ -1740,6 +1752,8 @@ func (s *TaskService) RetrySourceContextQuickCreate(ctx context.Context, workspa
 // is a productizable state — surface it to the user as "this agent
 // has been archived" rather than retrying.
 var ErrChatTaskAgentArchived = errors.New("chat task: agent archived")
+
+var ErrChatTaskAgentPaused = errors.New("agent is paused")
 
 // ErrChatTaskAgentNoRuntime signals that EnqueueChatTask refused to
 // queue work because the agent has never been associated with a
@@ -1804,6 +1818,9 @@ func (s *TaskService) PrepareChatTaskEnqueue(
 	}
 	if agent.ArchivedAt.Valid {
 		return PreparedChatTaskEnqueue{}, ErrChatTaskAgentArchived
+	}
+	if agent.PausedAt.Valid {
+		return PreparedChatTaskEnqueue{}, ErrChatTaskAgentPaused
 	}
 	if !agent.RuntimeID.Valid {
 		return PreparedChatTaskEnqueue{}, ErrChatTaskAgentNoRuntime
@@ -1945,6 +1962,9 @@ func (s *TaskService) enqueueChatTaskTx(
 	}
 	if agent.ArchivedAt.Valid {
 		return db.AgentTaskQueue{}, ErrChatTaskAgentArchived
+	}
+	if agent.PausedAt.Valid {
+		return db.AgentTaskQueue{}, ErrChatTaskAgentPaused
 	}
 	if !agent.RuntimeID.Valid {
 		return db.AgentTaskQueue{}, ErrChatTaskAgentNoRuntime
@@ -2291,6 +2311,9 @@ func (s *TaskService) SendDirectChatMessage(
 		}
 		if carrier.ArchivedAt.Valid {
 			return ErrChatTaskAgentArchived
+		}
+		if carrier.PausedAt.Valid {
+			return ErrChatTaskAgentPaused
 		}
 		if !carrier.RuntimeID.Valid {
 			return ErrChatTaskAgentNoRuntime
@@ -5855,7 +5878,7 @@ func loadDelegatedFailureRecoveryTarget(ctx context.Context, q *db.Queries, fail
 		}
 		return nil, fmt.Errorf("load source agent: %w", err)
 	}
-	if agent.ArchivedAt.Valid || !agent.RuntimeID.Valid || agent.WorkspaceID != issue.WorkspaceID {
+	if agent.ArchivedAt.Valid || agent.PausedAt.Valid || !agent.RuntimeID.Valid || agent.WorkspaceID != issue.WorkspaceID {
 		return nil, nil
 	}
 	return &delegatedFailureRecoveryTarget{failed: failed, source: source, issue: issue, agent: agent}, nil

@@ -63,6 +63,20 @@ var agentRestoreCmd = &cobra.Command{
 	RunE:  runAgentRestore,
 }
 
+var agentPauseCmd = &cobra.Command{
+	Use:   "pause <id>",
+	Short: "Pause an agent",
+	Args:  exactArgs(1),
+	RunE:  runAgentPause,
+}
+
+var agentResumeCmd = &cobra.Command{
+	Use:   "resume <id>",
+	Short: "Resume a paused agent",
+	Args:  exactArgs(1),
+	RunE:  runAgentResume,
+}
+
 var agentTasksCmd = &cobra.Command{
 	Use:   "tasks <id>",
 	Short: "List tasks for an agent",
@@ -137,6 +151,8 @@ func init() {
 	agentCmd.AddCommand(agentUpdateCmd)
 	agentCmd.AddCommand(agentArchiveCmd)
 	agentCmd.AddCommand(agentRestoreCmd)
+	agentCmd.AddCommand(agentPauseCmd)
+	agentCmd.AddCommand(agentResumeCmd)
 	agentCmd.AddCommand(agentTasksCmd)
 	agentCmd.AddCommand(agentAvatarCmd)
 	agentCmd.AddCommand(agentSkillsCmd)
@@ -215,6 +231,10 @@ func init() {
 
 	// agent restore
 	agentRestoreCmd.Flags().String("output", "json", "Output format: table or json")
+
+	agentPauseCmd.Flags().String("output", "json", "Output format: table or json")
+
+	agentResumeCmd.Flags().String("output", "json", "Output format: table or json")
 
 	// agent tasks
 	agentTasksCmd.Flags().String("output", "table", "Output format: table or json")
@@ -870,6 +890,52 @@ func runAgentRestore(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Agent restored: %s (%s)\n", strVal(result, "name"), strVal(result, "id"))
+	return nil
+}
+
+func runAgentPause(cmd *cobra.Command, args []string) error {
+	client, err := newAPIClient(cmd)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := cli.APIContext(context.Background())
+	defer cancel()
+
+	var result map[string]any
+	if err := client.PostJSON(ctx, "/api/agents/"+args[0]+"/pause", nil, &result); err != nil {
+		return fmt.Errorf("pause agent: %w", err)
+	}
+
+	output, _ := cmd.Flags().GetString("output")
+	if output == "json" {
+		return cli.PrintJSON(os.Stdout, result)
+	}
+
+	fmt.Printf("Agent paused: %s (%s)\n", strVal(result, "name"), strVal(result, "id"))
+	return nil
+}
+
+func runAgentResume(cmd *cobra.Command, args []string) error {
+	client, err := newAPIClient(cmd)
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := cli.APIContext(context.Background())
+	defer cancel()
+
+	var result map[string]any
+	if err := client.PostJSON(ctx, "/api/agents/"+args[0]+"/resume", nil, &result); err != nil {
+		return fmt.Errorf("resume agent: %w", err)
+	}
+
+	output, _ := cmd.Flags().GetString("output")
+	if output == "json" {
+		return cli.PrintJSON(os.Stdout, result)
+	}
+
+	fmt.Printf("Agent resumed: %s (%s)\n", strVal(result, "name"), strVal(result, "id"))
 	return nil
 }
 

@@ -26,6 +26,7 @@ import { useMemo } from "react";
 import { FlatList, Pressable, View } from "react-native";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { Agent, Issue, MemberWithUser, Squad } from "@multica/core/types";
+import { agentAcceptsNewWork } from "@multica/core/agents";
 import { canAssignAgentToIssue } from "@multica/core/permissions";
 import { Text } from "@/components/ui/text";
 import { ActorAvatar } from "@/components/ui/actor-avatar";
@@ -173,14 +174,14 @@ export function MentionSuggestionBar({
       agents
         .filter(
           (agent) =>
-            !agent.archived_at && isAgentRuntimeBound(agent),
+            agentAcceptsNewWork(agent) && isAgentRuntimeBound(agent),
         )
         .map((agent) => agent.id),
     );
     const matchedAgents = [...agents]
       .filter(
         (a) =>
-          !a.archived_at &&
+          agentAcceptsNewWork(a) &&
           isAgentRuntimeBound(a) &&
           (!q || a.name.toLowerCase().includes(q)) &&
           canAssignAgentToIssue(a, { userId, role: myRole }).allowed,

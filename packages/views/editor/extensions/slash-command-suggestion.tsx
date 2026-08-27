@@ -14,6 +14,7 @@ import { PluginKey } from "@tiptap/pm/state";
 import { useAuthStore } from "@multica/core/auth";
 import { useChatStore } from "@multica/core/chat";
 import { getCurrentWsId } from "@multica/core/platform";
+import { agentAcceptsNewWork } from "@multica/core/agents";
 import { canAssignAgentToIssue } from "@multica/core/permissions";
 import { isImeComposing } from "@multica/core/utils";
 import { workspaceKeys } from "@multica/core/workspace/queries";
@@ -207,7 +208,7 @@ function buildItems(qc: QueryClient, query: string): SlashCommandItem[] {
 
   const availableAgents = agents.filter(
     (a) =>
-      !a.archived_at &&
+      agentAcceptsNewWork(a) &&
       canAssignAgentToIssue(a, { userId, role: memberRole }).allowed,
   );
   const activeAgent =

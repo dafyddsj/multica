@@ -14,6 +14,8 @@ import { projectListOptions } from "@multica/core/projects/queries";
 import { canAssignAgent } from "@multica/views/issues/components";
 import { api, dispatchReasonCode } from "@multica/core/api";
 import {
+  agentAcceptsNewWork,
+  agentIsPaused,
   isAgentRuntimeBound as hasAgentRuntime,
   useAgentPresenceDetail,
   useCustomizeStarterPromptsHref,
@@ -329,7 +331,7 @@ export function useChatController(opts?: { isActive?: boolean }) {
   const currentMember = members.find((m) => m.user_id === user?.id);
   const memberRole = currentMember?.role;
   const availableAgents = agents.filter(
-    (a) => !a.archived_at && canAssignAgent(a, user?.id, memberRole),
+    (a) => agentAcceptsNewWork(a) && canAssignAgent(a, user?.id, memberRole),
   );
   // `availableAgents` is only trustworthy once BOTH queries above succeeded:
   // the permission filter reads the member role, so agents-without-members
@@ -351,6 +353,7 @@ export function useChatController(opts?: { isActive?: boolean }) {
     ? agents.find((a) => a.id === currentSession.agent_id) ?? null
     : null;
   const isAgentArchived = !!sessionAgent?.archived_at;
+  const isAgentPaused = !!sessionAgent && agentIsPaused(sessionAgent);
 
   // Resolve selected agent: open session's agent → stored preference → first
   // available. New chats have no session, so they fall through to the picker.
@@ -502,6 +505,13 @@ export function useChatController(opts?: { isActive?: boolean }) {
       // input is disabled in this state; this is the belt-and-braces guard.
       if (isAgentArchived) {
         apiLogger.warn("sendChatMessage skipped: agent is archived", {
+          sessionId: activeSessionId,
+          agentId: activeAgent.id,
+        });
+        return false;
+      }
+      if (isAgentPaused) {
+        apiLogger.warn("sendChatMessage skipped: agent is paused", {
           sessionId: activeSessionId,
           agentId: activeAgent.id,
         });
@@ -661,6 +671,7 @@ export function useChatController(opts?: { isActive?: boolean }) {
       activeSessionId,
       activeAgent,
       isAgentArchived,
+      isAgentPaused,
       isAgentAccessRevoked,
       pendingTask,
       pendingTaskId,
@@ -840,6 +851,7 @@ export function useChatController(opts?: { isActive?: boolean }) {
     currentSession,
     isSessionArchived,
     isAgentArchived,
+    isAgentPaused,
     isAgentAccessRevoked,
     isAgentRuntimeBound,
     activeAgent,

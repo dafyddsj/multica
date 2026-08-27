@@ -25,6 +25,8 @@ const (
 	EventAgentCreated  = "agent:created"
 	EventAgentArchived = "agent:archived"
 	EventAgentRestored = "agent:restored"
+	EventAgentPaused   = "agent:paused"
+	EventAgentResumed  = "agent:resumed"
 
 	// Task events (server <-> daemon).
 	// Each event maps to a status transition on agent_task_queue. Front-end

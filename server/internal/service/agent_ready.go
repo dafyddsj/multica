@@ -106,6 +106,13 @@ func AgentReadiness(ctx context.Context, q *db.Queries, agent db.Agent) (AgentVe
 			Detail:       "agent is archived",
 		}, nil
 	}
+	if agent.PausedAt.Valid {
+		return AgentVerdict{
+			Availability: AgentBlocked,
+			Reason:       dispatch.ReasonAgentPaused,
+			Detail:       "agent is paused",
+		}, nil
+	}
 	if !agent.RuntimeID.Valid {
 		return AgentVerdict{
 			Availability: AgentBlocked,

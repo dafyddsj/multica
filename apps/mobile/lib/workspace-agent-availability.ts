@@ -11,6 +11,7 @@
  * mount.
  */
 import { useQuery } from "@tanstack/react-query";
+import { agentAcceptsNewWork } from "@multica/core/agents";
 import { canAssignAgentToIssue } from "@multica/core/permissions";
 import { useAuthStore } from "@/data/auth-store";
 import { useWorkspaceStore } from "@/data/workspace-store";
@@ -36,7 +37,7 @@ export function useWorkspaceAgentAvailability(): WorkspaceAgentAvailability {
 
   const hasVisibleAgent = (agents ?? []).some(
     (a) =>
-      !a.archived_at &&
+      agentAcceptsNewWork(a) &&
       canAssignAgentToIssue(a, { userId: userId ?? null, role }).allowed,
   );
 

@@ -1605,6 +1605,14 @@ export class ApiClient {
     return this.fetch(`/api/agents/${id}/restore`, { method: "POST" });
   }
 
+  async pauseAgent(id: string): Promise<Agent> {
+    return this.fetch(`/api/agents/${id}/pause`, { method: "POST" });
+  }
+
+  async resumeAgent(id: string): Promise<Agent> {
+    return this.fetch(`/api/agents/${id}/resume`, { method: "POST" });
+  }
+
   // Bulk-cancel every active task (queued/dispatched/running) for the agent.
   // Permission: agent owner or workspace admin/owner. Server returns the
   // count of cancelled rows; broadcasts task:cancelled for each so other

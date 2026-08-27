@@ -1635,6 +1635,10 @@ func (h *Handler) validateAutopilotAssigneeForSave(
 			writeError(w, http.StatusUnprocessableEntity, "assignee agent is archived; pick a different agent")
 			return false
 		}
+		if agent.PausedAt.Valid {
+			writeError(w, http.StatusUnprocessableEntity, "assignee agent is paused; resume it or pick a different agent")
+			return false
+		}
 		if requireRuntime && !agent.RuntimeID.Valid {
 			writeError(w, http.StatusUnprocessableEntity, "assignee agent needs a runtime before this autopilot can be active")
 			return false
@@ -1669,6 +1673,10 @@ func (h *Handler) validateAutopilotAssigneeForSave(
 		}
 		if leader.ArchivedAt.Valid {
 			writeError(w, http.StatusUnprocessableEntity, "squad leader is archived; pick a different squad or rotate the leader before assigning autopilot")
+			return false
+		}
+		if leader.PausedAt.Valid {
+			writeError(w, http.StatusUnprocessableEntity, "squad leader is paused; resume it or pick a different squad")
 			return false
 		}
 		if requireRuntime && !leader.RuntimeID.Valid {

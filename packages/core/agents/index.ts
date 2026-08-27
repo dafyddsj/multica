@@ -4,6 +4,7 @@ export * from "./stored-draft";
 export * from "./manual-draft-store";
 export * from "./builder-protocol";
 export * from "./derive-presence";
+export * from "./work-admission";
 export * from "./failure-reason";
 export * from "./effective-access";
 export * from "./queries";

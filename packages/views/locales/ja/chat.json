@@ -13,6 +13,7 @@
     "placeholder_no_agent": "チャットを始めるにはエージェントを作成してください",
     "placeholder_archived": "このセッションはアーカイブされています",
     "placeholder_archived_agent": "このエージェントはアーカイブされています",
+    "placeholder_paused_agent": "このエージェントは一時停止中です",
     "placeholder_runtime_required": "ランタイムを設定して続ける",
     "placeholder_access_revoked": "このエージェントを実行する権限がありません",
     "placeholder_named": "{{name}} にメッセージ…",
@@ -184,6 +185,7 @@
   },
   "no_agent_banner": "チャットを始めるにはエージェントが必要です。",
   "archived_agent_banner": "{{name}} はアーカイブされました。この会話は読み取り専用です。",
+  "paused_agent_banner": "{{name}} は一時停止中のため、新しいメッセージは受け付けません。",
   "agent_access_revoked_banner": "{{name}} を実行する権限がありません。この会話は読み取り専用です。",
   "runtime_required_banner": {
     "fallback_name": "このエージェント",

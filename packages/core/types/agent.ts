@@ -594,6 +594,12 @@ export interface Agent {
   updated_at: string;
   archived_at: string | null;
   archived_by: string | null;
+  /**
+   * Temporary hold. Older backends omit the field; treat missing as null
+   * and read it only through `agentLifecycle` / `agentAcceptsNewWork`.
+   */
+  paused_at?: string | null;
+  paused_by?: string | null;
 }
 
 export interface AgentStarterPrompt {

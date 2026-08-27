@@ -9,6 +9,8 @@ import {
   Lock,
   MessageSquare,
   MoreHorizontal,
+  Pause,
+  Play,
   Plus,
   Server,
   Trash2,
@@ -22,6 +24,7 @@ import type {
 } from "@multica/core/types";
 import {
   type AgentPresenceDetail,
+  agentIsPaused,
   isAgentRuntimeBound,
   useWorkspacePresenceMap,
 } from "@multica/core/agents";
@@ -220,6 +223,26 @@ export function AgentDetailPage({ agentId }: AgentDetailPageProps) {
     }
   };
 
+  const handlePause = async (id: string) => {
+    try {
+      await api.pauseAgent(id);
+      qc.invalidateQueries({ queryKey: workspaceKeys.agents(wsId) });
+      toast.success(t(($) => $.detail.agent_paused_toast));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t(($) => $.detail.pause_failed_toast));
+    }
+  };
+
+  const handleResume = async (id: string) => {
+    try {
+      await api.resumeAgent(id);
+      qc.invalidateQueries({ queryKey: workspaceKeys.agents(wsId) });
+      toast.success(t(($) => $.detail.agent_resumed_toast));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t(($) => $.detail.resume_failed_toast));
+    }
+  };
+
   // --- Loading ---
   if (!agent && (agentsLoading || detailQuery.isPending)) {
     return <DetailLoadingSkeleton />;
@@ -297,6 +320,7 @@ export function AgentDetailPage({ agentId }: AgentDetailPageProps) {
   }
 
   const isArchived = !!agent.archived_at;
+  const isPaused = agentIsPaused(agent);
   const runtimeBound = isAgentRuntimeBound(agent);
   const runtime = runtimeBound
     ? runtimes.find((r) => r.id === agent.runtime_id) ?? null
@@ -354,6 +378,12 @@ export function AgentDetailPage({ agentId }: AgentDetailPageProps) {
         onArchive={
           agent.system_key ? undefined : () => setConfirmArchive(true)
         }
+        onPause={
+          agent.system_key || isPaused ? undefined : () => void handlePause(agent.id)
+        }
+        onResume={
+          agent.system_key || !isPaused ? undefined : () => void handleResume(agent.id)
+        }
       />
 
       {!canEdit.allowed && (
@@ -380,6 +410,25 @@ export function AgentDetailPage({ agentId }: AgentDetailPageProps) {
               onClick={() => handleRestore(agent.id)}
             >
               {t(($) => $.detail.restore)}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {!isArchived && isPaused && (
+        <div className="flex shrink-0 items-center gap-2 border-b bg-muted/50 px-6 py-2 text-caption text-muted-foreground">
+          <Pause className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">
+            {t(($) => $.detail.paused_banner)}
+          </span>
+          {canEdit.allowed && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-caption"
+              onClick={() => void handleResume(agent.id)}
+            >
+              {t(($) => $.detail.resume)}
             </Button>
           )}
         </div>
@@ -477,6 +526,8 @@ function DetailHeader({
   onDm,
   onAssign,
   onArchive,
+  onPause,
+  onResume,
 }: {
   agent: Agent;
   runtime: AgentRuntime | null;
@@ -493,11 +544,14 @@ function DetailHeader({
   /** Absent for Multica's built-in agents, which the server refuses to
    *  archive — the menu hides the action rather than offering a failure. */
   onArchive?: () => void;
+  onPause?: () => void;
+  onResume?: () => void;
 }) {
   const { t } = useT("agents");
   const timeAgo = useTimeAgo();
   const isArchived = !!agent.archived_at;
-  const hasMoreActions = !!onArchive;
+  const isPaused = agentIsPaused(agent);
+  const hasMoreActions = !!onArchive || !!onPause || !!onResume;
 
   return (
     <header className="shrink-0 border-b bg-background px-4 pb-5 pt-3 sm:px-6">
@@ -556,7 +610,7 @@ function DetailHeader({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 self-end lg:self-start">
-            {!isArchived && (
+            {!isArchived && !isPaused && (
               <Button
                 variant="outline"
                 size="sm"
@@ -572,7 +626,7 @@ function DetailHeader({
                 {t(($) => $.detail.dm)}
               </Button>
             )}
-            {!isArchived && canAssign && (
+            {!isArchived && !isPaused && canAssign && (
               <Button type="button" size="sm" onClick={onAssign}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
                 {t(($) => $.detail.assign_work)}
@@ -590,6 +644,18 @@ function DetailHeader({
                   />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-auto">
+                  {onPause && (
+                    <DropdownMenuItem onClick={onPause}>
+                      <Pause className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t(($) => $.detail.more_pause)}
+                    </DropdownMenuItem>
+                  )}
+                  {onResume && (
+                    <DropdownMenuItem onClick={onResume}>
+                      <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                      {t(($) => $.detail.more_resume)}
+                    </DropdownMenuItem>
+                  )}
                   {onArchive && (
                     <DropdownMenuItem variant="destructive" onClick={onArchive}>
                       <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

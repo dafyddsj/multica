@@ -5,7 +5,7 @@ import { Lock, UserMinus } from "lucide-react";
 import type { Agent, IssueAssigneeType, UpdateIssueRequest } from "@multica/core/types";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@multica/core/auth";
-import { isAgentRuntimeBound } from "@multica/core/agents";
+import { agentAcceptsNewWork, agentIsPaused, isAgentRuntimeBound } from "@multica/core/agents";
 import { canAssignAgentToIssue } from "@multica/core/permissions";
 import { useActorName } from "@multica/core/workspace/hooks";
 import { useWorkspaceId } from "@multica/core/hooks";
@@ -139,7 +139,7 @@ function AssigneePickerImpl({
     .sort((a, b) => getFreq("squad", b.id) - getFreq("squad", a.id));
   const runnableAgentIds = new Set(
     agents
-      .filter((agent) => !agent.archived_at && isAgentRuntimeBound(agent))
+      .filter((agent) => agentAcceptsNewWork(agent) && isAgentRuntimeBound(agent))
       .map((agent) => agent.id),
   );
 
@@ -226,7 +226,8 @@ function AssigneePickerImpl({
                   : null,
             });
             const runtimeBound = isAgentRuntimeBound(a);
-            const allowed = decision.allowed && runtimeBound;
+            const paused = agentIsPaused(a);
+            const allowed = decision.allowed && runtimeBound && !paused;
             return (
               <PickerItem
                 key={a.id}
@@ -235,7 +236,9 @@ function AssigneePickerImpl({
                 tooltip={
                   !decision.allowed
                     ? decision.message
-                    : !runtimeBound
+                    : paused
+                      ? t(($) => $.pickers.assignee.agent_paused)
+                      : !runtimeBound
                       ? t(($) => $.pickers.assignee.agent_runtime_required)
                       : undefined
                 }
@@ -265,6 +268,8 @@ function AssigneePickerImpl({
         <PickerSection label={t(($) => $.pickers.assignee.squads_group)}>
           {filteredSquads.map((s) => {
             const runtimeBound = runnableAgentIds.has(s.leader_id);
+            const leader = agents.find((a) => a.id === s.leader_id);
+            const leaderPaused = leader ? agentIsPaused(leader) : false;
             return (
               <PickerItem
                 key={s.id}
@@ -273,7 +278,9 @@ function AssigneePickerImpl({
                 tooltip={
                   runtimeBound
                     ? undefined
-                    : t(($) => $.pickers.assignee.squad_runtime_required)
+                    : leaderPaused
+                      ? t(($) => $.pickers.assignee.squad_paused)
+                      : t(($) => $.pickers.assignee.squad_runtime_required)
                 }
                 onClick={() => {
                   if (!runtimeBound) return;

@@ -1,0 +1,2 @@
+ALTER TABLE agent DROP COLUMN IF EXISTS paused_by;
+ALTER TABLE agent DROP COLUMN IF EXISTS paused_at;

@@ -34,6 +34,24 @@ it again. Unbound is orthogonal to archived.
 `thinking_level`, `service_tier`, `custom_args`, `has_custom_env`,
 `custom_env_key_count`, and `skills`. It never returns plaintext `custom_env`.
 
+## Pause and archive
+
+Pause stops new work without cancelling work already queued or running:
+
+```bash
+multica agent pause <agent-id>
+multica agent resume <agent-id>
+```
+
+Both commands are idempotent. A paused agent stays visible and keeps its
+configuration. New assignments, chats, mentions, autopilot dispatches, and task
+claims refuse it until it resumes. Readiness responses use `agent_paused`
+instead of the archived reason.
+
+Archive is a different stop. `multica agent archive <agent-id>` cancels the
+agent's queued and running tasks and removes the agent from active lists.
+Restoring an archived agent does not resume tasks that archive cancelled.
+
 ## Core model
 
 An agent is a workspace-scoped row (table `agent`). Creation is a single
@@ -330,6 +348,10 @@ State-changing (require an explicit instruction — do not run speculatively):
   it drops bindings not in the new list).
 - `multica agent env set` — overwrites the full `custom_env` map and writes an
   audit row.
+- `multica agent pause` and `multica agent resume` change whether the agent
+  accepts new work.
+- `multica agent archive` and `multica agent restore` change archival state.
+  Archive also cancels queued and running tasks.
 
 ## Common wrong assumptions
 

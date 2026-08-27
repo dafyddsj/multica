@@ -5,6 +5,7 @@ import { useWorkspaceId } from "../hooks";
 import { useAuthStore } from "../auth";
 import { agentListOptions, memberListOptions } from "../workspace/queries";
 import { canAssignAgentToIssue } from "../permissions";
+import { agentAcceptsNewWork } from "./work-admission";
 
 /**
  * Three-state availability for "does the current user have any agent
@@ -52,7 +53,7 @@ export function useWorkspaceAgentAvailability(): WorkspaceAgentAvailability {
 
   const hasVisibleAgent = (agents ?? []).some(
     (a) =>
-      !a.archived_at &&
+      agentAcceptsNewWork(a) &&
       canAssignAgentToIssue(a, { userId: userId ?? null, role }).allowed,
   );
 

@@ -52,6 +52,8 @@ export function usePresenceRealtime() {
         ws.on("agent:created", invalidateAgents),
         ws.on("agent:archived", invalidateAgents),
         ws.on("agent:restored", invalidateAgents),
+        ws.on("agent:paused", invalidateAgents),
+        ws.on("agent:resumed", invalidateAgents),
 
         // Task lifecycle — drives the workload dimension of presence and the
         // reserved-for-P1 peek sheet. progress / message intentionally absent.

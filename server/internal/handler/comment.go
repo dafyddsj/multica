@@ -2773,7 +2773,7 @@ func (h *Handler) routeReplyToParentAuthor(ctx context.Context, issue db.Issue, 
 		ID:          parent.AuthorID,
 		WorkspaceID: issue.WorkspaceID,
 	})
-	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid {
+	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid || agent.PausedAt.Valid {
 		return commentAgentTrigger{}, false
 	}
 	if !h.canInvokeAgent(ctx, agent, authorType, authorID, opts.effectiveInvoker(), uuidToString(issue.WorkspaceID)) {
@@ -2891,7 +2891,7 @@ func (h *Handler) routeConversationContinuationToAgent(ctx context.Context, issu
 		ID:          agentID,
 		WorkspaceID: issue.WorkspaceID,
 	})
-	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid {
+	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid || agent.PausedAt.Valid {
 		return commentAgentTrigger{}, false
 	}
 	if !h.canInvokeAgent(ctx, agent, "member", memberID, memberID, uuidToString(issue.WorkspaceID)) {
@@ -2947,7 +2947,7 @@ func (h *Handler) routeAssignedSquadLeaderFallback(ctx context.Context, issue db
 		ID:          squad.LeaderID,
 		WorkspaceID: issue.WorkspaceID,
 	})
-	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid {
+	if err != nil || !agent.RuntimeID.Valid || agent.ArchivedAt.Valid || agent.PausedAt.Valid {
 		return commentAgentTrigger{}, false
 	}
 	if !h.canInvokeAgent(ctx, agent, authorType, authorID, opts.effectiveInvoker(), uuidToString(issue.WorkspaceID)) {

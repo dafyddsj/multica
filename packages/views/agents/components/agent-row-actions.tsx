@@ -6,6 +6,8 @@ import {
   Copy,
   ExternalLink,
   MoreHorizontal,
+  Pause,
+  Play,
   RotateCcw,
   Square,
   Trash2,
@@ -14,6 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { Agent } from "@multica/core/types";
 import type { AgentPresenceDetail } from "@multica/core/agents";
+import { agentIsPaused } from "@multica/core/agents";
 import { api } from "@multica/core/api";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
@@ -80,6 +83,7 @@ export function AgentRowActions({
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const isArchived = !!agent.archived_at;
+  const isPaused = agentIsPaused(agent);
   const runningCount = presence?.runningCount ?? 0;
   const queuedCount = presence?.queuedCount ?? 0;
   const hasActiveWork = runningCount + queuedCount > 0;
@@ -91,8 +95,10 @@ export function AgentRowActions({
   const showDuplicate = !isArchived; // any workspace member can duplicate
   // Multica's built-in agents cannot be archived — the server refuses it, and
   // the workspace's entry point runs through one. Hide the action rather than
-  // let it fail with a toast.
+  // let it fail with a toast. Pause follows the same rule.
   const isSystemAgent = !!agent.system_key;
+  const showPause = canManage && !isArchived && !isPaused && !isSystemAgent;
+  const showResume = canManage && !isArchived && isPaused && !isSystemAgent;
   const showArchive = canManage && !isArchived && !isSystemAgent;
   const showRestore = canManage && isArchived;
 
@@ -117,6 +123,26 @@ export function AgentRowActions({
       toast.success(t(($) => $.row_actions.agent_restored_toast));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t(($) => $.row_actions.restore_failed_toast));
+    }
+  };
+
+  const handlePause = async () => {
+    try {
+      await api.pauseAgent(agent.id);
+      invalidateAgents();
+      toast.success(t(($) => $.row_actions.agent_paused_toast));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t(($) => $.row_actions.pause_failed_toast));
+    }
+  };
+
+  const handleResume = async () => {
+    try {
+      await api.resumeAgent(agent.id);
+      invalidateAgents();
+      toast.success(t(($) => $.row_actions.agent_resumed_toast));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t(($) => $.row_actions.resume_failed_toast));
     }
   };
 
@@ -178,6 +204,18 @@ export function AgentRowActions({
             <DropdownMenuItem render={<AppLink href={duplicateHref} />}>
               <Copy className="h-3.5 w-3.5" />
               {t(($) => $.row_actions.duplicate)}
+            </DropdownMenuItem>
+          )}
+          {showPause && (
+            <DropdownMenuItem onClick={() => void handlePause()}>
+              <Pause className="h-3.5 w-3.5" />
+              {t(($) => $.row_actions.pause)}
+            </DropdownMenuItem>
+          )}
+          {showResume && (
+            <DropdownMenuItem onClick={() => void handleResume()}>
+              <Play className="h-3.5 w-3.5" />
+              {t(($) => $.row_actions.resume)}
             </DropdownMenuItem>
           )}
           {showRestore && (

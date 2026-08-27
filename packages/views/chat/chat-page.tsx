@@ -33,6 +33,7 @@ import { useChatController } from "./components/use-chat-controller";
 import { OfflineBanner } from "./components/offline-banner";
 import { NoAgentBanner } from "./components/no-agent-banner";
 import { ArchivedAgentBanner } from "./components/archived-agent-banner";
+import { PausedAgentBanner } from "./components/paused-agent-banner";
 import { AgentAccessRevokedBanner } from "./components/agent-access-revoked-banner";
 import { RuntimeRequiredBanner } from "./components/runtime-required-banner";
 
@@ -268,6 +269,7 @@ export function ChatPage() {
             !!c.pendingTaskId ||
             c.isSessionArchived ||
             c.isAgentArchived ||
+            c.isAgentPaused ||
             c.isAgentAccessRevoked ||
             !c.isAgentRuntimeBound ||
             c.noAgent
@@ -297,6 +299,8 @@ export function ChatPage() {
         <NoAgentBanner />
       ) : c.isAgentArchived ? (
         <ArchivedAgentBanner agentName={c.activeAgent?.name} />
+      ) : c.isAgentPaused ? (
+        <PausedAgentBanner agentName={c.activeAgent?.name} />
       ) : !c.isAgentRuntimeBound && c.activeAgent ? (
         <RuntimeRequiredBanner
           agentId={c.activeAgent.id}
@@ -329,11 +333,13 @@ export function ChatPage() {
         disabled={
           c.isSessionArchived ||
           c.isAgentArchived ||
+          c.isAgentPaused ||
           c.isAgentAccessRevoked ||
           !c.isAgentRuntimeBound
         }
         noAgent={c.noAgent}
         agentArchived={c.isAgentArchived}
+        agentPaused={c.isAgentPaused}
         agentAccessRevoked={c.isAgentAccessRevoked}
         agentRuntimeRequired={!c.isAgentRuntimeBound}
         agentName={c.activeAgent?.name}

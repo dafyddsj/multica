@@ -487,12 +487,14 @@
     "trigger_blocked_runtime_offline": "이 대상의 런타임이 오프라인입니다",
     "trigger_blocked_runtime_unusable": "이 대상의 CLI를 해당 기기에서 실행할 수 없습니다 — 그 기기에서 다시 설치하세요",
     "trigger_blocked_agent_runtime_required": "이 대상에 런타임이 없습니다 — 실행하려면 런타임을 연결하세요",
+    "trigger_blocked_agent_paused": "이 대상이 일시중지되었습니다",
     "trigger_blocked_generic": "이 대상은 트리거되지 않습니다",
     "trigger_blocked_short_invocation_not_allowed": "찾을 수 없음 또는 권한 없음",
     "trigger_blocked_short_target_unavailable": "사용 불가",
     "trigger_blocked_short_runtime_offline": "런타임 오프라인",
     "trigger_blocked_short_runtime_unusable": "CLI 실행 불가",
     "trigger_blocked_short_agent_runtime_required": "런타임 필요",
+    "trigger_blocked_short_agent_paused": "일시중지됨",
     "trigger_blocked_short_generic": "트리거 안 됨",
     "send_reply_failed": "답글을 보내지 못했습니다",
     "delete_failed": "댓글을 삭제하지 못했습니다",
@@ -714,7 +716,9 @@
       "agents_group": "에이전트",
       "squads_group": "스쿼드",
       "agent_runtime_required": "작업을 할당하기 전에 이 에이전트에 런타임을 연결하세요",
-      "squad_runtime_required": "작업을 할당하기 전에 이 스쿼드의 리더에 런타임을 연결하세요"
+      "agent_paused": "작업을 할당하기 전에 이 에이전트를 재개하세요",
+      "squad_runtime_required": "작업을 할당하기 전에 이 스쿼드의 리더에 런타임을 연결하세요",
+      "squad_paused": "작업을 할당하기 전에 이 스쿼드의 리더를 재개하세요"
     },
     "start_date": {
       "trigger_label": "시작일",

@@ -34,6 +34,7 @@ go test ./internal/service -run TestBuiltinSkillsConformToTemplate
 | `agent skills list` | 890 | reads bindings, no side effect | `multica agent skills list --help` |
 | `agent env get` | 1024 | `GET /api/agents/{id}/env` (1034) | `multica agent env get --help` |
 | `agent env set` | 1059 | `PUT /api/agents/{id}/env` with full `custom_env` map (1079) | `multica agent env set --help` |
+| `agent pause` and `agent resume` | `agentPauseCmd`, `agentResumeCmd`, `runAgentPause`, `runAgentResume` | POST to `/api/agents/{id}/pause` and `/api/agents/{id}/resume`; both lifecycle commands are idempotent | `multica agent pause --help`; `multica agent resume --help` |
 
 ## Copy command — `server/cmd/multica/cmd_agent_copy.go`
 
@@ -77,6 +78,8 @@ go test ./internal/service -run TestBuiltinSkillsConformToTemplate
 | `UpdateAgent` rejects `custom_env` | 910–913 | if `custom_env` present in body → 400 "use PUT /api/agents/{id}/env (or `multica agent env set`)" |
 | `UpdateAgent` persists / clears `mcp_config` | 944–948, 1060–1061 | Tri-state from the raw body: key omitted → no change; literal `null` → `ClearAgentMcpConfig`; object → replace. No 400 like `custom_env` — `mcp_config` IS updatable here |
 | `description` ≤ 255 on update too | 921–924 | same cap re-checked on update |
+| Pause state in `AgentResponse` | `AgentResponse`, `agentToResponse` | Returns nullable `paused_at` and `paused_by` with every agent resource and lifecycle event |
+| `PauseAgent` and `ResumeAgent` | `PauseAgent`, `ResumeAgent` | Both use `canManageAgent` and refuse system agents. Pause refuses an archived agent but accepts an already-paused agent. Resume accepts an already-resumed agent. Pause does not cancel tasks; archive still does |
 
 ## Runtime model/thinking discovery — `server/pkg/agent/{models,thinking}.go`
 
@@ -114,6 +117,8 @@ go test ./internal/service -run TestBuiltinSkillsConformToTemplate
 |---|---|---|
 | `GET /env` | 603 | `h.GetAgentEnv` (plaintext read, gated) |
 | `PUT /env` | 604 | `h.UpdateAgentEnv` (full-map overwrite, gated) |
+| `POST /api/agents/{id}/pause` | agent route | `h.PauseAgent` |
+| `POST /api/agents/{id}/resume` | agent route | `h.ResumeAgent` |
 
 ## Claim-time injection — `server/internal/handler/daemon.go`
 
@@ -147,3 +152,6 @@ go test ./internal/service -run TestBuiltinSkillsConformToTemplate
 | `CreateAgentParams` | generated from `queries/agent.sql` | typed params include nullable `Model`, `ThinkingLevel`, and `ServiceTier` |
 | `UpdateAgent` SET | generated from `queries/agent.sql` | COALESCE updates include model/thinking/service tier; dedicated clear queries restore each nullable override |
 | `UpdateAgentCustomEnv` (called by the `UpdateAgentEnv` handler) | 2652 | `SET custom_env = $2` — the only write path for env values |
+| Pause columns | migration `440_agent_paused` | `paused_at TIMESTAMPTZ NULL` and `paused_by UUID NULL`, with no foreign key |
+| Pause and resume writes | `PauseAgent`, `ResumeAgent` in `queries/agent.sql` | Pause sets both fields; resume clears both fields |
+| Claim fence | `ClaimAgentTask` and its synchronized authorization fences in `queries/agent.sql` | Archived and paused agents cannot claim new queued work |

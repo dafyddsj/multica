@@ -41,6 +41,7 @@ func TestDispatchFailReasonCode(t *testing.T) {
 func TestAgentReadinessVerdict(t *testing.T) {
 	validRuntime := pgtype.UUID{Bytes: [16]byte{1}, Valid: true}
 	archivedAt := pgtype.Timestamptz{Valid: true}
+	pausedAt := pgtype.Timestamptz{Valid: true}
 
 	// The agent-only half needs no runtime row, so AgentReadiness answers before
 	// it queries one.
@@ -49,6 +50,12 @@ func TestAgentReadinessVerdict(t *testing.T) {
 	}
 	if got, _ := AgentReadiness(t.Context(), nil, db.Agent{ArchivedAt: archivedAt, RuntimeID: validRuntime}); got.Reason != dispatch.ReasonTargetUnavailable || !got.Blocked() {
 		t.Errorf("archived agent: got %+v, want blocked/target_unavailable", got)
+	}
+	if got, _ := AgentReadiness(t.Context(), nil, db.Agent{PausedAt: pausedAt, RuntimeID: validRuntime}); got.Reason != dispatch.ReasonAgentPaused || !got.Blocked() {
+		t.Errorf("paused agent: got %+v, want blocked/agent_paused", got)
+	}
+	if got, _ := AgentReadiness(t.Context(), nil, db.Agent{ArchivedAt: archivedAt, PausedAt: pausedAt, RuntimeID: validRuntime}); got.Reason != dispatch.ReasonTargetUnavailable || !got.Blocked() {
+		t.Errorf("archived paused agent: got %+v, want archived to win with blocked/target_unavailable", got)
 	}
 
 	// The runtime half.
