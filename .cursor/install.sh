@@ -61,6 +61,9 @@ sudo -u postgres psql -d multica -c "ALTER DATABASE multica OWNER TO multica; GR
 echo "==> [install] Preparing .env"
 bash .cursor/ensure-env.sh
 
+echo "==> [install] Ensuring pstack"
+bash .cursor/ensure-pstack.sh
+
 echo "==> [install] Installing JS dependencies"
 corepack pnpm install --frozen-lockfile
 
