@@ -256,11 +256,14 @@ WHERE id = $1
 RETURNING *;
 
 -- name: PauseAgent :one
+-- First pause wins the actor pair. A later call must not fill the empty
+-- side, or ResumeBudgetPaused would clear a human pause.
 UPDATE agent SET
   paused_at = COALESCE(paused_at, now()),
-  paused_by = COALESCE(paused_by, $2),
+  paused_by = CASE WHEN paused_at IS NULL THEN @paused_by ELSE paused_by END,
+  paused_by_budget_id = CASE WHEN paused_at IS NULL THEN @paused_by_budget_id ELSE paused_by_budget_id END,
   updated_at = now()
-WHERE id = $1
+WHERE id = @id
 RETURNING *;
 
 -- name: ArchiveAgentsByRuntime :many
@@ -336,8 +339,21 @@ WHERE id = $1
 RETURNING *;
 
 -- name: ResumeAgent :one
-UPDATE agent SET paused_at = NULL, paused_by = NULL, updated_at = now()
+UPDATE agent SET
+  paused_at = NULL,
+  paused_by = NULL,
+  paused_by_budget_id = NULL,
+  updated_at = now()
 WHERE id = $1
+RETURNING *;
+
+-- name: ResumeBudgetPausedAgents :many
+UPDATE agent SET
+  paused_at = NULL,
+  paused_by = NULL,
+  paused_by_budget_id = NULL,
+  updated_at = now()
+WHERE paused_by_budget_id = $1
 RETURNING *;
 
 -- name: ListAgentTasks :many

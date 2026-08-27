@@ -63,6 +63,7 @@ type Agent struct {
 	FailoverModel            pgtype.Text        `json:"failover_model"`
 	FailoverThinkingLevel    pgtype.Text        `json:"failover_thinking_level"`
 	FailoverServiceTier      pgtype.Text        `json:"failover_service_tier"`
+	PausedByBudgetID         pgtype.UUID        `json:"paused_by_budget_id"`
 }
 
 type AgentBuilderDraft struct {
