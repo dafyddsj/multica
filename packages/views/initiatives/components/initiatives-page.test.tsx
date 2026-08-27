@@ -38,6 +38,21 @@ vi.mock("@tanstack/react-query", () => ({
   },
 }));
 
+vi.mock("../../common/entity-status-picker", () => ({
+  useEntityStatusPicker: () => ({
+    options: [],
+    current: (key: string) => ({
+      key,
+      label: key,
+      category: "planned",
+      hex: null,
+      dotClass: "bg-muted-foreground",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    }),
+  }),
+}));
+
 vi.mock("@multica/core/initiatives", () => ({
   initiativeListOptions: () => ({ queryKey: ["initiatives"] }),
   useUpdateInitiative: () => ({ mutate: vi.fn() }),
@@ -148,6 +163,7 @@ const INITIATIVE: Initiative = {
   lead_id: null,
   start_date: null,
   due_date: null,
+  issue_prefix: null,
   created_at: "2026-06-01T00:00:00Z",
   updated_at: "2026-06-01T00:00:00Z",
   project_count: 2,

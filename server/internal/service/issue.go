@@ -626,23 +626,14 @@ func (s *IssueService) PublishAttachmentsChanged(ctx context.Context, issue db.I
 		s.publishIssueAttachmentsChanged(issue, actorID, 0)
 		return
 	}
-	workspace, err := s.Queries.GetWorkspace(ctx, issue.WorkspaceID)
-	if err != nil {
-		slog.Warn("failed to load workspace after channel media bind",
-			"workspace_id", util.UUIDToString(issue.WorkspaceID), "error", err)
-		// Without the workspace we cannot publish the matching owner snapshot.
-		// Keep this auxiliary event unversioned so clients invalidate instead of
-		// advancing the owner revision past a snapshot they never received.
-		s.publishIssueAttachmentsChanged(issue, actorID, 0)
-		return
-	}
+	prefix := issuePrefixForProject(ctx, s.Queries, current.WorkspaceID, current.ProjectID)
 	s.Bus.Publish(events.Event{
 		Type:        protocol.EventIssueUpdated,
 		WorkspaceID: util.UUIDToString(issue.WorkspaceID),
 		ActorType:   "member",
 		ActorID:     util.UUIDToString(actorID),
 		Payload: map[string]any{
-			"issue":            IssueToMapWithCategory(ctx, s.Queries, current, workspace.IssuePrefix),
+			"issue":            IssueToMapWithCategory(ctx, s.Queries, current, prefix),
 			"assignee_changed": false,
 			"status_changed":   false,
 			"project_changed":  false,

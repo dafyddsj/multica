@@ -1028,8 +1028,8 @@ func (h *Handler) loadIssueForUser(w http.ResponseWriter, r *http.Request, issue
 
 // resolveIssueByIdentifier tries to look up an issue by "PREFIX-NUMBER" format.
 //
-// The prefix must match the workspace's own issue prefix, the same rule
-// `lookupIssueByIdentifier` applies to VCS webhooks. Without it every prefix
+// The prefix must match the workspace's own issue prefix or an initiative
+// override in that workspace. Without a known-prefix check every prefix
 // resolved to the same issue number, so `FOO-134` and `TRS-134` were
 // interchangeable — which makes the identifier URL `/{ws}/issues/{key}`
 // unusable as a canonical link.
@@ -1046,8 +1046,10 @@ func (h *Handler) resolveIssueByIdentifier(ctx context.Context, id, workspaceID 
 		return db.Issue{}, false
 	}
 	// Case-insensitive: a hand-typed `trs-134` should open `TRS-134`.
-	prefix := h.getIssuePrefix(ctx, wsUUID)
-	if prefix == "" || !strings.EqualFold(parts.prefix, prefix) {
+	// Accept the workspace prefix or any initiative override in this
+	// workspace — numbers stay unique per workspace, so the prefix is
+	// identity of the key, not a second counter.
+	if !h.knownIssuePrefix(ctx, wsUUID, parts.prefix) {
 		return db.Issue{}, false
 	}
 	issue, err := h.Queries.GetIssueByNumber(ctx, db.GetIssueByNumberParams{
@@ -1123,6 +1125,59 @@ func (h *Handler) getIssuePrefix(ctx context.Context, workspaceID pgtype.UUID) s
 		return ""
 	}
 	return issuePrefixForWorkspace(ws)
+}
+
+// issuePrefixSet maps a project to the issue prefix its parent initiative
+// overrides, falling back to the workspace prefix.
+type issuePrefixSet struct {
+	workspace string
+	byProject map[string]string
+}
+
+func (s issuePrefixSet) forProject(projectID pgtype.UUID) string {
+	if projectID.Valid {
+		if prefix := s.byProject[uuidToString(projectID)]; prefix != "" {
+			return prefix
+		}
+	}
+	return s.workspace
+}
+
+func (h *Handler) loadIssuePrefixSet(ctx context.Context, workspaceID pgtype.UUID) issuePrefixSet {
+	set := issuePrefixSet{
+		workspace: h.getIssuePrefix(ctx, workspaceID),
+		byProject: map[string]string{},
+	}
+	rows, err := h.Queries.ListProjectInitiativeIssuePrefixes(ctx, workspaceID)
+	if err != nil {
+		return set
+	}
+	for _, row := range rows {
+		if row.IssuePrefix.Valid && row.IssuePrefix.String != "" {
+			set.byProject[uuidToString(row.ID)] = row.IssuePrefix.String
+		}
+	}
+	return set
+}
+
+func (h *Handler) knownIssuePrefix(ctx context.Context, workspaceID pgtype.UUID, prefix string) bool {
+	if prefix == "" {
+		return false
+	}
+	workspacePrefix := h.getIssuePrefix(ctx, workspaceID)
+	if workspacePrefix != "" && strings.EqualFold(prefix, workspacePrefix) {
+		return true
+	}
+	rows, err := h.Queries.ListInitiativeIssuePrefixes(ctx, workspaceID)
+	if err != nil {
+		return false
+	}
+	for _, row := range rows {
+		if row.Valid && row.String != "" && strings.EqualFold(prefix, row.String) {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *Handler) loadAgentForUser(w http.ResponseWriter, r *http.Request, agentID string) (db.Agent, bool) {

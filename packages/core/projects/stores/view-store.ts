@@ -12,7 +12,15 @@ import { defaultStorage } from "../../platform/storage";
 // lifecycle better expressed as a filter). Search stays session-local.
 export type ProjectViewMode = "compact" | "comfortable";
 
-export type ProjectSortField = "name" | "priority" | "status" | "progress" | "created";
+export type ProjectSortField =
+  | "name"
+  | "priority"
+  | "status"
+  | "progress"
+  | "created"
+  | "initiative";
+
+export type ProjectGroupBy = "none" | "initiative";
 
 export type ProjectSortDirection = "asc" | "desc";
 
@@ -25,6 +33,7 @@ export const PROJECT_SORT_DEFAULT_DIRECTION: Record<
   status: "asc",
   progress: "desc",
   created: "desc",
+  initiative: "asc",
 };
 
 /** Multi-select filters. Empty array per dimension = inactive. */
@@ -35,12 +44,15 @@ export interface ProjectListFilters {
   priorities: string[];
   /** Composite "type:id" lead refs (member or agent). */
   leads: string[];
+  /** Initiative ids, plus "none" for projects with no parent. */
+  initiatives: string[];
 }
 
 export const EMPTY_PROJECT_FILTERS: ProjectListFilters = {
   statuses: [],
   priorities: [],
   leads: [],
+  initiatives: [],
 };
 
 // Hideable table columns. Name + status are the always-visible core (status
@@ -57,6 +69,7 @@ export interface ProjectViewState {
   sortDirection: ProjectSortDirection;
   hiddenColumns: ProjectColumnKey[];
   filters: ProjectListFilters;
+  groupBy: ProjectGroupBy;
   setViewMode: (mode: ProjectViewMode) => void;
   toggleSort: (field: ProjectSortField) => void;
   setSortField: (field: ProjectSortField) => void;
@@ -64,6 +77,7 @@ export interface ProjectViewState {
   toggleColumn: (key: ProjectColumnKey) => void;
   toggleFilter: (key: keyof ProjectListFilters, value: string) => void;
   clearFilters: () => void;
+  setGroupBy: (groupBy: ProjectGroupBy) => void;
 }
 
 const DEFAULTS = {
@@ -72,6 +86,7 @@ const DEFAULTS = {
   sortDirection: PROJECT_SORT_DEFAULT_DIRECTION.created,
   hiddenColumns: PROJECT_DEFAULT_HIDDEN_COLUMNS,
   filters: EMPTY_PROJECT_FILTERS,
+  groupBy: "none" as ProjectGroupBy,
 };
 
 export const useProjectViewStore = create<ProjectViewState>()(
@@ -113,6 +128,7 @@ export const useProjectViewStore = create<ProjectViewState>()(
           return { filters: { ...state.filters, [key]: next } };
         }),
       clearFilters: () => set({ filters: EMPTY_PROJECT_FILTERS }),
+      setGroupBy: (groupBy) => set({ groupBy }),
     }),
     {
       name: "multica_projects_view",
@@ -123,6 +139,7 @@ export const useProjectViewStore = create<ProjectViewState>()(
         sortDirection: state.sortDirection,
         hiddenColumns: state.hiddenColumns,
         filters: state.filters,
+        groupBy: state.groupBy,
       }),
       // Deep-merge filters so a payload persisted before a filter dimension
       // existed still gets that key's default (avoids `.length` on

@@ -7,19 +7,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// validateProjectStatus must accept the five DB-backed statuses and reject
-// anything else with a message that lists the valid values. `project create`,
-// `project update`, and `project status` all share it (#3925: `--status active`
-// used to reach the server and 500 on the CHECK constraint).
+// validateProjectStatus accepts the five built-ins and format-valid custom
+// keys. The server decides whether a custom key exists. Invalid format still
+// fails locally so `--status Active` does not leave the machine (#3925).
 func TestValidateProjectStatus(t *testing.T) {
 	for _, s := range validProjectStatuses {
 		if err := validateProjectStatus(s); err != nil {
 			t.Errorf("status %q should be valid, got: %v", s, err)
 		}
 	}
-	err := validateProjectStatus("active")
+	if err := validateProjectStatus("shipping"); err != nil {
+		t.Errorf("custom catalog key should pass the format check, got: %v", err)
+	}
+	err := validateProjectStatus("Active")
 	if err == nil {
-		t.Fatal("status \"active\" should be rejected")
+		t.Fatal("status \"Active\" should be rejected")
 	}
 	if !strings.Contains(err.Error(), "planned") {
 		t.Errorf("error should list valid statuses, got: %v", err)

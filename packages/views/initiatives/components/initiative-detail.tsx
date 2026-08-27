@@ -24,7 +24,7 @@ import type { InitiativeStatus, InitiativePriority, Project } from "@multica/cor
 import { useAuthStore } from "@multica/core/auth";
 import { initiativeDetailOptions } from "@multica/core/initiatives/queries";
 import { useUpdateInitiative, useDeleteInitiative } from "@multica/core/initiatives/mutations";
-import { INITIATIVE_STATUS_ORDER, INITIATIVE_STATUS_CONFIG, INITIATIVE_PRIORITY_ORDER } from "@multica/core/initiatives/config";
+import { INITIATIVE_PRIORITY_ORDER } from "@multica/core/initiatives/config";
 import { projectListOptions } from "@multica/core/projects/queries";
 import { useUpdateProject } from "@multica/core/projects/mutations";
 import { pinListOptions } from "@multica/core/pins";
@@ -42,8 +42,7 @@ import { ProjectStartDatePicker } from "../../projects/components/project-start-
 import { ProjectDueDatePicker } from "../../projects/components/project-due-date-picker";
 import { ProjectIcon } from "../../projects/components/project-icon";
 import { MemoryPanel } from "../../memory";
-import { PROJECT_STATUS_CONFIG } from "@multica/core/projects/config";
-import { useProjectStatusLabels } from "../../projects/components/labels";
+import { useEntityStatusPicker } from "../../common/entity-status-picker";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { Button } from "@multica/ui/components/ui/button";
 import { Input } from "@multica/ui/components/ui/input";
@@ -87,7 +86,7 @@ import {
   AlertDialogTitle,
 } from "@multica/ui/components/ui/alert-dialog";
 import { useT } from "../../i18n";
-import { useInitiativeStatusLabels, useInitiativePriorityLabels } from "./labels";
+import { useInitiativePriorityLabels } from "./labels";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 import { PAGE_GUTTER } from "../../layout/page-header";
 
@@ -115,7 +114,8 @@ function ChildProjectRow({
   project: Project;
   href: string;
 }) {
-  const statusLabels = useProjectStatusLabels();
+  const { current } = useEntityStatusPicker("project");
+  const selected = current(project.status);
   const rowLink = useRowLink();
   const progress =
     project.issue_count > 0
@@ -132,11 +132,11 @@ function ChildProjectRow({
       <span
         className={cn(
           "inline-flex items-center rounded px-1.5 py-0.5 text-caption font-medium",
-          PROJECT_STATUS_CONFIG[project.status].badgeBg,
-          PROJECT_STATUS_CONFIG[project.status].badgeText,
+          selected.badgeBg,
+          selected.badgeText,
         )}
       >
-        {statusLabels[project.status]}
+        {selected.label}
       </span>
       {progress === null ? (
         <span className="w-16 text-right text-caption text-faint-foreground">—</span>
@@ -151,7 +151,7 @@ function ChildProjectRow({
 
 export function InitiativeDetail({ initiativeId }: { initiativeId: string }) {
   const { t } = useT("initiatives");
-  const statusLabels = useInitiativeStatusLabels();
+  const { options: statusOptions, current: currentStatus } = useEntityStatusPicker("initiative");
   const priorityLabels = useInitiativePriorityLabels();
   const wsId = useWorkspaceId();
   const wsPaths = useWorkspacePaths();
@@ -305,7 +305,7 @@ export function InitiativeDetail({ initiativeId }: { initiativeId: string }) {
     return <div className="flex items-center justify-center h-full text-muted-foreground">{t(($) => $.detail.not_found)}</div>;
   }
 
-  const statusCfg = INITIATIVE_STATUS_CONFIG[initiative.status];
+  const statusCfg = currentStatus(initiative.status);
   const totalCount = initiative.issue_count;
   const completedCount = initiative.done_count;
 
@@ -360,17 +360,23 @@ export function InitiativeDetail({ initiativeId }: { initiativeId: string }) {
               <DropdownMenuTrigger
                 render={
                   <button type="button" className="inline-flex items-center gap-1.5 text-caption hover:text-foreground transition-colors">
-                    <span className={cn("size-2 rounded-full", statusCfg.dotColor)} />
-                    <span>{statusLabels[initiative.status]}</span>
+                    <span
+                      className={cn("size-2 rounded-full", !statusCfg.hex && statusCfg.dotClass)}
+                      style={statusCfg.hex ? { backgroundColor: statusCfg.hex } : undefined}
+                    />
+                    <span>{statusCfg.label}</span>
                   </button>
                 }
               />
               <DropdownMenuContent align="start" className="w-44">
-                {INITIATIVE_STATUS_ORDER.map((s) => (
-                  <DropdownMenuItem key={s} onClick={() => handleUpdateField({ status: s as InitiativeStatus })}>
-                    <span className={cn("size-2 rounded-full", INITIATIVE_STATUS_CONFIG[s].dotColor)} />
-                    <span>{statusLabels[s]}</span>
-                    {s === initiative.status && <Check className="ml-auto h-3.5 w-3.5" />}
+                {statusOptions.map((s) => (
+                  <DropdownMenuItem key={s.key} onClick={() => handleUpdateField({ status: s.key as InitiativeStatus })}>
+                    <span
+                      className={cn("size-2 rounded-full", !s.hex && s.dotClass)}
+                      style={s.hex ? { backgroundColor: s.hex } : undefined}
+                    />
+                    <span>{s.label}</span>
+                    {s.key === initiative.status && <Check className="ml-auto h-3.5 w-3.5" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -476,6 +482,27 @@ export function InitiativeDetail({ initiativeId }: { initiativeId: string }) {
           </PropRow>
           <PropRow label={t(($) => $.detail.prop_due_date)}>
             <ProjectDueDatePicker dueDate={initiative.due_date} onUpdate={handleUpdateField} />
+          </PropRow>
+          <PropRow label={t(($) => $.detail.prop_issue_prefix)}>
+            <Input
+              key={initiative.issue_prefix ?? "none"}
+              type="text"
+              defaultValue={initiative.issue_prefix ?? ""}
+              onBlur={(event) => {
+                const next = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+                const current = initiative.issue_prefix ?? "";
+                if (next !== current) {
+                  handleUpdateField({ issue_prefix: next || null });
+                }
+              }}
+              placeholder={t(($) => $.detail.prop_issue_prefix_placeholder)}
+              aria-label={t(($) => $.detail.prop_issue_prefix)}
+              maxLength={10}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              className="h-7 font-mono uppercase"
+            />
           </PropRow>
         </div>}
       </div>

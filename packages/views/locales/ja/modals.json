@@ -152,6 +152,8 @@
     "no_lead": "リードなし",
     "set_start_date": "開始日を設定...",
     "set_due_date": "期限を設定...",
+    "issue_prefix": "課題プレフィックス",
+    "issue_prefix_placeholder": "ワークスペース既定",
     "more_options_aria": "その他のオプション",
     "lead_placeholder": "リードを指定...",
     "members_group": "メンバー",

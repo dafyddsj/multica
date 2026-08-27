@@ -277,6 +277,9 @@ var concurrentIndexCleanups = map[string]string{
 	"437_initiative_description_trgm_index":                     "idx_initiative_description_trgm",
 	"444_memory_entry_workspace_scope_owner_index":              "idx_memory_entry_workspace_scope_owner",
 	"445_memory_entry_user_scope_index":                         "idx_memory_entry_user_scope",
+	"448_entity_status_pkey_index":                              "entity_status_pkey_uidx",
+	"450_entity_status_workspace_type_key_index":                "entity_status_workspace_type_key_uidx",
+	"451_entity_status_workspace_type_name_index":               "entity_status_workspace_type_name_uidx",
 	"455_user_clerk_user_id_index":                              "idx_user_clerk_user_id",
 	"457_workspace_clerk_org_id_index":                          "idx_workspace_clerk_org_id",
 }

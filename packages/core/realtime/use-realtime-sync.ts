@@ -18,6 +18,7 @@ import { runtimeKeys } from "../runtimes/queries";
 import { labelKeys } from "../labels/queries";
 import { propertyKeys } from "../properties/queries";
 import { issueStatusKeys } from "../issue-statuses/queries";
+import { entityStatusKeys } from "../entity-statuses/queries";
 import {
   agentTaskSnapshotKeys,
   workspaceWorkingAgentsKeys,
@@ -793,13 +794,19 @@ export function useRealtimeSync(
       },
       project: () => {
         const wsId = getCurrentWsId();
-        if (wsId) qc.invalidateQueries({ queryKey: projectKeys.all(wsId) });
+        if (wsId) {
+          qc.invalidateQueries({ queryKey: projectKeys.all(wsId) });
+          // Moving a project between initiatives can rewrite displayed issue
+          // identifiers (read-time prefix override).
+          qc.invalidateQueries({ queryKey: issueKeys.all(wsId) });
+        }
       },
       initiative: () => {
         const wsId = getCurrentWsId();
         if (wsId) {
           qc.invalidateQueries({ queryKey: initiativeKeys.all(wsId) });
           qc.invalidateQueries({ queryKey: projectKeys.all(wsId) });
+          qc.invalidateQueries({ queryKey: issueKeys.all(wsId) });
         }
       },
       squad: () => {
@@ -837,6 +844,10 @@ export function useRealtimeSync(
       issue_status: () => {
         const wsId = getCurrentWsId();
         if (wsId) qc.invalidateQueries({ queryKey: issueStatusKeys.all(wsId) });
+      },
+      entity_status: () => {
+        const wsId = getCurrentWsId();
+        if (wsId) qc.invalidateQueries({ queryKey: entityStatusKeys.all(wsId) });
       },
       pin: () => {
         const wsId = getCurrentWsId();

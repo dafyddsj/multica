@@ -1,4 +1,62 @@
 {
+  "statuses": {
+    "title": "状态",
+    "description": "自定义专项、项目和任务的工作流。",
+    "loading": "正在加载状态…",
+    "add": "添加状态",
+    "show_archived": "显示已归档（{{count}}）",
+    "archived_badge": "已归档",
+    "reorder_failed": "无法保存新的顺序。",
+    "scopes": {
+      "initiative": "专项",
+      "project": "项目",
+      "issue": "任务"
+    },
+    "category_labels": {
+      "planned": "已计划",
+      "in_progress": "进行中",
+      "paused": "已暂停",
+      "completed": "已完成",
+      "cancelled": "已取消"
+    },
+    "categories": {
+      "planned": "尚未开始。",
+      "in_progress": "正在推进。",
+      "paused": "暂时搁置。",
+      "completed": "已完成。",
+      "cancelled": "决定不再继续。"
+    },
+    "actions": {
+      "open": "{{name}} 的操作",
+      "edit": "编辑",
+      "archive": "归档",
+      "reorder": "调整 {{name}} 的顺序"
+    },
+    "editor": {
+      "create_title": "新状态",
+      "edit_title": "编辑状态",
+      "behavior_hint": "此状态的行为与{{category}}相同。",
+      "name": "名称",
+      "name_placeholder": "例如：交付中",
+      "key_hint": "API 和 CLI 中称为 {{key}}。",
+      "category": "类别",
+      "category_locked": "类别不能更改 — 已使用此状态的条目依赖它。",
+      "description": "描述",
+      "description_placeholder": "这个状态对团队意味着什么",
+      "color": "颜色",
+      "cancel": "取消",
+      "save": "保存",
+      "saving": "保存中…",
+      "save_failed": "无法保存该状态。"
+    },
+    "archive_dialog": {
+      "title": "归档此状态？",
+      "description": "「{{name}}」将不再可用于新的{{scope}}。已使用它的条目会保留，行为不变。",
+      "cancel": "取消",
+      "confirm": "归档",
+      "failed": "无法归档该状态。"
+    }
+  },
   "issue_statuses": {
     "title": "任务状态",
     "description": "定义任务流转的工作流。每个状态的行为由它所属的分类决定。",
@@ -324,7 +382,7 @@
       "labs": "实验室",
       "members": "成员",
       "labels": "标签",
-      "issue_statuses": "任务状态",
+      "issue_statuses": "状态",
       "properties": "属性",
       "quick_actions": "快捷操作",
       "plugins": "Plugins",

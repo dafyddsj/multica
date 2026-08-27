@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/analytics"
+	"github.com/multica-ai/multica/server/internal/entitystatus"
 	"github.com/multica-ai/multica/server/internal/issuestatus"
 	"github.com/multica-ai/multica/server/internal/logger"
 	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
@@ -90,6 +91,21 @@ func normalizeIssuePrefix(raw string) (string, bool) {
 		return "", false
 	}
 	return prefix, true
+}
+
+func parseOptionalInitiativeIssuePrefix(w http.ResponseWriter, raw *string) (pgtype.Text, bool) {
+	if raw == nil {
+		return pgtype.Text{}, true
+	}
+	prefix, ok := normalizeIssuePrefix(*raw)
+	if !ok {
+		writeError(w, http.StatusBadRequest, issuePrefixFormatError)
+		return pgtype.Text{}, false
+	}
+	if prefix == "" {
+		return pgtype.Text{}, true
+	}
+	return pgtype.Text{String: prefix, Valid: true}, true
 }
 
 const issuePrefixFormatError = "issue prefix must be 1-10 uppercase letters or digits"
@@ -306,6 +322,10 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	// be created before its status can be resolved. (MUL-6243)
 	if err := issuestatus.Ensure(r.Context(), qtx, ws.ID); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to seed issue statuses: "+err.Error())
+		return
+	}
+	if err := entitystatus.Ensure(r.Context(), qtx, ws.ID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to seed entity statuses: "+err.Error())
 		return
 	}
 
@@ -1315,6 +1335,12 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 			name: "delete issue statuses",
 			run: func() error {
 				return qtx.DeleteIssueStatusEntriesForWorkspace(ctx, requester.WorkspaceID)
+			},
+		},
+		{
+			name: "delete entity statuses",
+			run: func() error {
+				return qtx.DeleteEntityStatusEntriesForWorkspace(ctx, requester.WorkspaceID)
 			},
 		},
 		{

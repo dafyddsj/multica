@@ -1928,6 +1928,18 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
+			// Initiative and project status catalogs. Reads are open to any
+			// member; writes are gated to owner/admin inside the handlers.
+			r.Route("/api/entity-statuses", func(r chi.Router) {
+				r.Get("/", h.ListEntityStatuses)
+				r.Post("/", h.CreateEntityStatus)
+				r.Patch("/reorder", h.ReorderEntityStatuses)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Patch("/", h.UpdateEntityStatus)
+					r.Delete("/", h.ArchiveEntityStatus)
+				})
+			})
+
 			// Initiatives
 			r.Route("/api/initiatives", func(r chi.Router) {
 				r.Get("/search", h.SearchInitiatives)

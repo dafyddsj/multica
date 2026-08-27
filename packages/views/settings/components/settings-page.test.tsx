@@ -27,6 +27,8 @@ vi.mock("./integrations-tab", stub("IntegrationsTab"));
 vi.mock("./labs-tab", stub("LabsTab"));
 vi.mock("./notifications-tab", stub("NotificationsTab"));
 vi.mock("./labels-tab", stub("LabelsTab"));
+vi.mock("./statuses-tab", stub("StatusesTab"));
+vi.mock("./issue-statuses-tab", stub("IssueStatusesTab"));
 vi.mock("./properties-tab", stub("PropertiesTab"));
 vi.mock("./quick-actions-tab", stub("QuickActionsTab"));
 vi.mock("./keyboard-shortcuts-tab", stub("KeyboardShortcutsTab"));
@@ -135,6 +137,19 @@ describe("SettingsPage Plugin feature flag", () => {
 
     expect(screen.getByRole("tab", { name: "Plugins" })).toBeInTheDocument();
     expect(screen.getByText("PluginsTab")).toBeInTheDocument();
+  });
+});
+
+describe("SettingsPage statuses tab", () => {
+  it("redirects the legacy issue-statuses tab onto Statuses", () => {
+    navigationState.search = "tab=issue-statuses";
+
+    renderWithI18n(<SettingsPage />);
+
+    expect(screen.getByRole("tab", { name: "Statuses" })).toHaveAttribute(
+      "data-active",
+    );
+    expect(screen.getByText("StatusesTab")).toBeInTheDocument();
   });
 });
 

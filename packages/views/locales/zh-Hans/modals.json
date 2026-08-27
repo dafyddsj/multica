@@ -152,6 +152,8 @@
     "no_lead": "无负责人",
     "set_start_date": "设置开始日期...",
     "set_due_date": "设置截止日期...",
+    "issue_prefix": "任务前缀",
+    "issue_prefix_placeholder": "沿用工作区",
     "more_options_aria": "更多选项",
     "lead_placeholder": "指派负责人...",
     "members_group": "成员",

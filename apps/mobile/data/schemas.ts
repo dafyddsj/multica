@@ -225,6 +225,7 @@ export const EMPTY_INITIATIVE: Initiative = {
   lead_id: null,
   start_date: null,
   due_date: null,
+  issue_prefix: null,
   created_at: "",
   updated_at: "",
   project_count: 0,

@@ -2,8 +2,6 @@
 
 import { Check } from "lucide-react";
 import {
-  INITIATIVE_STATUS_CONFIG,
-  INITIATIVE_STATUS_ORDER,
   INITIATIVE_PRIORITY_CONFIG,
   INITIATIVE_PRIORITY_ORDER,
 } from "@multica/core/initiatives/config";
@@ -21,7 +19,8 @@ import type {
   UpdateInitiativeRequest,
 } from "@multica/core/types";
 import { PriorityIcon } from "../../issues/components/priority-icon";
-import { useInitiativeStatusLabels, useInitiativePriorityLabels } from "./labels";
+import { useEntityStatusPicker } from "../../common/entity-status-picker";
+import { useInitiativePriorityLabels } from "./labels";
 
 export function InitiativeStatusBadge({
   initiative,
@@ -34,8 +33,8 @@ export function InitiativeStatusBadge({
   triggerClassName?: string;
   align?: "start" | "end" | "center";
 }) {
-  const statusLabels = useInitiativeStatusLabels();
-  const statusCfg = INITIATIVE_STATUS_CONFIG[initiative.status];
+  const { options, current } = useEntityStatusPicker("initiative");
+  const selected = current(initiative.status);
 
   return (
     <DropdownMenu>
@@ -45,24 +44,27 @@ export function InitiativeStatusBadge({
             type="button"
             className={cn(
               "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-caption font-medium cursor-pointer hover:opacity-80 transition-opacity",
-              statusCfg.badgeBg,
-              statusCfg.badgeText,
+              selected.badgeBg,
+              selected.badgeText,
               triggerClassName,
             )}
           >
-            {statusLabels[initiative.status]}
+            {selected.label}
           </button>
         }
       />
       <DropdownMenuContent align={align} className="w-44">
-        {INITIATIVE_STATUS_ORDER.map((s) => (
+        {options.map((s) => (
           <DropdownMenuItem
-            key={s}
-            onClick={() => handleUpdate({ status: s as InitiativeStatus })}
+            key={s.key}
+            onClick={() => handleUpdate({ status: s.key as InitiativeStatus })}
           >
-            <span className={cn("size-2 rounded-full", INITIATIVE_STATUS_CONFIG[s].dotColor)} />
-            <span>{statusLabels[s]}</span>
-            {s === initiative.status && <Check className="ml-auto h-3.5 w-3.5" />}
+            <span
+              className={cn("size-2 rounded-full", !s.hex && s.dotClass)}
+              style={s.hex ? { backgroundColor: s.hex } : undefined}
+            />
+            <span>{s.label}</span>
+            {s.key === initiative.status && <Check className="ml-auto h-3.5 w-3.5" />}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

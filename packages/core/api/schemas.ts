@@ -68,6 +68,8 @@ import type {
   ListWebhookDeliveriesResponse,
   IssueStatusEntry,
   ListIssueStatusesResponse,
+  EntityStatusEntry,
+  ListEntityStatusesResponse,
   NotificationPreferenceResponse,
   PluginInstallation,
   PluginInstallationListResponse,
@@ -519,6 +521,52 @@ export const ListIssueStatusesResponseSchema = z.object({
 export const EMPTY_LIST_ISSUE_STATUSES_RESPONSE: ListIssueStatusesResponse = {
   statuses: [],
   categories: ["backlog", "todo", "in_progress", "in_review", "done", "blocked", "cancelled"],
+  total: 0,
+};
+
+export const EntityStatusEntrySchema = z.object({
+  id: z.string(),
+  workspace_id: z.string(),
+  resource_type: z.string(),
+  key: z.string(),
+  name: z.string(),
+  description: z.string().optional().default(""),
+  category: z.string(),
+  color: z.string().optional().default("#6b7280"),
+  is_system: z.boolean().optional().default(false),
+  position: z.number().optional().default(0),
+  archived_at: z.string().nullable().optional().default(null),
+  created_at: z.string(),
+  updated_at: z.string(),
+}).loose();
+
+export const EMPTY_ENTITY_STATUS_ENTRY: EntityStatusEntry = {
+  id: "",
+  workspace_id: "",
+  resource_type: "project",
+  key: "",
+  name: "",
+  description: "",
+  category: "planned",
+  color: "#6b7280",
+  is_system: false,
+  position: 0,
+  archived_at: null,
+  created_at: "",
+  updated_at: "",
+};
+
+export const ListEntityStatusesResponseSchema = z.object({
+  statuses: z.array(EntityStatusEntrySchema).default([]),
+  resource_type: z.string().optional().default(""),
+  categories: z.array(z.string()).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export const EMPTY_LIST_ENTITY_STATUSES_RESPONSE: ListEntityStatusesResponse = {
+  statuses: [],
+  resource_type: "",
+  categories: ["planned", "in_progress", "paused", "completed", "cancelled"],
   total: 0,
 };
 
@@ -1338,6 +1386,7 @@ const InitiativeSchema = z.object({
   lead_id: z.string().nullable(),
   start_date: z.string().nullable().default(null),
   due_date: z.string().nullable().default(null),
+  issue_prefix: z.string().nullable().optional().default(null),
   created_at: z.string(),
   updated_at: z.string(),
   project_count: z.number().default(0),
