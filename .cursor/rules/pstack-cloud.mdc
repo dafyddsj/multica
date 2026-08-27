@@ -1,0 +1,12 @@
+---
+description: Resolve pstack skill paths on Cursor Cloud Agent VMs
+alwaysApply: true
+---
+# pstack on Cloud Agents
+
+Project copy lives at `.cursor/skills/pstack/` (entry point `poteto-mode`).
+Use that tree when marketplace plugin skills are missing.
+
+If an injected skill `fullPath` starts with `/home/cursor/` and that path
+does not exist, open the same suffix under `$HOME` (`/home/ubuntu/...`) or
+the project copy. Load skill files with the Read tool, not `cat`/`bash`.

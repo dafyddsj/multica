@@ -62,3 +62,4 @@ See CLAUDE.md for the authoritative rules and common commands.
 - `.cursor/start.sh` backgrounds `scripts/warm-web.sh` and backfills `NODE_OPTIONS=--max-old-space-size=8192` into `.env` when missing.
 - `control-multica doctor` is not green until those demo routes have compiled.
 - Do not put `next build` / `next start` in install for demos; agents edit code and need HMR.
+- pstack / poteto-mode is vendored at `.cursor/skills/pstack/` because Cloud marketplace plugin sync is intermittently empty. `.cursor/start.sh` also links `/home/cursor` -> `/home/ubuntu` so injected plugin paths resolve. Refresh the vendor copy with `.cursor/sync-pstack.sh`.

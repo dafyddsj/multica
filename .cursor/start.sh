@@ -18,6 +18,9 @@ echo "==> [start] PostgreSQL is accepting connections"
 echo "==> [start] Ensuring .env"
 bash .cursor/ensure-env.sh
 
+echo "==> [start] Ensuring pstack"
+bash .cursor/ensure-pstack.sh
+
 echo "==> [start] Applying database migrations"
 set -a; . ./.env; set +a
 (cd server && go run ./cmd/migrate up)
