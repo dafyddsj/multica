@@ -6,10 +6,13 @@ import (
 )
 
 var (
-	ErrInvalidSession = errors.New("clerk: invalid session")
-	ErrNoEmail        = errors.New("clerk: user has no email")
-	ErrBindConflict   = errors.New("clerk: user already bound to a different clerk id")
-	ErrStoreRequired  = errors.New("clerk: user store is required")
+	ErrInvalidSession   = errors.New("clerk: invalid session")
+	ErrNoEmail          = errors.New("clerk: user has no email")
+	ErrBindConflict     = errors.New("clerk: user already bound to a different clerk id")
+	ErrStoreRequired    = errors.New("clerk: user store is required")
+	ErrOrgStoreRequired = errors.New("clerk: org store is required")
+	ErrSlugExhausted    = errors.New("clerk: could not allocate a workspace slug")
+	ErrOrgRequired      = errors.New("clerk: organization directory is required")
 )
 
 // Verifier checks a Clerk session JWT and returns the Clerk user id (sub).
@@ -36,6 +39,7 @@ type Client struct {
 	PublishableKey string
 	Verifier       Verifier
 	Profiles       ProfileFetcher
+	Orgs           OrgDirectory
 }
 
 // New builds a production client that talks to Clerk. Tests construct
@@ -46,5 +50,6 @@ func New(secretKey, publishableKey string) *Client {
 		PublishableKey: publishableKey,
 		Verifier:       sdkVerifier{},
 		Profiles:       sdkProfiles{},
+		Orgs:           sdkOrgs{},
 	}
 }

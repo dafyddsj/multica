@@ -2,10 +2,13 @@ package clerk
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	clerksdk "github.com/clerk/clerk-sdk-go/v2"
 	clerkjwt "github.com/clerk/clerk-sdk-go/v2/jwt"
+	clerkorg "github.com/clerk/clerk-sdk-go/v2/organization"
+	clerkorgmem "github.com/clerk/clerk-sdk-go/v2/organizationmembership"
 	clerkuser "github.com/clerk/clerk-sdk-go/v2/user"
 )
 
@@ -74,9 +77,90 @@ func displayName(u *clerksdk.User) string {
 	return strings.TrimSpace(stringOrEmpty(u.Username))
 }
 
+func IsNotFound(err error) bool {
+	var apiErr *clerksdk.APIErrorResponse
+	return errors.As(err, &apiErr) && apiErr.HTTPStatusCode == 404
+}
+
 func stringOrEmpty(v *string) string {
 	if v == nil {
 		return ""
 	}
 	return *v
+}
+
+type sdkOrgs struct{}
+
+func (sdkOrgs) ListMemberships(ctx context.Context, clerkUserID string) ([]OrgMembership, error) {
+	var out []OrgMembership
+	var offset int64
+	const page int64 = 100
+	for {
+		limit := page
+		off := offset
+		list, err := clerkuser.ListOrganizationMemberships(ctx, clerkUserID, &clerkuser.ListOrganizationMembershipsParams{
+			ListParams: clerksdk.ListParams{Limit: &limit, Offset: &off},
+		})
+		if err != nil {
+			return nil, err
+		}
+		if list == nil {
+			break
+		}
+		for _, m := range list.OrganizationMemberships {
+			if m == nil || m.Organization == nil || strings.TrimSpace(m.Organization.ID) == "" {
+				continue
+			}
+			out = append(out, OrgMembership{
+				Org: OrgRef{
+					ID:   m.Organization.ID,
+					Name: m.Organization.Name,
+					Slug: m.Organization.Slug,
+				},
+				Role: m.Role,
+			})
+		}
+		if int64(len(list.OrganizationMemberships)) < page {
+			break
+		}
+		offset += page
+	}
+	return out, nil
+}
+
+func (sdkOrgs) Create(ctx context.Context, name, slug, createdBy string) (OrgRef, error) {
+	org, err := clerkorg.Create(ctx, &clerkorg.CreateParams{
+		Name:      &name,
+		Slug:      &slug,
+		CreatedBy: &createdBy,
+	})
+	if err != nil {
+		return OrgRef{}, err
+	}
+	if org == nil {
+		return OrgRef{}, ErrInvalidSession
+	}
+	return OrgRef{ID: org.ID, Name: org.Name, Slug: org.Slug}, nil
+}
+
+func (sdkOrgs) Delete(ctx context.Context, orgID string) error {
+	_, err := clerkorg.Delete(ctx, orgID)
+	return err
+}
+
+func (sdkOrgs) RemoveMember(ctx context.Context, orgID, clerkUserID string) error {
+	_, err := clerkorgmem.Delete(ctx, &clerkorgmem.DeleteParams{
+		OrganizationID: orgID,
+		UserID:         clerkUserID,
+	})
+	return err
+}
+
+func (sdkOrgs) AddMember(ctx context.Context, orgID, clerkUserID, role string) error {
+	_, err := clerkorgmem.Create(ctx, &clerkorgmem.CreateParams{
+		OrganizationID: orgID,
+		UserID:         &clerkUserID,
+		Role:           &role,
+	})
+	return err
 }
