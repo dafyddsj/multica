@@ -42,7 +42,7 @@ describe("entity status catalog", () => {
     expect(catalog.labelOf("shipping")).toBe("Shipping");
     expect(catalog.labelOf("planned")).toBe("Not started");
     expect(catalog.colorOf("shipping")).toBe("#22c55e");
-    expect(catalog.colorOf("planned")).toBeNull();
+    expect(catalog.colorOf("planned")).toBe("#22c55e");
   });
 
   it("treats completed and cancelled categories as closed", () => {

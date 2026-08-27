@@ -3,6 +3,8 @@ import { useEntityStatuses } from "@multica/core/entity-statuses";
 import { INITIATIVE_STATUS_CONFIG, INITIATIVE_STATUS_ORDER } from "@multica/core/initiatives/config";
 import { PROJECT_STATUS_CONFIG, PROJECT_STATUS_ORDER } from "@multica/core/projects/config";
 import type { EntityStatusCategory, EntityStatusResourceType } from "@multica/core/types";
+import { useInitiativeStatusLabels } from "../initiatives/components/labels";
+import { useProjectStatusLabels } from "../projects/components/labels";
 
 export interface EntityStatusOption {
   key: string;
@@ -32,6 +34,18 @@ export function useEntityStatusPicker(resourceType: EntityStatusResourceType) {
   const wsId = useWorkspaceId();
   const catalog = useEntityStatuses(wsId, resourceType);
   const fallback = FALLBACK[resourceType];
+  const projectLabels = useProjectStatusLabels();
+  const initiativeLabels = useInitiativeStatusLabels();
+  const localeLabels = resourceType === "initiative" ? initiativeLabels : projectLabels;
+
+  const labelFor = (entry: { key: string; name: string; is_system: boolean }): string => {
+    if (entry.is_system === true) {
+      const seed = fallback.config[entry.key as keyof typeof fallback.config]?.label;
+      const localized = localeLabels[entry.key as keyof typeof localeLabels];
+      if (seed && localized && entry.name === seed) return localized;
+    }
+    return entry.name;
+  };
 
   const options: EntityStatusOption[] =
     catalog.activeStatuses.length > 0
@@ -39,7 +53,7 @@ export function useEntityStatusPicker(resourceType: EntityStatusResourceType) {
           const category = catalog.categoryOf(entry.key);
           return {
             key: entry.key,
-            label: entry.name,
+            label: labelFor(entry),
             category,
             hex: catalog.colorOf(entry.key),
             ...appearance(resourceType, category),
@@ -47,7 +61,7 @@ export function useEntityStatusPicker(resourceType: EntityStatusResourceType) {
         })
       : fallback.order.map((key) => ({
           key,
-          label: fallback.config[key].label,
+          label: localeLabels[key],
           category: key,
           hex: null,
           ...appearance(resourceType, key),

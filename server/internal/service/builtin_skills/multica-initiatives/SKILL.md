@@ -29,7 +29,7 @@ An initiative is a durable parent above projects. Hierarchy is Workspace → Ini
 
 A project belongs to at most one initiative (`project.initiative_id`, nullable). Issues attach only through projects. There is no `issue.initiative_id`.
 
-Status values match projects: `planned`, `in_progress`, `paused`, `completed`, `cancelled`.
+Status values default to `planned`, `in_progress`, `paused`, `completed`, `cancelled`. A workspace can add custom keys under Settings → Statuses; `--status` accepts those keys. `Active` is still rejected.
 
 Priority values: `urgent`, `high`, `medium`, `low`, `none`.
 

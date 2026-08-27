@@ -1,6 +1,7 @@
 # Initiatives source map
 
 - `server/cmd/multica/cmd_initiative.go` registers initiative `list`, `get`, `create`, `update`, `delete`, and `status`.
+- Initiative and project status keys are a per-workspace catalog (`entity_status`, `/api/entity-statuses`). Built-ins are `planned`, `in_progress`, `paused`, `completed`, `cancelled`; custom keys inherit a category. `validateProjectStatus` / `resolveWritableEntityStatus` accept format-valid custom keys.
 - `server/cmd/multica/cmd_project.go` accepts `--initiative` on `project create` and `project update` (empty string on update detaches).
 - `server/cmd/multica/cmd_id_resolver.go` resolves initiative ids by UUID prefix or title via `GET /api/initiatives`.
 - `server/cmd/server/router.go` exposes `/api/initiatives` plus `/api/initiatives/search` and `/api/initiatives/{id}`.

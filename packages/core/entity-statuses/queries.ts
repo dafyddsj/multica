@@ -1,7 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { api } from "../api";
-import { INITIATIVE_STATUS_CONFIG, INITIATIVE_STATUS_ORDER } from "../initiatives/config";
-import { PROJECT_STATUS_CONFIG, PROJECT_STATUS_ORDER } from "../projects/config";
+import { INITIATIVE_STATUS_CONFIG } from "../initiatives/config";
+import { PROJECT_STATUS_CONFIG } from "../projects/config";
 import type {
   EntityStatusCategory,
   EntityStatusEntry,
@@ -70,21 +70,18 @@ export function isEntityStatusCategory(value: string): value is EntityStatusCate
 }
 
 export function isClosedEntityStatus(statusKey: string, catalog?: Pick<EntityStatusCatalog, "categoryOf">): boolean {
-  const category = catalog?.categoryOf(statusKey) ?? (isEntityStatusCategory(statusKey) ? statusKey : statusKey);
+  const category = catalog?.categoryOf(statusKey) ?? (isEntityStatusCategory(statusKey) ? statusKey : "planned");
   return category === "completed" || category === "cancelled";
 }
 
 export function entityStatusColor(entry: EntityStatusEntry | undefined): string | null {
-  if (!entry || entry.is_system === true) return null;
-  return entry.color;
+  if (!entry) return null;
+  return entry.color || null;
 }
 
 function fallbackLabel(resourceType: EntityStatusResourceType, statusKey: string): string {
   if (resourceType === "initiative") {
-    return INITIATIVE_STATUS_CONFIG[statusKey as keyof typeof INITIATIVE_STATUS_CONFIG]?.label
-      ?? (INITIATIVE_STATUS_ORDER.includes(statusKey as (typeof INITIATIVE_STATUS_ORDER)[number])
-        ? statusKey
-        : statusKey);
+    return INITIATIVE_STATUS_CONFIG[statusKey as keyof typeof INITIATIVE_STATUS_CONFIG]?.label ?? statusKey;
   }
   return PROJECT_STATUS_CONFIG[statusKey as keyof typeof PROJECT_STATUS_CONFIG]?.label ?? statusKey;
 }
