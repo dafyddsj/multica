@@ -23,6 +23,10 @@ const (
 	// gate pinned Task/Run execution: disabling discovery and management must not
 	// mutate an immutable execution manifest that is already in flight.
 	PluginsV1 = "plugins_v1"
+	// AgentExecutionLanes gates lightweight and failover model slots on an
+	// agent, plus the enqueue/retry hop that uses them. Off (default) keeps
+	// today's single-model dispatch.
+	AgentExecutionLanes = "agent_execution_lanes"
 	// agentBuilderCompat is no longer a release flag. Keep publishing the key
 	// as enabled so installed desktop clients that still gate the AI creation
 	// entry on this config decision receive the permanently enabled behavior.
@@ -44,6 +48,7 @@ var frontendPublicFlags = []string{
 	BillingWorkspaceSubscriptions,
 	ComposioMCPApps,
 	PluginsV1,
+	AgentExecutionLanes,
 }
 
 func BillingWorkspaceSubscriptionsEnabled(ctx context.Context, flags *featureflag.Service) bool {
@@ -56,6 +61,10 @@ func ComposioMCPAppsEnabled(ctx context.Context, flags *featureflag.Service) boo
 
 func PluginsV1Enabled(ctx context.Context, flags *featureflag.Service) bool {
 	return flags.IsEnabled(ctx, PluginsV1, false)
+}
+
+func AgentExecutionLanesEnabled(ctx context.Context, flags *featureflag.Service) bool {
+	return flags.IsEnabled(ctx, AgentExecutionLanes, false)
 }
 
 func EvaluateFrontendPublicFlags(ctx context.Context, flags *featureflag.Service) map[string]bool {

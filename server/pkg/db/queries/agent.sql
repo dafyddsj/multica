@@ -58,14 +58,23 @@ INSERT INTO agent (
     runtime_config, runtime_id, visibility, max_concurrent_tasks, owner_id,
     instructions, custom_env, custom_args, mcp_config, model, thinking_level,
     service_tier, conversation_starters,
-    composio_toolkit_allowlist, permission_mode
+    composio_toolkit_allowlist, permission_mode,
+    lightweight_model, lightweight_thinking_level, start_lightweight,
+    failover_runtime_id, failover_model, failover_thinking_level, failover_service_tier
 ) VALUES (
     $1, $2, $3, $4, $5,
     $6, $7, $8, $9, $10,
     $11, $12, $13, $14, $15, $16,
     $17, COALESCE(sqlc.narg('conversation_starters')::jsonb, '[]'::jsonb),
     sqlc.narg('composio_toolkit_allowlist')::text[],
-    COALESCE(sqlc.narg('permission_mode'), 'private')
+    COALESCE(sqlc.narg('permission_mode'), 'private'),
+    sqlc.narg('lightweight_model'),
+    sqlc.narg('lightweight_thinking_level'),
+    COALESCE(sqlc.narg('start_lightweight'), TRUE),
+    sqlc.narg('failover_runtime_id'),
+    sqlc.narg('failover_model'),
+    sqlc.narg('failover_thinking_level'),
+    sqlc.narg('failover_service_tier')
 )
 RETURNING *;
 
@@ -145,6 +154,13 @@ UPDATE agent SET
     conversation_starters = COALESCE(sqlc.narg('conversation_starters'), conversation_starters),
     composio_toolkit_allowlist = COALESCE(sqlc.narg('composio_toolkit_allowlist')::text[], composio_toolkit_allowlist),
     co_authored_by_email = COALESCE(sqlc.narg('co_authored_by_email'), co_authored_by_email),
+    lightweight_model = COALESCE(sqlc.narg('lightweight_model'), lightweight_model),
+    lightweight_thinking_level = COALESCE(sqlc.narg('lightweight_thinking_level'), lightweight_thinking_level),
+    start_lightweight = COALESCE(sqlc.narg('start_lightweight'), start_lightweight),
+    failover_runtime_id = COALESCE(sqlc.narg('failover_runtime_id'), failover_runtime_id),
+    failover_model = COALESCE(sqlc.narg('failover_model'), failover_model),
+    failover_thinking_level = COALESCE(sqlc.narg('failover_thinking_level'), failover_thinking_level),
+    failover_service_tier = COALESCE(sqlc.narg('failover_service_tier'), failover_service_tier),
     updated_at = now()
 WHERE id = $1
 RETURNING *;
@@ -179,6 +195,36 @@ RETURNING *;
 -- Explicit NULL-clear for service_tier. COALESCE-based UpdateAgent cannot
 -- set the column back to NULL, so the API routes "Runtime default" here.
 UPDATE agent SET service_tier = NULL, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ClearAgentFailoverRuntimeID :one
+UPDATE agent SET failover_runtime_id = NULL, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ClearAgentLightweightModel :one
+UPDATE agent SET lightweight_model = NULL, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ClearAgentLightweightThinkingLevel :one
+UPDATE agent SET lightweight_thinking_level = NULL, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ClearAgentFailoverModel :one
+UPDATE agent SET failover_model = NULL, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ClearAgentFailoverThinkingLevel :one
+UPDATE agent SET failover_thinking_level = NULL, updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ClearAgentFailoverServiceTier :one
+UPDATE agent SET failover_service_tier = NULL, updated_at = now()
 WHERE id = $1
 RETURNING *;
 
@@ -354,6 +400,7 @@ INSERT INTO agent_task_queue (
     coalesced_comment_ids, trigger_summary, force_fresh_session, is_leader_task, handoff_note,
     squad_id, context, originator_user_id, accountable_user_id, runtime_mcp_overlay, runtime_connected_apps,
     originator_source, delegated_from_task_id, rule_version_id, rerun_of_task_id, trigger_evidence_kind, trigger_evidence_ref_id,
+    execution_lane, model_override,
     id
 )
 SELECT
@@ -379,6 +426,8 @@ SELECT
     sqlc.narg(rerun_of_task_id),
     sqlc.narg(trigger_evidence_kind),
     sqlc.narg(trigger_evidence_ref_id),
+    COALESCE(sqlc.narg('execution_lane')::text, 'primary'),
+    sqlc.narg('model_override'),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, $3, $2)
 RETURNING *;
@@ -397,6 +446,7 @@ INSERT INTO agent_task_queue (
     squad_id, context, originator_user_id, accountable_user_id, runtime_mcp_overlay, runtime_connected_apps,
     originator_source, delegated_from_task_id, rule_version_id, rerun_of_task_id,
     trigger_evidence_kind, trigger_evidence_ref_id, fire_at,
+    execution_lane, model_override,
     id
 )
 SELECT
@@ -422,6 +472,8 @@ SELECT
     sqlc.narg(trigger_evidence_kind),
     sqlc.narg(trigger_evidence_ref_id),
     @fire_at,
+    COALESCE(sqlc.narg('execution_lane')::text, 'primary'),
+    sqlc.narg('model_override'),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, $3, $2)
 RETURNING *;
@@ -462,6 +514,7 @@ INSERT INTO agent_task_queue (
     agent_id, runtime_id, issue_id, status, priority, context, originator_user_id,
     accountable_user_id, runtime_mcp_overlay, runtime_connected_apps,
     originator_source, trigger_evidence_kind, trigger_evidence_ref_id,
+    execution_lane, model_override,
     id
 )
 SELECT
@@ -473,6 +526,8 @@ SELECT
     sqlc.narg(originator_source),
     sqlc.narg(trigger_evidence_kind),
     sqlc.narg(trigger_evidence_ref_id),
+    COALESCE(sqlc.narg('execution_lane')::text, 'primary'),
+    sqlc.narg('model_override'),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, NULL, $2)
 RETURNING *;
@@ -494,6 +549,7 @@ INSERT INTO agent_task_queue (
     trigger_summary, is_leader_task, squad_id, escalation_for_task_id, fire_at,
     originator_user_id, accountable_user_id, originator_source,
     delegated_from_task_id, trigger_evidence_kind, trigger_evidence_ref_id,
+    execution_lane, model_override,
     id
 )
 SELECT
@@ -510,6 +566,8 @@ SELECT
     sqlc.narg(delegated_from_task_id),
     sqlc.narg(trigger_evidence_kind),
     sqlc.narg(trigger_evidence_ref_id),
+    COALESCE(sqlc.narg('execution_lane')::text, 'primary'),
+    sqlc.narg('model_override'),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, $3, $2)
 RETURNING *;
@@ -612,32 +670,61 @@ INSERT INTO agent_task_queue (
     originator_source, delegated_from_task_id, rule_version_id,
     trigger_evidence_kind, trigger_evidence_ref_id, retry_of_task_id,
     chat_input_task_id, fire_at,
-    channel_context_revision, id
+    channel_context_revision, execution_lane, model_override, id
 )
 SELECT
-    p.agent_id, p.runtime_id, p.issue_id, p.chat_session_id, p.autopilot_run_id,
-    CASE WHEN sqlc.narg(fire_at)::timestamptz IS NOT NULL THEN 'deferred' ELSE 'queued' END,
-    CASE WHEN p.chat_session_id IS NOT NULL THEN GREATEST(p.priority, 3) ELSE p.priority END,
-    p.trigger_comment_id, p.coalesced_comment_ids, p.trigger_summary, p.context,
-    CASE WHEN p.failure_reason IS NOT DISTINCT FROM 'codex_semantic_inactivity' THEN NULL ELSE p.session_id END,
-    CASE WHEN p.failure_reason IS NOT DISTINCT FROM 'codex_semantic_inactivity' THEN NULL ELSE p.work_dir END,
-    p.attempt + 1, COALESCE(sqlc.narg(max_attempts)::int, p.max_attempts), p.id,
-    p.failure_reason IS NOT DISTINCT FROM 'codex_semantic_inactivity',
+    p.agent_id,
+    COALESCE(sqlc.narg('runtime_id'), p.runtime_id) AS runtime_id,
+    p.issue_id,
+    p.chat_session_id,
+    p.autopilot_run_id,
+    CASE WHEN sqlc.narg(fire_at)::timestamptz IS NOT NULL THEN 'deferred' ELSE 'queued' END AS status,
+    CASE WHEN p.chat_session_id IS NOT NULL THEN GREATEST(p.priority, 3) ELSE p.priority END AS priority,
+    p.trigger_comment_id,
+    p.coalesced_comment_ids,
+    p.trigger_summary,
+    p.context,
+    CASE
+        WHEN COALESCE(sqlc.narg('force_fresh_session')::boolean, FALSE)
+            OR p.failure_reason IS NOT DISTINCT FROM 'codex_semantic_inactivity'
+        THEN NULL
+        ELSE p.session_id
+    END AS session_id,
+    CASE
+        WHEN COALESCE(sqlc.narg('force_fresh_session')::boolean, FALSE)
+            OR p.failure_reason IS NOT DISTINCT FROM 'codex_semantic_inactivity'
+        THEN NULL
+        ELSE p.work_dir
+    END AS work_dir,
+    p.attempt + 1 AS attempt,
+    COALESCE(sqlc.narg(max_attempts)::int, p.max_attempts) AS max_attempts,
+    p.id AS parent_task_id,
+    (
+        COALESCE(sqlc.narg('force_fresh_session')::boolean, FALSE)
+        OR p.failure_reason IS NOT DISTINCT FROM 'codex_semantic_inactivity'
+    ) AS force_fresh_session,
     p.is_leader_task,
     p.squad_id,
     p.originator_user_id,
     p.accountable_user_id,
-    sqlc.narg(runtime_mcp_overlay),
-    sqlc.narg(runtime_connected_apps),
-    p.originator_source, p.delegated_from_task_id, p.rule_version_id,
-    p.trigger_evidence_kind, p.trigger_evidence_ref_id, p.id,
-    p.chat_input_task_id, sqlc.narg(fire_at),
+    sqlc.narg(runtime_mcp_overlay) AS runtime_mcp_overlay,
+    sqlc.narg(runtime_connected_apps) AS runtime_connected_apps,
+    p.originator_source,
+    p.delegated_from_task_id,
+    p.rule_version_id,
+    p.trigger_evidence_kind,
+    p.trigger_evidence_ref_id,
+    p.id AS retry_of_task_id,
+    p.chat_input_task_id,
+    sqlc.narg(fire_at) AS fire_at,
     p.channel_context_revision,
+    COALESCE(sqlc.narg('execution_lane')::text, p.execution_lane) AS execution_lane,
+    COALESCE(sqlc.narg('model_override'), p.model_override) AS model_override,
     -- Named new_task_id, not id: $1 above is the PARENT task's id.
-    COALESCE(sqlc.narg('new_task_id')::uuid, gen_random_uuid())
+    COALESCE(sqlc.narg('new_task_id')::uuid, gen_random_uuid()) AS id
 FROM agent_task_queue p
 WHERE p.id = $1
-  AND lock_task_owner_rows(p.agent_id, p.issue_id, p.runtime_id)
+  AND lock_task_owner_rows(p.agent_id, p.issue_id, COALESCE(sqlc.narg('runtime_id'), p.runtime_id))
 ON CONFLICT (issue_id, agent_id) WHERE status IN ('queued', 'dispatched')
        OR (status = 'deferred' AND context->>'channel_issue_media_pending' = 'true')
 DO NOTHING
@@ -812,8 +899,18 @@ WHERE id = (
           FROM agent a
           JOIN agent_runtime r ON r.id = atq.runtime_id
           WHERE a.id = atq.agent_id
-            -- A task's persisted runtime is not authority after an agent rebind.
-            AND a.runtime_id = atq.runtime_id
+            -- A task's persisted runtime is not authority after an agent rebind,
+            -- except a stamped failover child that the user pointed at
+            -- failover_runtime_id.
+            AND (
+                a.runtime_id = atq.runtime_id
+                OR (
+                    atq.execution_lane = 'failover'
+                    AND atq.retry_of_task_id IS NOT NULL
+                    AND a.failover_runtime_id IS NOT NULL
+                    AND a.failover_runtime_id = atq.runtime_id
+                )
+            )
             AND a.archived_at IS NULL
             AND a.paused_at IS NULL
             -- Private runtimes only execute their owner's agents. Ownerless
@@ -926,7 +1023,15 @@ WHERE id = (
           FROM agent a
           JOIN agent_runtime r ON r.id = atq.runtime_id
           WHERE a.id = atq.agent_id
-            AND a.runtime_id = atq.runtime_id
+            AND (
+                a.runtime_id = atq.runtime_id
+                OR (
+                    atq.execution_lane = 'failover'
+                    AND atq.retry_of_task_id IS NOT NULL
+                    AND a.failover_runtime_id IS NOT NULL
+                    AND a.failover_runtime_id = atq.runtime_id
+                )
+            )
             AND a.archived_at IS NULL
             AND a.paused_at IS NULL
             AND (
@@ -976,7 +1081,15 @@ WHERE id IN (
           FROM agent a
           JOIN agent_runtime r ON r.id = atq.runtime_id
           WHERE a.id = atq.agent_id
-            AND a.runtime_id = atq.runtime_id
+            AND (
+                a.runtime_id = atq.runtime_id
+                OR (
+                    atq.execution_lane = 'failover'
+                    AND atq.retry_of_task_id IS NOT NULL
+                    AND a.failover_runtime_id IS NOT NULL
+                    AND a.failover_runtime_id = atq.runtime_id
+                )
+            )
             AND a.archived_at IS NULL
             AND a.paused_at IS NULL
             AND (
@@ -2120,7 +2233,15 @@ WHERE atq.runtime_id = $1
       FROM agent a
       JOIN agent_runtime r ON r.id = atq.runtime_id
       WHERE a.id = atq.agent_id
-        AND a.runtime_id = atq.runtime_id
+        AND (
+            a.runtime_id = atq.runtime_id
+            OR (
+                atq.execution_lane = 'failover'
+                AND atq.retry_of_task_id IS NOT NULL
+                AND a.failover_runtime_id IS NOT NULL
+                AND a.failover_runtime_id = atq.runtime_id
+            )
+        )
         AND a.archived_at IS NULL
         AND a.paused_at IS NULL
         AND (
@@ -2249,7 +2370,15 @@ WHERE atq.runtime_id = ANY(@runtime_ids::uuid[])
       FROM agent a
       JOIN agent_runtime r ON r.id = atq.runtime_id
       WHERE a.id = atq.agent_id
-        AND a.runtime_id = atq.runtime_id
+        AND (
+            a.runtime_id = atq.runtime_id
+            OR (
+                atq.execution_lane = 'failover'
+                AND atq.retry_of_task_id IS NOT NULL
+                AND a.failover_runtime_id IS NOT NULL
+                AND a.failover_runtime_id = atq.runtime_id
+            )
+        )
         AND a.archived_at IS NULL
         AND a.paused_at IS NULL
         AND (
