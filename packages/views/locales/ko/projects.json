@@ -71,6 +71,7 @@
     "prop_start_date": "시작일",
     "prop_due_date": "마감일",
     "prop_initiative": "이니셔티브",
+    "open_initiative": "이니셔티브 열기",
     "no_start_date": "시작일 없음",
     "no_due_date": "마감일 없음",
     "description_placeholder": "설명 추가...",

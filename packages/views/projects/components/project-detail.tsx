@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@multica/ui/lib/utils";
 import { copyText } from "@multica/ui/lib/clipboard";
@@ -22,7 +22,7 @@ import { useActorName } from "@multica/core/workspace/hooks";
 import { PROJECT_STATUS_ORDER, PROJECT_STATUS_CONFIG, PROJECT_PRIORITY_ORDER } from "@multica/core/projects/config";
 import { getProjectIssueMetrics } from "./project-issue-metrics";
 import { ActorAvatar } from "../../common/actor-avatar";
-import { useNavigation } from "../../navigation";
+import { AppLink, useNavigation } from "../../navigation";
 import { TitleEditor, ContentEditor, type ContentEditorRef } from "../../editor";
 import { PriorityIcon } from "../../issues/components/priority-icon";
 import { ProjectResourcesSection } from "./project-resources-section";
@@ -419,6 +419,22 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               initiativeId={project.initiative_id}
               onUpdate={handleUpdateField}
             />
+            {project.initiative_id ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <AppLink
+                      href={wsPaths.initiativeDetail(project.initiative_id)}
+                      aria-label={t(($) => $.detail.open_initiative)}
+                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <ArrowUpRight className="size-3.5" />
+                    </AppLink>
+                  }
+                />
+                <TooltipContent>{t(($) => $.detail.open_initiative)}</TooltipContent>
+              </Tooltip>
+            ) : null}
           </PropRow>
         </div>}
       </div>
