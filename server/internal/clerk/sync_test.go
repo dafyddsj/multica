@@ -30,6 +30,9 @@ func (stubOrgs) RemoveMember(context.Context, string, string) error {
 func (stubOrgs) AddMember(context.Context, string, string, string) error {
 	return nil
 }
+func (stubOrgs) UpdateMember(context.Context, string, string, string) error {
+	return nil
+}
 
 type memoryOrgStore struct {
 	workspaces []db.Workspace

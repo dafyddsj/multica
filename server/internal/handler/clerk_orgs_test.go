@@ -26,6 +26,9 @@ func (stubHandlerOrgs) RemoveMember(context.Context, string, string) error {
 func (stubHandlerOrgs) AddMember(context.Context, string, string, string) error {
 	return nil
 }
+func (stubHandlerOrgs) UpdateMember(context.Context, string, string, string) error {
+	return nil
+}
 
 func TestListWorkspaces_SyncsClerkOrganization(t *testing.T) {
 	if testHandler == nil {

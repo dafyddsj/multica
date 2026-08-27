@@ -71,6 +71,27 @@ func (h *Handler) deleteClerkOrg(ctx context.Context, workspace db.Workspace) er
 	return err
 }
 
+func (h *Handler) updateClerkOrgRole(ctx context.Context, workspace db.Workspace, userID, role string) error {
+	if h == nil || h.Clerk == nil || h.Clerk.Orgs == nil {
+		return nil
+	}
+	if !workspace.ClerkOrgID.Valid || workspace.ClerkOrgID.String == "" {
+		return nil
+	}
+	user, err := h.Queries.GetUser(ctx, parseUUID(userID))
+	if err != nil {
+		return err
+	}
+	if !user.ClerkUserID.Valid || user.ClerkUserID.String == "" {
+		return nil
+	}
+	err = h.Clerk.Orgs.UpdateMember(ctx, workspace.ClerkOrgID.String, user.ClerkUserID.String, clerk.ClerkRoleFromMember(role))
+	if clerk.IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
 func (h *Handler) addClerkOrgMember(ctx context.Context, workspace db.Workspace, user db.User, role string) error {
 	if h == nil || h.Clerk == nil || h.Clerk.Orgs == nil {
 		return nil

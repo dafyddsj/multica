@@ -164,3 +164,12 @@ func (sdkOrgs) AddMember(ctx context.Context, orgID, clerkUserID, role string) e
 	})
 	return err
 }
+
+func (sdkOrgs) UpdateMember(ctx context.Context, orgID, clerkUserID, role string) error {
+	_, err := clerkorgmem.Update(ctx, &clerkorgmem.UpdateParams{
+		OrganizationID: orgID,
+		UserID:         clerkUserID,
+		Role:           &role,
+	})
+	return err
+}

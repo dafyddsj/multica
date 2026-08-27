@@ -634,6 +634,14 @@ func (h *Handler) UpdateMember(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if ws, err := h.Queries.GetWorkspace(r.Context(), target.WorkspaceID); err == nil {
+		if err := h.updateClerkOrgRole(r.Context(), ws, uuidToString(target.UserID), role); err != nil {
+			slog.Error("clerk org role update failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+			writeError(w, http.StatusBadGateway, "failed to update organization role")
+			return
+		}
+	}
+
 	updatedMember, err := h.Queries.UpdateMemberRole(r.Context(), db.UpdateMemberRoleParams{
 		ID:   target.ID,
 		Role: role,
@@ -690,6 +698,14 @@ func (h *Handler) DeleteMember(w http.ResponseWriter, r *http.Request) {
 		}
 		if countOwners(members) <= 1 {
 			writeError(w, http.StatusBadRequest, "workspace must have at least one owner")
+			return
+		}
+	}
+
+	if ws, err := h.Queries.GetWorkspace(r.Context(), target.WorkspaceID); err == nil {
+		if err := h.removeClerkOrgMember(r.Context(), ws, uuidToString(target.UserID)); err != nil {
+			slog.Error("clerk org member delete failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+			writeError(w, http.StatusBadGateway, "failed to remove organization member")
 			return
 		}
 	}
