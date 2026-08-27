@@ -347,9 +347,11 @@ describe("workspace nav order", () => {
     const initiative = hrefs.indexOf("/acme/initiatives");
     const project = hrefs.indexOf("/acme/projects");
     const issue = hrefs.indexOf("/acme/issues");
+    const autopilots = hrefs.indexOf("/acme/autopilots");
     expect(initiative).toBeGreaterThan(-1);
     expect(project).toBeGreaterThan(initiative);
     expect(issue).toBeGreaterThan(project);
+    expect(autopilots).toBeGreaterThan(issue);
   });
 });
 
