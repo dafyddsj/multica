@@ -7,7 +7,7 @@ import {
 } from "./lib/locale-routing";
 import { runtimeRewriteDestination } from "./config/runtime-urls";
 import { isOfficialMarketingHost } from "./lib/public-host";
-import { clerkOverlayKeys } from "./lib/clerk-env";
+import { applyClerkPublishableKeyAlias, clerkOverlayKeys } from "./lib/clerk-env";
 
 // Old workspace-scoped route segments that existed before the URL refactor
 // (pre-#1131). Any URL with these as the FIRST segment is a legacy URL that
@@ -122,13 +122,12 @@ const unusedFetchEvent = {
 export function proxy(req: NextRequest, event: NextFetchEvent = unusedFetchEvent) {
   const keys = clerkOverlayKeys();
   if (!keys) return appProxy(req);
-  // Pass keys explicitly. clerkMiddleware does not read CLERK_PUBLISHABLE_KEY,
-  // only NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, and throws when that alias is
-  // missing even though clerkOverlayKeys() already accepted both env names.
-  return clerkMiddleware((_auth, request) => appProxy(request), {
-    publishableKey: keys.publishableKey,
-    secretKey: keys.secretKey,
-  })(req, event);
+  // clerkMiddleware reads NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, not
+  // CLERK_PUBLISHABLE_KEY. Alias first. Do not pass secretKey here:
+  // that is a dynamic-keys path and Clerk then requires
+  // CLERK_ENCRYPTION_KEY, which we do not set.
+  applyClerkPublishableKeyAlias();
+  return clerkMiddleware((_auth, request) => appProxy(request))(req, event);
 }
 
 export const config = {
