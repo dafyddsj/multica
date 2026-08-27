@@ -8,7 +8,7 @@ A machine with `amp` on PATH, or `MULTICA_AMP_PATH` set, registers an Amp runtim
 
 ## Changes
 
-- `server/internal/daemon/agents_probe.go`: `probe("MULTICA_AMP_PATH", "amp", "MULTICA_AMP_MODEL")`.
+- `server/internal/daemon/agents_probe.go`: `probe("MULTICA_AMP_PATH", "amp", "")`. Do not add `MULTICA_AMP_MODEL`. There is no verified `--model` flag to consume it.
 - `server/internal/daemon/config.go`: add `"amp"` to `defaultAgentCommandNames`.
 - `scripts/agent-cli-command-names.txt`: add `amp` in sorted position.
 - `server/pkg/agent/version.go`: add a `MinVersions["amp"]` only after a real `--version` string and a known floor. If the floor is unknown, omit the entry and register any parseable version.

@@ -4,11 +4,11 @@ Back to [overview](overview.md).
 
 ## Goal
 
-The create-agent and runtime-picker pages treat `amp` as a first-class family. The MCP tab is visible because the backend forwards `--mcp-config`.
+The create-agent and runtime-picker pages treat `amp` as a first-class family. The MCP tab stays hidden until phase 6's file-path canary passes.
 
 ## Changes
 
-- `packages/core/agents/mcp-support.ts` and `mcp-support.test.ts`: add `"amp"`.
+- `packages/core/agents/mcp-support.ts` and `mcp-support.test.ts`: add `"amp"` only after the backend actually forwards `--mcp-config` and a real CLI accepts that form.
 - `packages/views/runtimes/components/provider-logo.tsx` and its test: an Amp mark. Reuse a simple letter mark if no official SVG is licensed for the repo. Do not hotlink ampcode.com.
 - `packages/core/runtimes/display.ts`: skip unless product copy wants a name other than `Amp` (first-letter capital of `amp` already matches).
 

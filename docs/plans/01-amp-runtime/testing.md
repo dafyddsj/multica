@@ -12,9 +12,10 @@ Required coverage, next to `amp.go`:
 - argv for resume (`threads continue <id>`)
 - blocked custom args cannot break stream-json or permissions
 - ExtraArgs precede CustomArgs
-- stdin payload is one JSONL user message
+- stdin payload is plaintext, not a JSONL user frame, and is not on argv
 - fixture parse of init, assistant text, tool_use, success result
-- `Result.SessionID` keeps the `T-` prefix
+- `Result.SessionID` is a parsed `T-<uuid>` or empty
+- a non-`T-` `ResumeSessionID` fails `Execute` before spawn
 - refused continue sets `ResumeRejected`
 - `New("amp")` works and an unknown type still fails
 - `SupportedTypes` matches the latest CHECK whitelist

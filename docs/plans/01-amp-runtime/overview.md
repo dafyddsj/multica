@@ -14,9 +14,9 @@ Included:
 - An `ampBackend` that launches the `amp` CLI, parses stream-json into existing `Message` / `Result` types, and stores Amp's `session_id` for resume.
 - Daemon probe (`MULTICA_AMP_PATH`, `amp` on PATH), `defaultAgentCommandNames`, and `scripts/agent-cli-command-names.txt`.
 - Runtime brief in `{workDir}/AGENTS.md` through `runtimeConfigPath`.
-- `--mcp-config` forwarding and `providerSupportsMcpConfig("amp")`.
 - ExtraArgs so `MULTICA_AMP_ARGS` is not plumbed then dropped.
 - Frontend family list, logo, metrics allow-list, install docs, providers table, env docs, README / CLI_AND_DAEMON / SELF_HOSTING, and the creating-agents skill source map when Amp has create-time argv rules.
+- `--mcp-config` only after a real `amp` accepts a file path. The Amp manual documents inline JSON. Hold the MCP UI tab until that canary. If the CLI rejects paths, either pass hardened inline JSON or leave MCP off v1.
 
 Excluded:
 
@@ -48,7 +48,7 @@ Excluded:
 
 **Shell out to `@ampcode/sdk`.** Rejected. The SDK wraps the same CLI. The daemon would grow a Node dependency for no new protocol.
 
-Chosen shape is the first. Callers keep `ResolveBackend("amp")`. Complexity stays inside `amp.go`.
+Chosen shape is the first. Callers keep `ResolveBackend("amp")`. Complexity stays inside `amp.go`. Arena confirmed it. Do not extract a shared stream-json runner to add Amp.
 
 ## Applicable skills
 
@@ -104,25 +104,43 @@ Callers still call `ResolveBackend("amp")` and get a `Backend`.
 ```
 ampBackend { cfg Config }
 Execute(ctx, prompt, opts) (*Session, error)
-buildAmpArgs(opts, resumeID) []string
-writeAmpInput(w, prompt) error
+resolveAmpResume(id) (ampThreadID, error)
+buildAmpArgs(resume ampThreadID, opts) []string
+writeAmpInput(w, prompt) error   // plaintext, then close
 ```
+
+`ampThreadID` has parse-only constructors. The zero value is a fresh run. A non-empty `ResumeSessionID` that is not `T-<uuid>` fails `Execute` before spawn. `Result.SessionID` is only a parsed `T-<uuid>` or empty. Never persist a raw unparsed token. Never emit `amp threads continue` without that id. Bare `threads continue` follows the latest thread on the Amp account, which races on a shared daemon host.
 
 Argv sketch (confirm against `amp --help` in phase 1):
 
 ```
-amp --execute --stream-json --dangerously-allow-all [--stream-json-thinking] [--model …] [--mcp-config <temp>]
+amp --execute --stream-json --stream-json-thinking --dangerously-allow-all
 ```
 
 Resume prefix:
 
 ```
-amp threads continue <session_id> --execute --stream-json --dangerously-allow-all
+amp threads continue <T-uuid> --execute --stream-json --stream-json-thinking --dangerously-allow-all
 ```
 
-Prompt is one JSONL user message on stdin, then stdin closes unless a later phase needs `--stream-json-input` for mid-turn steer (out of v1).
+`--dangerously-allow-all` is unconditional and sits in `ampBlockedArgs`. Prompt is plaintext on stdin, then stdin closes. That is Amp's documented `echo prompt | amp -x` path. Do not keep stdin open for Claude `control_request`. Do not enable `--stream-json-input` in v1. `--stream-json-thinking` is on so thinking and `redacted_thinking` blocks parse. Dropping it is one argv line if a capture shows it breaks a release.
 
-`SessionID` on `Result` is Amp's `session_id`. ThinkingLevel maps to Amp `effort` when the CLI accepts it. Mode (`low|medium|high|ultra`) is not a Multica field. Leave it to ExtraArgs until a product decision adds one.
+`ExecOptions.Model` and `ThinkingLevel` are ignored. `ModelSelectionSupported("amp")` is false. `ListModels("amp")` returns an empty catalog. Do not probe `MULTICA_AMP_MODEL`. Amp's product dial is mode and effort, documented as SDK extras, not a verified CLI `--model`. ExtraArgs can carry those later. Do not advertise a dead knob.
+
+Windows copies Qwen's `.cmd` to `.ps1` shim so npm's `amp.cmd` does not re-tokenize argv.
+
+## Synthesis decision
+
+Arena scored three structurally different sketches. Candidate 1 (standalone `ampBackend` after `qwen.go`) is the base. Candidate 2 extracted a private `streamJSONBackend` and rewrote Claude, CodeBuddy, and Qwen to pay for Amp. Candidate 3 used an `ampKind` fresh/continue enum but persisted raw session ids on parse failure and wired `--model` / `MULTICA_AMP_MODEL` that the CLI contract does not list.
+
+The extract is still rejected. It deletes the cheap wire structs and couples Amp's unstable frames to three production backends. The hard contracts (`finalizeStreamResult`, `resolveFallback`, `resumeWasRejected`) are already shared.
+
+Two grafts:
+
+- From candidate 2, filter `LaunchPrefix` as sequences. Stripping `threads` or `continue` as standalone tokens can leave a stray `T-` positional. Remove the whole `threads continue <id>` run, or nothing.
+- From candidate 3, block `--no-tui`, `--executor`, `-p`, and `--output-format` so an operator pasting Claude or orb flags cannot change the launch.
+
+Leave `providerNeedsInlineSystemPrompt` and `resumeRejectionUndetectable` untouched unless a canary or captured stderr says otherwise.
 
 ## Throughput checkpoint
 

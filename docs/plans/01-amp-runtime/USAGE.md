@@ -9,13 +9,13 @@ if err != nil {
 }
 session, err := backend.Execute(ctx, prompt, agent.ExecOptions{
     Cwd:             workDir,
-    Model:           model,           // optional; empty keeps Amp's default
-    ThinkingLevel:   effort,          // maps to Amp effort when set
-    ResumeSessionID: priorSessionID,  // "T-…" from the last Result
+    ResumeSessionID: priorSessionID,  // "" or a parsed "T-<uuid>"
     ExtraArgs:       daemonAmpArgs,   // MULTICA_AMP_ARGS
     CustomArgs:      agentCustomArgs,
-    McpConfig:       mcpJSON,
+    McpConfig:       mcpJSON,         // only after the file-path canary
 })
+// Model and ThinkingLevel are ignored. Amp picks its own model.
+// A non-empty ResumeSessionID that is not T-<uuid> fails Execute.
 ```
 
 A fixture test owns a fake `amp` on PATH:
@@ -34,4 +34,6 @@ protocol_family = amp
 command_name    = amp
 ```
 
-`InjectRuntimeConfig(workDir, "amp", ctx)` writes the brief into `AGENTS.md`. `providerNeedsInlineSystemPrompt("amp")` is false until a canary says otherwise.
+`InjectRuntimeConfig(workDir, "amp", ctx)` writes the brief into `AGENTS.md`. `providerNeedsInlineSystemPrompt("amp")` stays false until a canary says otherwise.
+
+`Result.SessionID` is only a parsed `T-<uuid>` or empty. Do not store a raw unparsed `session_id` and hand it back on the next claim.

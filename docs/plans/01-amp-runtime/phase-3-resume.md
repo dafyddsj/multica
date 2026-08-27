@@ -8,14 +8,15 @@ A later `Execute` with `ResumeSessionID` continues Amp's thread. A refused conti
 
 ## Changes
 
-- `buildAmpArgs` emits `threads continue <id>` plus the execute flags when `opts.ResumeSessionID` is set.
-- Parse `session_id` from init and result events into `Result.SessionID`.
-- Reuse `resumeWasRejected` if Amp's wording matches. Otherwise add Amp phrases next to the existing list in `claude.go`, or a private Amp list if the strings are Amp-only. Do not add `"amp"` to `resumeRejectionUndetectable` unless you cannot detect refusal.
-- Tests for continue argv, session id round-trip, and a refused-thread fixture.
+- `resolveAmpResume` runs before spawn. Empty `ResumeSessionID` is a fresh turn. A non-empty value that is not `T-<uuid>` fails `Execute`. Do not launch `threads continue` without a parsed id. Bare continue follows the latest thread on the Amp account and races on a shared daemon host.
+- `buildAmpArgs` emits `threads continue <id>` plus the execute flags only when `resume` is a parsed `ampThreadID`.
+- Parse `session_id` from init and result events. Persist it on `Result.SessionID` only after `parseAmpThreadID` succeeds. If Amp emits a non-`T-` token, leave `SessionID` empty rather than storing garbage the next claim would refuse or, worse, continue as latest.
+- Reuse `resumeWasRejected` if Amp's wording matches. Add phrases only from a captured real-CLI stderr fixture, with a provenance comment like Qwen's. Do not add `"amp"` to `resumeRejectionUndetectable` unless you cannot detect refusal.
+- Tests for continue argv, session id round-trip, malformed resume failing `Execute`, and a refused-thread fixture.
 
 ## Data structures
 
-`Result.SessionID` stays a string. Amp's `T-<uuid>` is a legal value. Do not strip the `T-` prefix.
+`Result.SessionID` stays a string. The value is a parsed `T-<uuid>` or empty. Do not strip the `T-` prefix. Do not persist the raw stream field on parse failure.
 
 ## Verification
 
