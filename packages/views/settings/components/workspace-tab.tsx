@@ -32,10 +32,14 @@ import {
   useHasOnboarded,
 } from "@multica/core/paths";
 import { setCurrentWorkspace } from "@multica/core/platform";
+import { useFeatureEnabled } from "@multica/core/config";
+import { MEMORY_V1_FLAG } from "@multica/core/feature-flags";
+import { isWorkspaceMemoryEnabled } from "@multica/core/memory";
 import type { Workspace } from "@multica/core/types";
 import { AvatarUploadControl } from "../../common/avatar-upload-control";
 import { useNavigation } from "../../navigation";
 import { DeleteWorkspaceDialog } from "./delete-workspace-dialog";
+import { MemoryPanel } from "../../memory";
 import { useT } from "../../i18n";
 import {
   SettingsCard,
@@ -145,6 +149,8 @@ export function WorkspaceTab() {
   const currentMember = members.find((m) => m.user_id === user?.id) ?? null;
   const canManageWorkspace = currentMember?.role === "owner" || currentMember?.role === "admin";
   const isOwner = currentMember?.role === "owner";
+  const memoryFlagEnabled = useFeatureEnabled(MEMORY_V1_FLAG, false);
+  const memoryLabsEnabled = isWorkspaceMemoryEnabled(workspace?.settings);
   // Mirror the backend invariant (server/internal/handler/workspace.go:569):
   // a workspace must always have at least one owner, so the sole owner can't
   // leave. Pre-flight here instead of letting the 400 round-trip become a
@@ -519,6 +525,21 @@ export function WorkspaceTab() {
           </SettingsCard>
         </SettingsSection>
       )}
+
+      {workspace && memoryFlagEnabled && memoryLabsEnabled ? (
+        <SettingsSection title={t(($) => $.memory.title)}>
+          <SettingsCard>
+            <div className="px-4 py-3.5">
+              <MemoryPanel
+                scope="workspace"
+                ownerId={workspace.id}
+                canWrite={canManageWorkspace}
+                hideHeading
+              />
+            </div>
+          </SettingsCard>
+        </SettingsSection>
+      ) : null}
 
       <AlertDialog open={!!confirmAction} onOpenChange={(v) => { if (!v) setConfirmAction(null); }}>
         <AlertDialogContent>

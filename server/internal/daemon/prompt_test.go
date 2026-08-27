@@ -1674,9 +1674,35 @@ func TestPerTurnContextBlocksOmittedWhenEmpty(t *testing.T) {
 		"## Session Continuity Notice",
 		"## Task Initiator",
 		"## Connected Apps",
+		"## Memory",
 	} {
 		if strings.Contains(prompt, banned) {
 			t.Errorf("per-turn prompt must not emit %q with no data\n---\n%s", banned, prompt)
+		}
+	}
+}
+
+func TestPerTurnContextBlocksRenderMemoryHits(t *testing.T) {
+	t.Parallel()
+
+	prompt := BuildPrompt(Task{
+		IssueID:       "issue-1",
+		MemoryEnabled: true,
+		MemoryHits: []MemoryHit{{
+			ID:      "m-1",
+			Scope:   "issue",
+			OwnerID: "issue-1",
+			Body:    "Prefer rebase over merge",
+			Kind:    "preference",
+		}},
+	}, "claude")
+	for _, want := range []string{
+		"## Memory",
+		"[issue / preference] Prefer rebase over merge",
+		"`multica memory`",
+	} {
+		if !strings.Contains(prompt, want) {
+			t.Fatalf("memory block missing %q\n---\n%s", want, prompt)
 		}
 	}
 }

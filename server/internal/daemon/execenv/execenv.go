@@ -240,6 +240,10 @@ type TaskContextForEnv struct {
 	InitiatorID    string
 	InitiatorName  string
 	InitiatorEmail string
+	// MemoryEnabled is durable workspace configuration (flag + Labs). When
+	// true the brief lists `multica memory`. Off (the default) keeps existing
+	// briefs byte-identical.
+	MemoryEnabled bool
 }
 
 // SkillContextForEnv represents a skill to be written into the execution environment.

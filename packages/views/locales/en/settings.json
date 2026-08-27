@@ -695,9 +695,29 @@
     "deleting": "Deleting..."
   },
   "labs": {
+    "page_description": "Optional experiments. Off by default, and they stay off until you turn them on here.",
     "section_placeholder_title": "No experiments yet",
     "section_placeholder_description": "Experimental settings will land here as they ship. Today this tab is intentionally empty.",
-    "toast_failed": "Failed to update setting"
+    "toast_failed": "Failed to update setting",
+    "memory_title": "Memory",
+    "memory_description": "Let agents and members pin, search, and forget notes on the workspace, projects, issues, squads, and agents. Turning this off stops the API and claim-time recall. Saved notes stay."
+  },
+  "memory": {
+    "title": "Memory",
+    "search_placeholder": "Search notes",
+    "add_placeholder": "Pin a note…",
+    "add": "Add",
+    "forget": "Forget",
+    "empty": "No notes in this bank yet.",
+    "loading": "Loading notes…",
+    "load_failed": "Could not load notes.",
+    "showing_count": "{{shown}} of {{total}}",
+    "kind_label": "Kind",
+    "kind_fact": "Fact",
+    "kind_preference": "Preference",
+    "kind_procedure": "Procedure",
+    "kind_observation": "Observation",
+    "toast_failed": "Could not update memory"
   },
   "github": {
     "page_description": "Connect a GitHub App, control how Pull Requests show up inside Multica, and decide what your agents leave behind in commit history.",

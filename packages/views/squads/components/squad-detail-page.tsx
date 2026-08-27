@@ -15,6 +15,7 @@ import { useNavigation } from "../../navigation";
 import { AppLink } from "../../navigation";
 import { BreadcrumbHeader } from "../../layout/breadcrumb-header";
 import { PageHeader } from "../../layout/page-header";
+import { MemoryPanel } from "../../memory";
 import { Users, Plus, Trash2, ArrowUpRight, Crown, Loader2, Pencil, FileText, Save } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import { Input } from "@multica/ui/components/ui/input";
@@ -114,6 +115,10 @@ export function SquadDetailPage() {
   // instead of controls that 403 (MUL-4223).
   const canManage =
     isWorkspaceAdmin || (!!currentUser && squad?.creator_id === currentUser.id);
+  const leader = agents.find((agent) => agent.id === squad?.leader_id);
+  const canWriteSquadMemory =
+    isWorkspaceAdmin ||
+    (!!currentUser && !!leader && leader.owner_id === currentUser.id);
 
   const [showAddMember, setShowAddMember] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -1041,6 +1046,9 @@ function SquadOverviewPane({
               onSave={onSaveInstructions}
               onDirtyChange={setActiveDirty}
             />
+            <div className="mt-8">
+              <MemoryPanel scope="squad" ownerId={squad.id} canWrite={canWriteSquadMemory} />
+            </div>
           </div>
         )}
       </div>

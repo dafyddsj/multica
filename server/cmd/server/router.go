@@ -1989,6 +1989,14 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				r.Delete("/{itemType}/{itemId}", h.DeletePin)
 			})
 
+			// Memory (gated in-handler by memory_v1 + Labs memory_enabled).
+			r.Get("/api/memory", h.ListMemory)
+			r.Post("/api/memory", h.CreateMemory)
+			r.Get("/api/memory/recall", h.RecallMemory)
+			r.Get("/api/memory/{id}", h.GetMemory)
+			r.Patch("/api/memory/{id}", h.UpdateMemory)
+			r.Delete("/api/memory/{id}", h.DeleteMemory)
+
 			// Saved issue views (MUL-4796).
 			r.Get("/api/issue-view-preferences", h.GetIssueViewPreference)
 			r.Put("/api/issue-view-preferences", h.PutIssueViewPreference)

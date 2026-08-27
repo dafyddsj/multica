@@ -295,6 +295,15 @@ multica config show
 | `METRICS_ADDR` | 비어 있음 | Prometheus metrics listen 주소. 비어 있으면 시작하지 않음 |
 | `REALTIME_METRICS_TOKEN` | 비어 있음 | `/health/realtime`을 보호하는 bearer token |
 
+## 기능 플래그
+
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `MULTICA_FEATURE_FLAGS_FILE` | 비어 있음 | 배포 플래그 YAML 규칙 파일 |
+| `FF_<FLAG_KEY>` | 미설정 | 플래그 단위 재정의. YAML보다 우선. `true` / `on` / `1`이면 켜짐 |
+
+Memory v1은 `FF_MEMORY_V1=true`(또는 YAML의 `memory_v1`)와 워크스페이스 Labs 토글이 모두 켜져야 동작합니다. [메모리](/memory)를 참고하세요.
+
 ## 다음 단계
 
 - [로그인과 가입](/auth-setup) — 로그인 방식과 가입 제한을 알아봅니다.

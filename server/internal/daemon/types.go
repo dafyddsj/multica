@@ -189,6 +189,21 @@ type Task struct {
 	// Empty or non-task-scoped values are fatal for writable agent tasks; the
 	// daemon must not fall back to its own token. See MUL-3292.
 	AuthToken string `json:"auth_token,omitempty"`
+	// MemoryEnabled is true when the server has both the memory_v1 flag and
+	// the workspace Labs toggle on. The brief lists `multica memory` only then.
+	MemoryEnabled bool `json:"memory_enabled,omitempty"`
+	// MemoryHits are standing notes recalled at claim. Rendered per-turn, not
+	// in the cached brief.
+	MemoryHits []MemoryHit `json:"memory_hits,omitempty"`
+}
+
+// MemoryHit is the claim-wire shape of one recalled memory_entry.
+type MemoryHit struct {
+	ID      string `json:"id"`
+	Scope   string `json:"scope"`
+	OwnerID string `json:"owner_id"`
+	Body    string `json:"body"`
+	Kind    string `json:"kind"`
 }
 
 // ChatAttachmentMeta is the structured attachment metadata the daemon

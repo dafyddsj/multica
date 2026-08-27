@@ -693,9 +693,29 @@
     "deleting": "删除中..."
   },
   "labs": {
+    "page_description": "可选的实验功能。默认关闭，只有你在这里打开后才会生效。",
     "section_placeholder_title": "暂无实验",
     "section_placeholder_description": "实验性功能上线后会出现在这里。当前实验室页面是空的。",
-    "toast_failed": "更新设置失败"
+    "toast_failed": "更新设置失败",
+    "memory_title": "记忆",
+    "memory_description": "让智能体和成员在工作区、项目、任务、小队和智能体上固定、检索和忘记笔记。关闭后，接口和运行时回忆都会停止。已保存的笔记不会删除。"
+  },
+  "memory": {
+    "title": "记忆",
+    "search_placeholder": "搜索笔记",
+    "add_placeholder": "固定一条笔记…",
+    "add": "添加",
+    "forget": "忘记",
+    "empty": "这个库里还没有笔记。",
+    "loading": "正在加载笔记…",
+    "load_failed": "无法加载笔记。",
+    "showing_count": "{{shown}} / {{total}}",
+    "kind_label": "类型",
+    "kind_fact": "事实",
+    "kind_preference": "偏好",
+    "kind_procedure": "流程",
+    "kind_observation": "观察",
+    "toast_failed": "无法更新记忆"
   },
   "github": {
     "page_description": "连接 GitHub App、控制 Pull Request 如何出现在 Multica 中，并决定智能体在 commit 记录里留下哪些痕迹。",

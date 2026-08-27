@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/analytics"
 	"github.com/multica-ai/multica/server/internal/logger"
+	"github.com/multica-ai/multica/server/internal/memory"
 	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
@@ -531,6 +532,11 @@ func (h *Handler) DeleteSquad(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to archive squad")
 		return
+	}
+	// Same as agent archive: the bank dies with the archive, and only after
+	// the archive row update succeeds.
+	if err := deleteOwnerMemory(r.Context(), h.Queries, memory.ScopeSquad, squad.ID, squad.WorkspaceID); err != nil {
+		slog.Warn("delete squad memory failed", "squad_id", uuidToString(squad.ID), "error", err)
 	}
 
 	h.publish(protocol.EventSquadDeleted, workspaceID, "member", userID, map[string]any{

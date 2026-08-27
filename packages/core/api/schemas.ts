@@ -48,6 +48,9 @@ import type {
   InboxItem,
   InboxWorkspaceUnread,
   Label,
+  MemoryEntry,
+  MemoryListResponse,
+  MemoryRecallResponse,
   MemberWithUser,
   IssueProperty,
   ListPropertiesResponse,
@@ -3261,6 +3264,60 @@ export const JoinShareLinkResponseSchema = z.object({
   workspace_id: z.string(),
   workspace_slug: z.string().optional().default(""),
 }).loose();
+
+export const MemoryEntrySchema = z.object({
+  id: z.string(),
+  workspace_id: z.string().nullable().optional().default(null),
+  scope: z.string(),
+  owner_id: z.string(),
+  body: z.string(),
+  kind: z.string().optional().default("fact"),
+  provenance: z.record(z.string(), z.unknown()).optional().default({}),
+  created_by_type: z.string().nullable().optional().default(null),
+  created_by_id: z.string().nullable().optional().default(null),
+  created_at: z.string().optional().default(""),
+  updated_at: z.string().optional().default(""),
+}).loose();
+
+export const EMPTY_MEMORY_ENTRY: MemoryEntry = {
+  id: "",
+  workspace_id: null,
+  scope: "workspace",
+  owner_id: "",
+  body: "",
+  kind: "fact",
+  provenance: {},
+  created_by_type: null,
+  created_by_id: null,
+  created_at: "",
+  updated_at: "",
+};
+
+export const MemoryListResponseSchema = z.object({
+  entries: z.array(MemoryEntrySchema).default([]),
+  total: z.number().default(0),
+}).loose();
+
+export const EMPTY_MEMORY_LIST_RESPONSE: MemoryListResponse = {
+  entries: [],
+  total: 0,
+};
+
+export const MemoryHitSchema = z.object({
+  id: z.string(),
+  scope: z.string(),
+  owner_id: z.string(),
+  body: z.string(),
+  kind: z.string().optional().default("fact"),
+}).loose();
+
+export const MemoryRecallResponseSchema = z.object({
+  hits: z.array(MemoryHitSchema).default([]),
+}).loose();
+
+export const EMPTY_MEMORY_RECALL_RESPONSE: MemoryRecallResponse = {
+  hits: [],
+};
 
 export const EMPTY_JOIN_SHARE_LINK_RESPONSE: {
   member: MemberWithUser;
