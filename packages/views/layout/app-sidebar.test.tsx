@@ -338,6 +338,21 @@ describe("workspace-switcher dropdown per-workspace dot", () => {
   });
 });
 
+describe("workspace nav order", () => {
+  it("lists Initiatives, then Projects, then Issues", () => {
+    const { container } = render(<AppSidebar />);
+    const hrefs = Array.from(container.querySelectorAll("button[data-href]")).map(
+      (node) => node.getAttribute("data-href"),
+    );
+    const initiative = hrefs.indexOf("/acme/initiatives");
+    const project = hrefs.indexOf("/acme/projects");
+    const issue = hrefs.indexOf("/acme/issues");
+    expect(initiative).toBeGreaterThan(-1);
+    expect(project).toBeGreaterThan(initiative);
+    expect(issue).toBeGreaterThan(project);
+  });
+});
+
 describe("personal nav — Chat", () => {
   beforeEach(() => {
     chatSessions.current = [];
