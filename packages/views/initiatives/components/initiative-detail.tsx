@@ -41,6 +41,7 @@ import { PriorityIcon } from "../../issues/components/priority-icon";
 import { ProjectStartDatePicker } from "../../projects/components/project-start-date-picker";
 import { ProjectDueDatePicker } from "../../projects/components/project-due-date-picker";
 import { ProjectIcon } from "../../projects/components/project-icon";
+import { MemoryPanel } from "../../memory";
 import { PROJECT_STATUS_CONFIG } from "@multica/core/projects/config";
 import { useProjectStatusLabels } from "../../projects/components/labels";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
@@ -528,6 +529,9 @@ export function InitiativeDetail({ initiativeId }: { initiativeId: string }) {
             {t(($) => $.detail.description_hint)}
           </p>
         </div>}
+      </div>
+      <div className="px-2 pt-3">
+        <MemoryPanel scope="initiative" ownerId={initiativeId} compact />
       </div>
     </div>
   );

@@ -109,6 +109,11 @@ import type {
   UpdateProjectResourceRequest,
   ListProjectResourcesResponse,
   Label,
+  MemoryEntry,
+  MemoryListResponse,
+  MemoryRecallResponse,
+  CreateMemoryRequest,
+  UpdateMemoryRequest,
   IssueProperty,
   IssuePropertyValue,
   CreatePropertyRequest,
@@ -454,6 +459,12 @@ import {
   EMPTY_SHARE_LINK,
   EMPTY_SHARE_LINK_INFO,
   EMPTY_JOIN_SHARE_LINK_RESPONSE,
+  MemoryEntrySchema,
+  MemoryListResponseSchema,
+  MemoryRecallResponseSchema,
+  EMPTY_MEMORY_ENTRY,
+  EMPTY_MEMORY_LIST_RESPONSE,
+  EMPTY_MEMORY_RECALL_RESPONSE,
   type IssueView,
   type IssueViewPreference,
   type CreateIssueViewRequest,
@@ -4728,6 +4739,77 @@ export class ApiClient {
   async deleteTelegramInstallation(workspaceId: string, installationId: string): Promise<void> {
     await this.fetch(`/api/workspaces/${workspaceId}/telegram/installations/${installationId}`, {
       method: "DELETE",
+    });
+  }
+
+  async listMemory(params: {
+    scope: string;
+    owner_id: string;
+    q?: string;
+    limit?: number;
+  }): Promise<MemoryListResponse> {
+    const search = new URLSearchParams({
+      scope: params.scope,
+      owner_id: params.owner_id,
+    });
+    if (params.q) search.set("q", params.q);
+    if (params.limit) search.set("limit", String(params.limit));
+    const raw = await this.fetch<unknown>(`/api/memory?${search.toString()}`);
+    return parseWithFallback(raw, MemoryListResponseSchema, EMPTY_MEMORY_LIST_RESPONSE, {
+      endpoint: "GET /api/memory",
+    });
+  }
+
+  async createMemory(data: CreateMemoryRequest): Promise<MemoryEntry> {
+    const raw = await this.fetch<unknown>(`/api/memory`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, MemoryEntrySchema, EMPTY_MEMORY_ENTRY, {
+      endpoint: "POST /api/memory",
+    });
+  }
+
+  async getMemory(id: string): Promise<MemoryEntry> {
+    const raw = await this.fetch<unknown>(`/api/memory/${id}`);
+    return parseWithFallback(raw, MemoryEntrySchema, EMPTY_MEMORY_ENTRY, {
+      endpoint: "GET /api/memory/{id}",
+    });
+  }
+
+  async updateMemory(id: string, data: UpdateMemoryRequest): Promise<MemoryEntry> {
+    const raw = await this.fetch<unknown>(`/api/memory/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, MemoryEntrySchema, EMPTY_MEMORY_ENTRY, {
+      endpoint: "PATCH /api/memory/{id}",
+    });
+  }
+
+  async forgetMemory(id: string): Promise<void> {
+    await this.fetch(`/api/memory/${id}`, { method: "DELETE" });
+  }
+
+  async recallMemory(params: {
+    q?: string;
+    issue_id?: string;
+    project_id?: string;
+    initiative_id?: string;
+    squad_id?: string;
+    agent_id?: string;
+  } = {}): Promise<MemoryRecallResponse> {
+    const search = new URLSearchParams();
+    if (params.q) search.set("q", params.q);
+    if (params.issue_id) search.set("issue_id", params.issue_id);
+    if (params.project_id) search.set("project_id", params.project_id);
+    if (params.initiative_id) search.set("initiative_id", params.initiative_id);
+    if (params.squad_id) search.set("squad_id", params.squad_id);
+    if (params.agent_id) search.set("agent_id", params.agent_id);
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    const raw = await this.fetch<unknown>(`/api/memory/recall${suffix}`);
+    return parseWithFallback(raw, MemoryRecallResponseSchema, EMPTY_MEMORY_RECALL_RESPONSE, {
+      endpoint: "GET /api/memory/recall",
     });
   }
 

@@ -15,6 +15,7 @@ import { useNavigation } from "../../navigation";
 import { AppLink } from "../../navigation";
 import { BreadcrumbHeader } from "../../layout/breadcrumb-header";
 import { PageHeader } from "../../layout/page-header";
+import { MemoryPanel } from "../../memory";
 import { Users, Plus, Trash2, ArrowUpRight, Crown, Loader2, Pencil, FileText, Save } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import { Input } from "@multica/ui/components/ui/input";
@@ -1041,6 +1042,9 @@ function SquadOverviewPane({
               onSave={onSaveInstructions}
               onDirtyChange={setActiveDirty}
             />
+            <div className="mt-8">
+              <MemoryPanel scope="squad" ownerId={squad.id} canWrite={canManage} />
+            </div>
           </div>
         )}
       </div>

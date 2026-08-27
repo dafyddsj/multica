@@ -16,6 +16,7 @@ import {
   SettingsTab,
 } from "./settings-layout";
 import { useAutoSave } from "./use-auto-save";
+import { MemoryPanel } from "../../memory";
 
 // Mirror server/internal/handler/auth.go:MaxProfileDescriptionLen. Counted in
 // JS String.length (UTF-16 code units) here while the server counts runes,
@@ -190,6 +191,15 @@ export function AccountTab() {
           </SettingsRow>
         </SettingsCard>
       </SettingsSection>
+      {user ? (
+        <SettingsSection title={t(($) => $.memory.title)}>
+          <SettingsCard>
+            <div className="px-4 py-3.5">
+              <MemoryPanel scope="user" ownerId={user.id} />
+            </div>
+          </SettingsCard>
+        </SettingsSection>
+      ) : null}
     </SettingsTab>
   );
 }

@@ -38,6 +38,7 @@ import { IntegrationsTab } from "./tabs/integrations-tab";
 import { RuntimeConfigTab } from "./tabs/runtime-config-tab";
 import { AgentDetailInspector } from "./agent-detail-inspector";
 import { AgentAccessSettings } from "./agent-access-settings";
+import { MemoryPanel } from "../../memory";
 import { AgentOverviewSummary } from "./agent-overview-summary";
 import { ActorIssuesPanel } from "../../common/actor-issues-panel";
 import { useT } from "../../i18n";
@@ -492,6 +493,9 @@ export function AgentOverviewPane({
                       onDirtyChange={setActiveDirty}
                     />
                   )}
+                  <div className="mt-8">
+                    <MemoryPanel scope="agent" ownerId={agent.id} canWrite={canEdit} />
+                  </div>
                 </div>
               </div>
             </section>
