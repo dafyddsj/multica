@@ -28,6 +28,7 @@ import { ModelDropdown } from "../components/model-dropdown";
 import { RuntimePicker } from "../components/runtime-picker";
 import { SkillMultiSelect } from "../components/skill-multi-select";
 import { ConversationStartersEditor } from "../components/conversation-starters-editor";
+import { ExecutionLanesFields } from "../components/inspector/execution-lanes-fields";
 
 const PERMISSION_SCOPES: AgentPermissionScope[] = [
   "private",
@@ -239,6 +240,24 @@ export function AgentConfigurationPanel({
             runtime={selectedRuntime}
             disabled={runtimeLocked}
             onChange={onChange}
+          />
+          <ExecutionLanesFields
+            primaryRuntimeId={draft.runtimeId}
+            runtimes={runtimes}
+            members={members}
+            currentUserId={currentUserId}
+            canEdit={!runtimeLocked}
+            canDiscoverPrimary={selectedRuntime?.status === "online"}
+            value={{
+              lightweightModel: draft.lightweightModel,
+              lightweightThinkingLevel: draft.lightweightThinkingLevel,
+              startLightweight: draft.startLightweight,
+              failoverRuntimeId: draft.failoverRuntimeId,
+              failoverModel: draft.failoverModel,
+              failoverThinkingLevel: draft.failoverThinkingLevel,
+              failoverServiceTier: draft.failoverServiceTier,
+            }}
+            onChange={(next) => onChange({ ...draft, ...next })}
           />
         </SettingsCard>
       </SettingsSection>

@@ -345,6 +345,8 @@ export interface AgentTask {
    * Persists even if the source comment / autopilot is later edited
    * or deleted.
    */
+  execution_lane?: string;
+  model_override?: string;
   trigger_summary?: string;
   /**
    * Handoff instruction the assigner attached when starting this run (MUL-3375).
@@ -575,6 +577,19 @@ export interface Agent {
    */
   thinking_level?: string;
   /**
+   * Optional cheaper model on the same runtime. Empty/undefined means the
+   * agent has no lightweight lane. Older backends omit these fields.
+   */
+  lightweight_model?: string;
+  lightweight_thinking_level?: string;
+  /** When false, new tasks skip the lightweight lane even if a model is set. */
+  start_lightweight?: boolean;
+  /** Empty/undefined means failover uses the primary runtime. */
+  failover_runtime_id?: string;
+  failover_model?: string;
+  failover_thinking_level?: string;
+  failover_service_tier?: string;
+  /**
    * Runtime-native Codex service tier (for example `priority`, displayed as
    * Fast). Empty/undefined means no override: local Codex configuration and
    * account defaults remain authoritative.
@@ -674,6 +689,13 @@ export interface CreateAgentRequest {
   template?: string;
   /** Workspace skill IDs attached atomically with the agent row. */
   skill_ids?: string[];
+  lightweight_model?: string;
+  lightweight_thinking_level?: string;
+  start_lightweight?: boolean;
+  failover_runtime_id?: string;
+  failover_model?: string;
+  failover_thinking_level?: string;
+  failover_service_tier?: string;
 }
 
 export interface AgentBuilderSession {
@@ -704,6 +726,13 @@ export interface StoredAgentDraft {
   model: string;
   thinking_level: string;
   service_tier: string;
+  lightweight_model: string;
+  lightweight_thinking_level: string;
+  start_lightweight: boolean;
+  failover_runtime_id: string;
+  failover_model: string;
+  failover_thinking_level: string;
+  failover_service_tier: string;
   skill_ids: string[];
   permission_scope: AgentPermissionScope;
   member_ids: string[];
@@ -801,6 +830,13 @@ export interface UpdateAgentRequest {
    *     runtime's provider enum, rejected with 400 if not recognised
    */
   thinking_level?: string;
+  lightweight_model?: string;
+  lightweight_thinking_level?: string;
+  start_lightweight?: boolean;
+  failover_runtime_id?: string;
+  failover_model?: string;
+  failover_thinking_level?: string;
+  failover_service_tier?: string;
   /**
    * Codex service-tier override. Omitted preserves the saved value, `""`
    * clears it, and a non-empty value stores a runtime-catalog ID.

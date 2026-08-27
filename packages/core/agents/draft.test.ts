@@ -21,6 +21,13 @@ const draft = (): AgentDraft => ({
   model: "model-1",
   thinkingLevel: "",
   serviceTier: "",
+  lightweightModel: "",
+  lightweightThinkingLevel: "",
+  startLightweight: true,
+  failoverRuntimeId: "",
+  failoverModel: "",
+  failoverThinkingLevel: "",
+  failoverServiceTier: "",
   skillIds: new Set(["skill-1"]),
   permissionScope: "private",
   memberIds: new Set(),
@@ -222,6 +229,8 @@ describe("agent draft execution overrides", () => {
       ...draft(),
       thinkingLevel: "high",
       serviceTier: "priority",
+      lightweightModel: "haiku",
+      failoverModel: "sonnet",
     };
 
     expect(applyDraftRuntimeChange(current, "runtime-2")).toMatchObject({
@@ -229,7 +238,39 @@ describe("agent draft execution overrides", () => {
       model: "",
       thinkingLevel: "",
       serviceTier: "",
+      lightweightModel: "",
+      failoverModel: "",
     });
+  });
+
+  it("keeps a distinct failover runtime when the primary runtime changes", () => {
+    const current = {
+      ...draft(),
+      failoverRuntimeId: "runtime-3",
+      failoverModel: "sonnet",
+    };
+
+    expect(applyDraftRuntimeChange(current, "runtime-2")).toMatchObject({
+      runtimeId: "runtime-2",
+      failoverRuntimeId: "runtime-3",
+      failoverModel: "sonnet",
+    });
+  });
+
+  it("includes lane fields on create when a lightweight model is set", () => {
+    const request = buildCreateAgentRequest({
+      draft: {
+        ...draft(),
+        lightweightModel: "haiku",
+        startLightweight: true,
+        failoverModel: "sonnet",
+      },
+      runtimeId: "runtime-1",
+    });
+
+    expect(request.lightweight_model).toBe("haiku");
+    expect(request.start_lightweight).toBe(true);
+    expect(request.failover_model).toBe("sonnet");
   });
 
   it("clears only the per-model overrides on a model change", () => {

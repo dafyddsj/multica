@@ -461,6 +461,8 @@ export const AgentTaskSchema: z.ZodType<AgentTask> = z.object({
   attempt: z.number().optional(),
   trigger_comment_id: z.string().optional(),
   trigger_summary: z.string().optional(),
+  execution_lane: z.string().optional(),
+  model_override: z.string().optional(),
   kind: z.enum(["comment", "autopilot", "chat", "quick_create", "direct"]).optional().catch("direct"),
   work_dir: z.string().optional(),
 }).loose();

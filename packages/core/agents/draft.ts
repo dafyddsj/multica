@@ -34,6 +34,13 @@ export interface AgentDraft {
   thinkingLevel: string;
   /** Runtime-native execution tier (Codex Speed), scoped to `model`. */
   serviceTier: string;
+  lightweightModel: string;
+  lightweightThinkingLevel: string;
+  startLightweight: boolean;
+  failoverRuntimeId: string;
+  failoverModel: string;
+  failoverThinkingLevel: string;
+  failoverServiceTier: string;
   skillIds: Set<string>;
   permissionScope: AgentPermissionScope;
   memberIds: Set<string>;
@@ -51,6 +58,13 @@ export const EMPTY_AGENT_DRAFT: AgentDraft = {
   model: "",
   thinkingLevel: "",
   serviceTier: "",
+  lightweightModel: "",
+  lightweightThinkingLevel: "",
+  startLightweight: true,
+  failoverRuntimeId: "",
+  failoverModel: "",
+  failoverThinkingLevel: "",
+  failoverServiceTier: "",
   skillIds: new Set(),
   permissionScope: "private",
   memberIds: new Set(),
@@ -70,12 +84,20 @@ export function applyDraftRuntimeChange(
   draft: AgentDraft,
   runtimeId: string,
 ): AgentDraft {
+  const inheritFailover =
+    !draft.failoverRuntimeId || draft.failoverRuntimeId === draft.runtimeId;
   return {
     ...draft,
     runtimeId,
     model: "",
     thinkingLevel: "",
     serviceTier: "",
+    lightweightModel: "",
+    lightweightThinkingLevel: "",
+    failoverRuntimeId: inheritFailover ? "" : draft.failoverRuntimeId,
+    failoverModel: inheritFailover ? "" : draft.failoverModel,
+    failoverThinkingLevel: inheritFailover ? "" : draft.failoverThinkingLevel,
+    failoverServiceTier: inheritFailover ? "" : draft.failoverServiceTier,
   };
 }
 
@@ -197,6 +219,17 @@ export function buildDuplicateDraft(
     model: keepsRuntime ? source.model ?? "" : "",
     thinkingLevel: keepsRuntime ? source.thinking_level ?? "" : "",
     serviceTier: keepsRuntime ? source.service_tier ?? "" : "",
+    lightweightModel: keepsRuntime ? source.lightweight_model ?? "" : "",
+    lightweightThinkingLevel: keepsRuntime
+      ? source.lightweight_thinking_level ?? ""
+      : "",
+    startLightweight: source.start_lightweight ?? true,
+    failoverRuntimeId: keepsRuntime ? source.failover_runtime_id ?? "" : "",
+    failoverModel: keepsRuntime ? source.failover_model ?? "" : "",
+    failoverThinkingLevel: keepsRuntime
+      ? source.failover_thinking_level ?? ""
+      : "",
+    failoverServiceTier: keepsRuntime ? source.failover_service_tier ?? "" : "",
     skillIds: new Set(source.skills.map((skill) => skill.id)),
     ...deriveDuplicateAccess(source),
   };
@@ -233,6 +266,22 @@ export function buildCreateAgentRequest(options: {
     model: draft.model.trim() || undefined,
     thinking_level: draft.thinkingLevel.trim() || undefined,
     service_tier: draft.serviceTier.trim() || undefined,
+    ...(draft.lightweightModel.trim() ||
+    draft.failoverModel.trim() ||
+    draft.failoverRuntimeId.trim() ||
+    draft.startLightweight === false
+      ? {
+          lightweight_model: draft.lightweightModel.trim() || undefined,
+          lightweight_thinking_level:
+            draft.lightweightThinkingLevel.trim() || undefined,
+          start_lightweight: draft.startLightweight,
+          failover_runtime_id: draft.failoverRuntimeId.trim() || undefined,
+          failover_model: draft.failoverModel.trim() || undefined,
+          failover_thinking_level:
+            draft.failoverThinkingLevel.trim() || undefined,
+          failover_service_tier: draft.failoverServiceTier.trim() || undefined,
+        }
+      : {}),
     permission_mode:
       draft.permissionScope === "private" ? "private" : "public_to",
     invocation_targets: buildInvocationTargets(draft),

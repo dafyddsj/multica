@@ -37,6 +37,7 @@ import {
 import { RuntimePicker } from "./inspector/runtime-picker";
 import { ThinkingSettingField } from "./inspector/thinking-prop-row";
 import { ServiceTierSettingField } from "./inspector/service-tier-setting-field";
+import { ExecutionLanesFields } from "./inspector/execution-lanes-fields";
 
 interface InspectorProps {
   agent: Agent;
@@ -287,14 +288,27 @@ export function AgentDetailInspector({
               // Model, thinking level, and service tier are runtime/model
               // native. Clear them together so the new runtime resolves its
               // own defaults instead of inheriting incompatible tokens.
-              onChange={(id) =>
+              onChange={(id) => {
+                const inheritFailover =
+                  !agent.failover_runtime_id ||
+                  agent.failover_runtime_id === agent.runtime_id;
                 update({
                   runtime_id: id,
                   model: "",
                   thinking_level: "",
                   service_tier: "",
-                })
-              }
+                  lightweight_model: "",
+                  lightweight_thinking_level: "",
+                  ...(inheritFailover
+                    ? {
+                        failover_runtime_id: "",
+                        failover_model: "",
+                        failover_thinking_level: "",
+                        failover_service_tier: "",
+                      }
+                    : {}),
+                });
+              }}
             />
           </SettingsRow>
           <SettingsRow
@@ -332,6 +346,48 @@ export function AgentDetailInspector({
             value={agent.service_tier ?? ""}
             canEdit={canEdit}
             onChange={(serviceTier) => update({ service_tier: serviceTier })}
+          />
+          <ExecutionLanesFields
+            primaryRuntimeId={agent.runtime_id}
+            runtimes={runtimes}
+            members={members}
+            currentUserId={currentUserId}
+            canEdit={canEdit}
+            canDiscoverPrimary={canDiscoverRuntimeModels}
+            value={{
+              lightweightModel: agent.lightweight_model ?? "",
+              lightweightThinkingLevel: agent.lightweight_thinking_level ?? "",
+              startLightweight: agent.start_lightweight ?? true,
+              failoverRuntimeId: agent.failover_runtime_id ?? "",
+              failoverModel: agent.failover_model ?? "",
+              failoverThinkingLevel: agent.failover_thinking_level ?? "",
+              failoverServiceTier: agent.failover_service_tier ?? "",
+            }}
+            onChange={(next) =>
+              update({
+                ...(next.lightweightModel !== undefined
+                  ? { lightweight_model: next.lightweightModel }
+                  : {}),
+                ...(next.lightweightThinkingLevel !== undefined
+                  ? { lightweight_thinking_level: next.lightweightThinkingLevel }
+                  : {}),
+                ...(next.startLightweight !== undefined
+                  ? { start_lightweight: next.startLightweight }
+                  : {}),
+                ...(next.failoverRuntimeId !== undefined
+                  ? { failover_runtime_id: next.failoverRuntimeId }
+                  : {}),
+                ...(next.failoverModel !== undefined
+                  ? { failover_model: next.failoverModel }
+                  : {}),
+                ...(next.failoverThinkingLevel !== undefined
+                  ? { failover_thinking_level: next.failoverThinkingLevel }
+                  : {}),
+                ...(next.failoverServiceTier !== undefined
+                  ? { failover_service_tier: next.failoverServiceTier }
+                  : {}),
+              })
+            }
           />
           <SettingsRow
             label={t(($) => $.inspector.prop_concurrency)}
