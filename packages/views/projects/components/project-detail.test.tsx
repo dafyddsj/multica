@@ -81,7 +81,6 @@ vi.mock("@multica/core/paths", async (importOriginal) => ({
     projects: () => "/test-workspace/projects",
     initiativeDetail: (id: string) => `/test-workspace/initiatives/${id}`,
   }),
-  useCurrentWorkspace: () => ({ settings: {} }),
 }));
 
 vi.mock("../../memory", () => ({
