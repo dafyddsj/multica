@@ -341,6 +341,35 @@ func TestRepoCheckoutUsesTaskScopedProjectRefByDefault(t *testing.T) {
 	}
 }
 
+func TestRepoCheckoutForwardsAgentCoAuthoredByEmail(t *testing.T) {
+	t.Parallel()
+
+	const workspaceID = "ws-checkout"
+	const repoURL = "https://github.com/org/repo.git"
+	cache := &recordingRepoCache{lookupPath: "/cache/org/repo.git"}
+	workDir := t.TempDir()
+	d := newRepoCheckoutTestDaemon(t, workspaceID, repoURL, workDir, cache)
+	d.registerActiveRepoCheckoutTask("mat_repo_checkout_test", activeRepoCheckoutTask{
+		WorkspaceID:       workspaceID,
+		TaskID:            "task-1",
+		AgentID:           "agent-1",
+		AgentName:         "Review Bot",
+		CoAuthoredByEmail: "review-bot@example.com",
+		WorkDir:           workDir,
+	})
+
+	rec := httptest.NewRecorder()
+	body := strings.NewReader(`{"url":"` + repoURL + `","workspace_id":"` + workspaceID + `","workdir":"` + workDir + `","task_id":"task-1"}`)
+	d.repoCheckoutHandler().ServeHTTP(rec, authorizedRepoCheckoutRequest(body))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if got := cache.lastCreateParams().CoAuthoredByEmail; got != "review-bot@example.com" {
+		t.Fatalf("CreateWorktree CoAuthoredByEmail = %q, want review-bot@example.com", got)
+	}
+}
+
 // A request with no Authorization header can only come from a CLI older than
 // repoCheckoutMinCLIVersion, which is a permanent failure. The rejection has to
 // say so: the agent sees this string and nothing else (#7520).

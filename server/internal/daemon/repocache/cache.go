@@ -719,6 +719,7 @@ type WorktreeParams struct {
 	AgentName           string // for branch naming
 	TaskID              string // for branch naming uniqueness
 	CoAuthoredByEnabled bool   // install prepare-commit-msg hook for Co-authored-by trailer
+	CoAuthoredByEmail   string // optional extra Co-authored-by email for this agent
 	// LockWaitTimeout bounds only the wait for another same-repository
 	// operation. Zero preserves the historical unbounded wait for internal and
 	// older callers; retry-aware HTTP checkout requests set a finite value.
@@ -856,14 +857,8 @@ func (c *Cache) CreateWorktreeContext(ctx context.Context, params WorktreeParams
 		for _, pattern := range agentGitExcludePatterns {
 			_ = excludeFromGitContext(ctx, worktreePath, pattern)
 		}
-		if params.CoAuthoredByEnabled {
-			if err := installCoAuthoredByHookContext(ctx, worktreePath); err != nil {
-				c.logger.Warn("repo checkout: install co-authored-by hook failed (non-fatal)", "error", err)
-			}
-		} else {
-			if err := removeCoAuthoredByHookContext(ctx, worktreePath); err != nil {
-				c.logger.Warn("repo checkout: remove co-authored-by hook failed (non-fatal)", "error", err)
-			}
+		if err := configureCoAuthoredByContext(ctx, worktreePath, params); err != nil {
+			c.logger.Warn("repo checkout: configure co-authored-by failed (non-fatal)", "error", err)
 		}
 		if err := ctx.Err(); err != nil {
 			return nil, context.Cause(ctx)
@@ -890,19 +885,8 @@ func (c *Cache) CreateWorktreeContext(ctx context.Context, params WorktreeParams
 			_ = excludeFromGitContext(ctx, worktreePath, pattern)
 		}
 
-		// Install or remove the Co-authored-by hook based on the workspace
-		// setting. The hook lives in the bare repo's shared hooks dir, so we
-		// must actively remove it when disabled — otherwise a previously
-		// installed hook keeps appending the trailer to every commit even
-		// after the user toggles the setting off.
-		if params.CoAuthoredByEnabled {
-			if err := installCoAuthoredByHookContext(ctx, worktreePath); err != nil {
-				c.logger.Warn("repo checkout: install co-authored-by hook failed (non-fatal)", "error", err)
-			}
-		} else {
-			if err := removeCoAuthoredByHookContext(ctx, worktreePath); err != nil {
-				c.logger.Warn("repo checkout: remove co-authored-by hook failed (non-fatal)", "error", err)
-			}
+		if err := configureCoAuthoredByContext(ctx, worktreePath, params); err != nil {
+			c.logger.Warn("repo checkout: configure co-authored-by failed (non-fatal)", "error", err)
 		}
 		if err := ctx.Err(); err != nil {
 			return nil, context.Cause(ctx)
@@ -933,17 +917,8 @@ func (c *Cache) CreateWorktreeContext(ctx context.Context, params WorktreeParams
 		_ = excludeFromGitContext(ctx, worktreePath, pattern)
 	}
 
-	// Install or remove the Co-authored-by hook based on the workspace
-	// setting. See the existing-worktree branch above for why removal is
-	// required when the setting is disabled.
-	if params.CoAuthoredByEnabled {
-		if err := installCoAuthoredByHookContext(ctx, worktreePath); err != nil {
-			c.logger.Warn("repo checkout: install co-authored-by hook failed (non-fatal)", "error", err)
-		}
-	} else {
-		if err := removeCoAuthoredByHookContext(ctx, worktreePath); err != nil {
-			c.logger.Warn("repo checkout: remove co-authored-by hook failed (non-fatal)", "error", err)
-		}
+	if err := configureCoAuthoredByContext(ctx, worktreePath, params); err != nil {
+		c.logger.Warn("repo checkout: configure co-authored-by failed (non-fatal)", "error", err)
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, context.Cause(ctx)
@@ -1595,41 +1570,108 @@ var daemonInstalledHookSignatures = []string{
 	"# Installed by the Multica daemon.",
 }
 
-// prepareCommitMsgHook is the prepare-commit-msg hook script that appends a
-// Co-authored-by trailer for the Multica Agent to every commit message.
 const prepareCommitMsgHook = `#!/bin/sh
 # multica:prepare-commit-msg:co-authored-by
-# Multica: add Co-authored-by trailer for the Multica Agent.
-# Installed by the Multica daemon. Do not edit — it will be overwritten.
+# Installed by the Multica daemon.
 
 COMMIT_MSG_FILE="$1"
 COMMIT_SOURCE="$2"
 
-# Skip merge and squash commits.
 case "$COMMIT_SOURCE" in
   merge|squash) exit 0 ;;
 esac
 
-TRAILER="Co-authored-by: multica-agent <github@multica.ai>"
-
-# Don't add if already present.
-if grep -qF "$TRAILER" "$COMMIT_MSG_FILE"; then
-  exit 0
-fi
-
-# Use git interpret-trailers for proper formatting.
-git interpret-trailers --in-place --trailer "$TRAILER" "$COMMIT_MSG_FILE"
-`
-
-// installCoAuthoredByHook installs a prepare-commit-msg git hook that appends
-// a Co-authored-by trailer for the Multica Agent. The hook is installed in the
-// git common directory (the bare repo for worktrees) so it applies to all
-// worktrees created from this cache.
-func installCoAuthoredByHook(worktreePath string) error {
-	return installCoAuthoredByHookContext(context.Background(), worktreePath)
+append_trailer() {
+  TRAILER="$1"
+  if ! grep -qF "$TRAILER" "$COMMIT_MSG_FILE"; then
+    git interpret-trailers --in-place --trailer "$TRAILER" "$COMMIT_MSG_FILE"
+  fi
 }
 
-func installCoAuthoredByHookContext(ctx context.Context, worktreePath string) error {
+%s
+GIT_DIR=$(git rev-parse --git-dir) || exit 0
+EXTRA_FILE="$GIT_DIR/multica-coauthor-extra"
+if [ -f "$EXTRA_FILE" ]; then
+  IFS= read -r EXTRA_TRAILER < "$EXTRA_FILE"
+  if [ -n "$EXTRA_TRAILER" ]; then
+    append_trailer "$EXTRA_TRAILER"
+  fi
+fi
+`
+
+const coAuthoredByExtraFile = "multica-coauthor-extra"
+
+func configureCoAuthoredByContext(ctx context.Context, worktreePath string, params WorktreeParams) error {
+	email := strings.TrimSpace(params.CoAuthoredByEmail)
+	if err := writeCoAuthoredByExtraContext(ctx, worktreePath, params.AgentName, email); err != nil {
+		return err
+	}
+	if params.CoAuthoredByEnabled || email != "" {
+		return installCoAuthoredByHookContext(ctx, worktreePath, params.CoAuthoredByEnabled)
+	}
+	if siblingHasCoAuthoredByExtra(ctx, worktreePath) {
+		return installCoAuthoredByHookContext(ctx, worktreePath, false)
+	}
+	return removeCoAuthoredByHookContext(ctx, worktreePath)
+}
+
+func writeCoAuthoredByExtraContext(ctx context.Context, worktreePath, name, email string) error {
+	out, err := runGitOutputContext(ctx, "-C", worktreePath, "rev-parse", "--git-dir")
+	if err != nil {
+		return fmt.Errorf("resolve git dir: %w", err)
+	}
+	gitDir := strings.TrimSpace(string(out))
+	if !filepath.IsAbs(gitDir) {
+		gitDir = filepath.Join(worktreePath, gitDir)
+	}
+
+	extraPath := filepath.Join(gitDir, coAuthoredByExtraFile)
+	email = sanitizeCoAuthoredByEmail(email)
+	if email == "" {
+		if err := os.Remove(extraPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("remove co-authored-by extra file: %w", err)
+		}
+		return nil
+	}
+
+	name = sanitizeCoAuthoredByName(name)
+	trailer := fmt.Sprintf("Co-authored-by: %s <%s>\n", name, email)
+	if err := os.WriteFile(extraPath, []byte(trailer), 0o644); err != nil {
+		return fmt.Errorf("write co-authored-by extra file: %w", err)
+	}
+	return nil
+}
+
+func sanitizeCoAuthoredByName(name string) string {
+	name = strings.NewReplacer("<", "", ">", "", "\r", "", "\n", "").Replace(strings.TrimSpace(name))
+	if name == "" {
+		return "agent"
+	}
+	return name
+}
+
+func sanitizeCoAuthoredByEmail(email string) string {
+	return strings.NewReplacer("<", "", ">", "", "\r", "", "\n", "").Replace(strings.TrimSpace(email))
+}
+
+func siblingHasCoAuthoredByExtra(ctx context.Context, worktreePath string) bool {
+	out, err := runGitOutputContext(ctx, "-C", worktreePath, "rev-parse", "--git-common-dir")
+	if err != nil {
+		return false
+	}
+	commonDir := strings.TrimSpace(string(out))
+	if !filepath.IsAbs(commonDir) {
+		commonDir = filepath.Join(worktreePath, commonDir)
+	}
+	matches, err := filepath.Glob(filepath.Join(commonDir, "worktrees", "*", coAuthoredByExtraFile))
+	return err == nil && len(matches) > 0
+}
+
+func installCoAuthoredByHook(worktreePath string, workspaceTrailer bool) error {
+	return installCoAuthoredByHookContext(context.Background(), worktreePath, workspaceTrailer)
+}
+
+func installCoAuthoredByHookContext(ctx context.Context, worktreePath string, workspaceTrailer bool) error {
 	out, err := runGitOutputContext(ctx, "-C", worktreePath, "rev-parse", "--git-common-dir")
 	if err != nil {
 		return fmt.Errorf("resolve git common dir: %w", err)
@@ -1645,7 +1687,12 @@ func installCoAuthoredByHookContext(ctx context.Context, worktreePath string) er
 	}
 
 	hookPath := filepath.Join(hooksDir, "prepare-commit-msg")
-	if err := os.WriteFile(hookPath, []byte(prepareCommitMsgHook), 0o755); err != nil {
+	workspaceCommand := ""
+	if workspaceTrailer {
+		workspaceCommand = `append_trailer "Co-authored-by: multica-agent <github@multica.ai>"`
+	}
+	hook := fmt.Sprintf(prepareCommitMsgHook, workspaceCommand)
+	if err := os.WriteFile(hookPath, []byte(hook), 0o755); err != nil {
 		return fmt.Errorf("write prepare-commit-msg hook: %w", err)
 	}
 	return nil

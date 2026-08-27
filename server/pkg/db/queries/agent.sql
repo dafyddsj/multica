@@ -144,7 +144,15 @@ UPDATE agent SET
     service_tier = COALESCE(sqlc.narg('service_tier'), service_tier),
     starter_prompts = COALESCE(sqlc.narg('starter_prompts'), starter_prompts),
     composio_toolkit_allowlist = COALESCE(sqlc.narg('composio_toolkit_allowlist')::text[], composio_toolkit_allowlist),
+    co_authored_by_email = COALESCE(sqlc.narg('co_authored_by_email'), co_authored_by_email),
     updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: ClearAgentCoAuthoredByEmail :one
+-- Explicit NULL-clear for co_authored_by_email. COALESCE-based UpdateAgent
+-- cannot set the column back to NULL, so the API routes an empty string here.
+UPDATE agent SET co_authored_by_email = NULL, updated_at = now()
 WHERE id = $1
 RETURNING *;
 
