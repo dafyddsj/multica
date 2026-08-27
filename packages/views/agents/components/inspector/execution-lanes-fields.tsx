@@ -106,7 +106,7 @@ export function ExecutionLanesFields({
         <RuntimePicker
           variant="field"
           showLabel={false}
-          value={value.failoverRuntimeId}
+          value={value.failoverRuntimeId || primaryRuntimeId}
           runtimes={runtimes}
           members={members}
           currentUserId={currentUserId}
