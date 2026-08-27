@@ -77,7 +77,7 @@ import { LabelChip } from "../../labels/label-chip";
 import { IssueAgentActivityIndicator } from "./issue-agent-activity-indicator";
 import { SubIssuesAgentWorkingChip } from "./sub-issues-agent-working-chip";
 import { ProjectPicker } from "../../projects/components/project-picker";
-import { InitiativePicker } from "../../initiatives/components/initiative-picker";
+import { InitiativeIcon } from "../../initiatives/components/initiative-icon";
 import { LocalDirectoryHint } from "../../projects/components/local-directory-hint";
 import { CommentCard } from "./comment-card";
 import { SourceContextBadge } from "./source-context-viewer";
@@ -106,6 +106,7 @@ import { useRecentContextStore } from "@multica/core/chat";
 import { useModalStore } from "@multica/core/modals";
 import { issueListOptions, issueDetailOptions, childIssuesOptions, childIssueProgressOptions, issueAttachmentsOptions } from "@multica/core/issues/queries";
 import { projectDetailOptions } from "@multica/core/projects/queries";
+import { initiativeDetailOptions } from "@multica/core/initiatives/queries";
 import { ProjectIcon } from "../../projects/components/project-icon";
 import { issueLabelsOptions } from "@multica/core/labels";
 import { propertyListOptions } from "@multica/core/properties";
@@ -1807,6 +1808,11 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
     ...projectDetailOptions(wsId, issueProjectId ?? ""),
     enabled: !!issueProjectId,
   });
+  const issueInitiativeId = breadcrumbProject?.initiative_id ?? "";
+  const { data: sidebarInitiative = null } = useQuery({
+    ...initiativeDetailOptions(wsId, issueInitiativeId),
+    enabled: issueInitiativeId.length > 0,
+  });
   const {
     data: childIssues = [],
     isSuccess: childIssuesLoaded,
@@ -2339,20 +2345,17 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
               onUpdate={handleUpdateField}
             />
           </PropRow>
-          {breadcrumbProject?.initiative_id ? (
+          {issueInitiativeId ? (
             <PropRow label={t(($) => $.detail.prop_initiative)} interactive={false}>
-              <div className="min-w-0 flex-1">
-                <InitiativePicker
-                  initiativeId={breadcrumbProject.initiative_id}
-                  onUpdate={() => {}}
-                  disabled
-                />
-              </div>
+              <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                <InitiativeIcon initiative={sidebarInitiative} size="sm" />
+                <span className="truncate">{sidebarInitiative?.title ?? ""}</span>
+              </span>
               <Tooltip>
                 <TooltipTrigger
                   render={
                     <AppLink
-                      href={paths.initiativeDetail(breadcrumbProject.initiative_id)}
+                      href={paths.initiativeDetail(issueInitiativeId)}
                       aria-label={t(($) => $.detail.open_initiative)}
                       className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     >

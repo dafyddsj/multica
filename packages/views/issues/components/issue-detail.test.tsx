@@ -285,10 +285,6 @@ vi.mock("../../projects/components/project-picker", () => ({
   ProjectPicker: () => <span data-testid="project-picker">Project</span>,
 }));
 
-vi.mock("../../initiatives/components/initiative-picker", () => ({
-  InitiativePicker: () => <span data-testid="initiative-picker">Initiative</span>,
-}));
-
 // Mock api
 const mockApiObj = vi.hoisted(() => ({
   getIssue: vi.fn(),
@@ -325,6 +321,8 @@ const mockApiObj = vi.hoisted(() => ({
   listAgents: vi.fn().mockResolvedValue([]),
   getProject: vi.fn(),
   listProjects: vi.fn().mockResolvedValue({ projects: [] }),
+  getInitiative: vi.fn(),
+  listInitiatives: vi.fn().mockResolvedValue({ initiatives: [], total: 0 }),
 }));
 
 vi.mock("@multica/core/api", () => ({
@@ -1077,12 +1075,31 @@ describe("IssueDetail (shared)", () => {
       done_count: 0,
       resource_count: 0,
     });
+    mockApiObj.getInitiative.mockResolvedValue({
+      id: "initiative-9",
+      workspace_id: "ws-1",
+      title: "Growth loop",
+      description: null,
+      icon: null,
+      status: "planned",
+      priority: "none",
+      lead_type: null,
+      lead_id: null,
+      start_date: null,
+      due_date: null,
+      issue_prefix: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      project_count: 1,
+      issue_count: 0,
+      done_count: 0,
+    });
 
     renderIssueDetail();
 
     const link = await screen.findByRole("link", { name: "Open initiative" });
     expect(link).toHaveAttribute("href", "/test/initiatives/initiative-9");
-    expect(screen.getByTestId("initiative-picker")).toBeInTheDocument();
+    expect(await screen.findByText("Growth loop")).toBeInTheDocument();
   });
 
   it("renders properties sidebar with all core rows plus set optional rows", async () => {
