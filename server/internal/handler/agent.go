@@ -111,6 +111,18 @@ type AgentResponse struct {
 	// ServiceTier is the runtime-native Codex execution tier persisted for
 	// this agent (empty = inherit local Codex configuration).
 	ServiceTier string `json:"service_tier"`
+	// LightweightModel is an optional cheaper model on the same runtime.
+	// Empty means the agent has no lightweight lane.
+	LightweightModel         string `json:"lightweight_model"`
+	LightweightThinkingLevel string `json:"lightweight_thinking_level"`
+	// StartLightweight is true when a new task should try the lightweight
+	// model first. Ignored when LightweightModel is empty.
+	StartLightweight bool `json:"start_lightweight"`
+	// FailoverRuntimeID is empty when failover uses the agent's primary runtime.
+	FailoverRuntimeID     string `json:"failover_runtime_id"`
+	FailoverModel         string `json:"failover_model"`
+	FailoverThinkingLevel string `json:"failover_thinking_level"`
+	FailoverServiceTier   string `json:"failover_service_tier"`
 	// CoAuthoredByEmail is an optional extra Co-authored-by address for this
 	// agent's commits. Empty means no extra trailer. The workspace GitHub
 	// toggle still controls the shared Multica trailer.
@@ -230,6 +242,13 @@ func (h *Handler) agentToResponse(a db.Agent) AgentResponse {
 		Model:                    a.Model.String,
 		ThinkingLevel:            a.ThinkingLevel.String,
 		ServiceTier:              a.ServiceTier.String,
+		LightweightModel:         a.LightweightModel.String,
+		LightweightThinkingLevel: a.LightweightThinkingLevel.String,
+		StartLightweight:         a.StartLightweight,
+		FailoverRuntimeID:        uuidToString(a.FailoverRuntimeID),
+		FailoverModel:            a.FailoverModel.String,
+		FailoverThinkingLevel:    a.FailoverThinkingLevel.String,
+		FailoverServiceTier:      a.FailoverServiceTier.String,
 		CoAuthoredByEmail:        a.CoAuthoredByEmail.String,
 		ComposioToolkitAllowlist: composioAllowlist,
 		OwnerID:                  uuidToPtr(a.OwnerID),
@@ -412,6 +431,8 @@ type AgentTaskResponse struct {
 	Attempt               int32                  `json:"attempt"`
 	MaxAttempts           int32                  `json:"max_attempts"`
 	ParentTaskID          *string                `json:"parent_task_id,omitempty"`
+	ExecutionLane         string                 `json:"execution_lane,omitempty"`
+	ModelOverride         string                 `json:"model_override,omitempty"`
 	IsLeaderTask          bool                   `json:"is_leader_task,omitempty"`
 	LeaderRoleResolved    bool                   `json:"leader_role_resolved,omitempty"` // claim-only capability, always true here: IsLeaderTask/SquadID authoritatively answer "is this a leader run", so the daemon must not infer the role from briefing text. Servers predating it make no such promise — before #4951 they sent no is_leader_task at all, after it they sent the flag without guaranteeing a briefing — so a daemon seeing no capability keeps the legacy inference. Never rendered into a prompt; see daemon.taskIsSquadLeader (MUL-5811). Mirror field: internal/daemon/types.go, same JSON name
 	Agent                 *TaskAgentData         `json:"agent,omitempty"`
@@ -826,7 +847,9 @@ func taskToResponse(t db.AgentTaskQueue, workspaceID string) AgentTaskResponse {
 		Kind:           computeTaskKind(t),
 		// Attribution labels + evidence + lineage + raw user ids (pure). Names are
 		// hydrated separately on user-facing surfaces (MUL-4302 §9).
-		Attribution: taskAttributionBase(t),
+		Attribution:   taskAttributionBase(t),
+		ExecutionLane: t.ExecutionLane,
+		ModelOverride: t.ModelOverride.String,
 	}
 }
 
@@ -1166,12 +1189,19 @@ type CreateAgentRequest struct {
 	// and Visibility is ignored; when absent, legacy Visibility is mapped
 	// (private -> private, workspace -> public_to+workspace target). On create
 	// only the caller can be the owner, so targets are accepted unconditionally.
-	PermissionMode     *string                    `json:"permission_mode"`
-	InvocationTargets  []AgentInvocationTargetDTO `json:"invocation_targets"`
-	MaxConcurrentTasks int32                      `json:"max_concurrent_tasks"`
-	Model              string                     `json:"model"`
-	ThinkingLevel      string                     `json:"thinking_level"`
-	ServiceTier        string                     `json:"service_tier"`
+	PermissionMode           *string                    `json:"permission_mode"`
+	InvocationTargets        []AgentInvocationTargetDTO `json:"invocation_targets"`
+	MaxConcurrentTasks       int32                      `json:"max_concurrent_tasks"`
+	Model                    string                     `json:"model"`
+	ThinkingLevel            string                     `json:"thinking_level"`
+	ServiceTier              string                     `json:"service_tier"`
+	LightweightModel         string                     `json:"lightweight_model"`
+	LightweightThinkingLevel string                     `json:"lightweight_thinking_level"`
+	StartLightweight         *bool                      `json:"start_lightweight"`
+	FailoverRuntimeID        string                     `json:"failover_runtime_id"`
+	FailoverModel            string                     `json:"failover_model"`
+	FailoverThinkingLevel    string                     `json:"failover_thinking_level"`
+	FailoverServiceTier      string                     `json:"failover_service_tier"`
 	// ComposioToolkitAllowlist seeds the per-task overlay gate (MUL-3869). On
 	// create only the calling user can be the owner, so we accept the field
 	// unconditionally here; the cross-owner permission gate lives on PUT.
@@ -1406,15 +1436,7 @@ func (h *Handler) CreateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := h.TxStarter.Begin(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to start agent create transaction")
-		return
-	}
-	defer tx.Rollback(r.Context())
-	qtx := h.Queries.WithTx(tx)
-
-	created, err := qtx.CreateAgent(r.Context(), db.CreateAgentParams{
+	createdParams := db.CreateAgentParams{
 		WorkspaceID:              wsUUID,
 		Name:                     req.Name,
 		Description:              req.Description,
@@ -1435,7 +1457,20 @@ func (h *Handler) CreateAgent(w http.ResponseWriter, r *http.Request) {
 		ServiceTier:              pgtype.Text{String: req.ServiceTier, Valid: req.ServiceTier != ""},
 		ConversationStarters:     sp,
 		ComposioToolkitAllowlist: allowlist,
-	})
+	}
+	if !h.applyCreateAgentLanes(w, r, req, runtime, &createdParams) {
+		return
+	}
+
+	tx, err := h.TxStarter.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to start agent create transaction")
+		return
+	}
+	defer tx.Rollback(r.Context())
+	qtx := h.Queries.WithTx(tx)
+
+	created, err := qtx.CreateAgent(r.Context(), createdParams)
 	if err != nil {
 		// Unique constraint on (workspace_id, name) — return a clear conflict error
 		// so the UI can show the right message instead of a generic 500.
@@ -1540,7 +1575,14 @@ type UpdateAgentRequest struct {
 	ThinkingLevel *string `json:"thinking_level"`
 	// ServiceTier follows the same tri-state contract as ThinkingLevel:
 	// omitted preserves, empty clears, and non-empty sets a Codex catalog ID.
-	ServiceTier *string `json:"service_tier"`
+	ServiceTier              *string `json:"service_tier"`
+	LightweightModel         *string `json:"lightweight_model"`
+	LightweightThinkingLevel *string `json:"lightweight_thinking_level"`
+	StartLightweight         *bool   `json:"start_lightweight"`
+	FailoverRuntimeID        *string `json:"failover_runtime_id"`
+	FailoverModel            *string `json:"failover_model"`
+	FailoverThinkingLevel    *string `json:"failover_thinking_level"`
+	FailoverServiceTier      *string `json:"failover_service_tier"`
 	// CoAuthoredByEmail is tri-state: omitted preserves, "" clears, non-empty
 	// stores the canonical email used as an extra commit trailer.
 	CoAuthoredByEmail *string `json:"co_authored_by_email"`
@@ -2036,6 +2078,11 @@ func (h *Handler) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	laneClears, lanesOK := h.applyUpdateAgentLanes(w, r, req, existing, targetRuntimeID, targetProvider, &params)
+	if !lanesOK {
+		return
+	}
+
 	// composio_toolkit_allowlist handling (MUL-3869). Tri-state semantics
 	// mirror thinking_level (see above): omitted → no change, null →
 	// ClearAgentComposioToolkitAllowlist, slice → wholesale replace.
@@ -2137,6 +2184,12 @@ func (h *Handler) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "failed to clear composio_toolkit_allowlist: "+err.Error())
 			return
 		}
+	}
+	updated, err = h.applyLaneClears(r, updated, laneClears)
+	if err != nil {
+		slog.Warn("clear agent execution lanes failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
+		writeError(w, http.StatusInternalServerError, "failed to clear execution lanes: "+err.Error())
+		return
 	}
 
 	// Invocation targets (MUL-3963): replace wholesale when the owner touched
