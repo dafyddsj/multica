@@ -69,6 +69,7 @@ import {
   MemoryListResponseSchema,
   EMPTY_MEMORY_ENTRY,
   EMPTY_MEMORY_LIST_RESPONSE,
+  InitiativeDetailSchema,
 } from "./schemas";
 import { IssueViewSchema, IssueViewListSchema } from "./schemas";
 import {
@@ -2081,5 +2082,34 @@ describe("memory schemas", () => {
       { endpoint: "POST /api/memory" },
     );
     expect(parsed).toEqual(EMPTY_MEMORY_ENTRY);
+  });
+});
+
+describe("InitiativeDetailSchema", () => {
+  const baseInitiative = {
+    id: "init-1",
+    workspace_id: "ws-1",
+    title: "Launch",
+    description: null,
+    icon: null,
+    status: "planned",
+    priority: "none",
+    lead_type: null,
+    lead_id: null,
+    start_date: null,
+    due_date: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  };
+
+  it("defaults missing issue_prefix to null without dropping the initiative", () => {
+    const parsed = parseWithFallback(
+      baseInitiative,
+      InitiativeDetailSchema,
+      null,
+      { endpoint: "GET /api/initiatives/:id" },
+    );
+    expect(parsed).not.toBeNull();
+    expect(parsed?.issue_prefix).toBeNull();
   });
 });

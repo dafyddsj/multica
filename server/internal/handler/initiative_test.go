@@ -228,3 +228,64 @@ func TestInitiativePinOptIn(t *testing.T) {
 		t.Fatal("include=initiative should return the pin")
 	}
 }
+
+func TestInitiativeIssuePrefixOverridesWorkspace(t *testing.T) {
+	createReq := testutil.WithHeaders(
+		testutil.JSONRequest("POST", "/api/initiatives", map[string]any{
+			"title":        "Prefix override",
+			"issue_prefix": "mob",
+		}),
+		"X-User-ID", testUserID, "X-Workspace-ID", testWorkspaceID,
+	)
+	var initiative InitiativeResponse
+	testutil.Call(t, testHandler.CreateInitiative, createReq).Want(http.StatusCreated).JSON(&initiative)
+	if initiative.IssuePrefix == nil || *initiative.IssuePrefix != "MOB" {
+		t.Fatalf("create issue_prefix = %v, want MOB", initiative.IssuePrefix)
+	}
+
+	badReq := testutil.WithHeaders(
+		testutil.JSONRequest("POST", "/api/initiatives", map[string]any{
+			"title":        "bad prefix",
+			"issue_prefix": "not-valid!",
+		}),
+		"X-User-ID", testUserID, "X-Workspace-ID", testWorkspaceID,
+	)
+	testutil.Call(t, testHandler.CreateInitiative, badReq).Want(http.StatusBadRequest)
+
+	projectID := dbfx.Project(t, "prefix project", testutil.Cols{"initiative_id": initiative.ID})
+	issueReq := testutil.WithHeaders(
+		testutil.JSONRequest("POST", "/api/issues", map[string]any{
+			"title":      "Prefixed issue",
+			"project_id": projectID,
+		}),
+		"X-User-ID", testUserID, "X-Workspace-ID", testWorkspaceID,
+	)
+	var created IssueResponse
+	testutil.Call(t, testHandler.CreateIssue, issueReq).Want(http.StatusCreated).JSON(&created)
+	if !strings.HasPrefix(created.Identifier, "MOB-") {
+		t.Fatalf("identifier = %q, want MOB-*", created.Identifier)
+	}
+
+	getReq := testutil.WithHeaders(
+		testutil.WithURLParams(
+			testutil.JSONRequest("GET", "/api/issues/"+created.Identifier, nil),
+			"id", created.Identifier,
+		),
+		"X-User-ID", testUserID, "X-Workspace-ID", testWorkspaceID,
+	)
+	var got IssueResponse
+	testutil.Call(t, testHandler.GetIssue, getReq).Want(http.StatusOK).JSON(&got)
+	if got.ID != created.ID {
+		t.Fatalf("GetIssue(%q) = %s, want %s", created.Identifier, got.ID, created.ID)
+	}
+
+	foreign := "ZZZ-" + strings.TrimPrefix(created.Identifier, "MOB-")
+	foreignReq := testutil.WithHeaders(
+		testutil.WithURLParams(
+			testutil.JSONRequest("GET", "/api/issues/"+foreign, nil),
+			"id", foreign,
+		),
+		"X-User-ID", testUserID, "X-Workspace-ID", testWorkspaceID,
+	)
+	testutil.Call(t, testHandler.GetIssue, foreignReq).Want(http.StatusNotFound)
+}

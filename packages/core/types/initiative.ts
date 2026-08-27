@@ -19,6 +19,7 @@ export interface Initiative {
   lead_id: string | null;
   start_date: string | null;
   due_date: string | null;
+  issue_prefix: string | null;
   created_at: string;
   updated_at: string;
   project_count: number;
@@ -36,6 +37,7 @@ export interface CreateInitiativeRequest {
   lead_id?: string;
   start_date?: string;
   due_date?: string;
+  issue_prefix?: string | null;
 }
 
 export interface UpdateInitiativeRequest {
@@ -48,6 +50,7 @@ export interface UpdateInitiativeRequest {
   lead_id?: string | null;
   start_date?: string | null;
   due_date?: string | null;
+  issue_prefix?: string | null;
 }
 
 export interface ListInitiativesResponse {

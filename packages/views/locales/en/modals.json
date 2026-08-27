@@ -154,6 +154,8 @@
     "no_lead": "No lead",
     "set_start_date": "Set start date...",
     "set_due_date": "Set due date...",
+    "issue_prefix": "Issue prefix",
+    "issue_prefix_placeholder": "Workspace default",
     "more_options_aria": "More options",
     "lead_placeholder": "Assign lead...",
     "members_group": "Members",

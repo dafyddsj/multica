@@ -686,7 +686,7 @@ func (h *Handler) createManualCommentSubIssue(w http.ResponseWriter, r *http.Req
 		}
 		stage = pgtype.Int4{Int32: *input.Stage, Valid: true}
 	}
-	prefix := h.getIssuePrefix(r.Context(), workspaceID)
+	prefixes := h.loadIssuePrefixSet(r.Context(), workspaceID)
 	result, err := h.IssueService.Create(r.Context(), service.IssueCreateParams{
 		WorkspaceID: workspaceID, Title: title, Description: ptrToText(input.Description), Status: status, Priority: priority,
 		AssigneeType: assigneeType, AssigneeID: assigneeID, CreatorType: "member", CreatorID: userID,
@@ -696,7 +696,7 @@ func (h *Handler) createManualCommentSubIssue(w http.ResponseWriter, r *http.Req
 	}, service.IssueCreateOpts{
 		ActorID: util.UUIDToString(userID),
 		BroadcastPayload: func(issue db.Issue, _ []db.Attachment, labels []db.IssueLabel) map[string]any {
-			response := issueToResponse(issue, prefix)
+			response := issueToResponse(issue, prefixes.forProject(issue.ProjectID))
 			labelResponses := labelsToResponse(labels)
 			response.Labels = &labelResponses
 			return map[string]any{"issue": response}
@@ -705,7 +705,7 @@ func (h *Handler) createManualCommentSubIssue(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		return err
 	}
-	response := issueToResponse(result.Issue, prefix)
+	response := issueToResponse(result.Issue, prefixes.forProject(result.Issue.ProjectID))
 	h.fillStatusCategory(r.Context(), workspaceID, &response)
 	labelResponses := labelsToResponse(result.Labels)
 	response.Labels = &labelResponses

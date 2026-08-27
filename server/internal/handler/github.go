@@ -1912,8 +1912,8 @@ func (h *Handler) advanceIssueToDone(ctx context.Context, issue db.Issue, worksp
 	// exists, parent not terminal), so calling it unconditionally is safe.
 	h.notifyParentOfChildDone(ctx, issue, updated)
 
-	prefix := h.getIssuePrefix(ctx, issue.WorkspaceID)
-	resp := issueToResponse(updated, prefix)
+	prefixes := h.loadIssuePrefixSet(ctx, issue.WorkspaceID)
+	resp := issueToResponse(updated, prefixes.forProject(updated.ProjectID))
 	h.fillStatusCategory(ctx, updated.WorkspaceID, &resp)
 	h.publish(protocol.EventIssueUpdated, workspaceID, "system", "", map[string]any{
 		"issue":          resp,
