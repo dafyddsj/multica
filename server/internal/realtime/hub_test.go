@@ -62,7 +62,7 @@ func (s staticPATResolver) ResolveToken(_ context.Context, token string) (string
 func TestAuthenticateTokenRejectsTemporarilyDisabledJWTUser(t *testing.T) {
 	token := makeTestTokenForUser(t, "514492f7-b30f-4147-bd33-c0e8ce5d6d4f", "")
 
-	uid, errMsg := authenticateToken(token, nil, context.Background())
+	uid, errMsg := authenticateToken(token, nil, context.Background(), nil)
 	if uid != "" {
 		t.Fatalf("expected no user ID, got %q", uid)
 	}
@@ -71,10 +71,37 @@ func TestAuthenticateTokenRejectsTemporarilyDisabledJWTUser(t *testing.T) {
 	}
 }
 
+func TestAuthenticateTokenResolvesClerkSessionWhenHMACFails(t *testing.T) {
+	uid, errMsg := authenticateToken("not-an-hmac-jwt", nil, context.Background(), func(_ context.Context, token string) (string, error) {
+		if token != "not-an-hmac-jwt" {
+			t.Fatalf("token: %q", token)
+		}
+		return "clerk-user-id", nil
+	})
+	if errMsg != "" {
+		t.Fatalf("errMsg: %q", errMsg)
+	}
+	if uid != "clerk-user-id" {
+		t.Fatalf("uid: %q", uid)
+	}
+}
+
+func TestAuthenticateTokenRejectsClerkSessionResolverFailure(t *testing.T) {
+	uid, errMsg := authenticateToken("not-an-hmac-jwt", nil, context.Background(), func(context.Context, string) (string, error) {
+		return "", errors.New("invalid session")
+	})
+	if uid != "" {
+		t.Fatalf("uid: %q", uid)
+	}
+	if !strings.Contains(errMsg, "invalid token") {
+		t.Fatalf("errMsg: %q", errMsg)
+	}
+}
+
 func TestAuthenticateTokenRejectsTemporarilyDisabledPATUser(t *testing.T) {
 	uid, errMsg := authenticateToken("mul_disabled", staticPATResolver{
 		"mul_disabled": "1d542296-17c6-484a-9914-dcee589be116",
-	}, context.Background())
+	}, context.Background(), nil)
 	if uid != "" {
 		t.Fatalf("expected no user ID, got %q", uid)
 	}
@@ -91,7 +118,7 @@ func newTestHub(t *testing.T) (*Hub, *httptest.Server) {
 	mc := &mockMembershipChecker{}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		HandleWebSocket(hub, mc, nil, nil, w, r)
+		HandleWebSocket(hub, mc, nil, nil, nil, w, r)
 	})
 	server := httptest.NewServer(mux)
 	return hub, server

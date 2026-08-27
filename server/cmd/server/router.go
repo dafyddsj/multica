@@ -1286,7 +1286,17 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		return util.UUIDToString(ws.ID), nil
 	})
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-		realtime.HandleWebSocket(hub, mc, pr, slugResolver, w, r)
+		var resolveSession realtime.SessionResolver
+		if clerkClient != nil {
+			resolveSession = func(ctx context.Context, token string) (string, error) {
+				identity, err := clerkClient.Resolve(ctx, token, queries)
+				if err != nil {
+					return "", err
+				}
+				return identity.UserID, nil
+			}
+		}
+		realtime.HandleWebSocket(hub, mc, pr, slugResolver, resolveSession, w, r)
 	})
 
 	// Local file serving (when using local storage). Served through the
