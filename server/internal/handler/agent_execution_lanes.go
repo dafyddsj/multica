@@ -1,20 +1,14 @@
 package handler
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/executionlane"
-	"github.com/multica-ai/multica/server/internal/featureflags"
 	"github.com/multica-ai/multica/server/pkg/agent"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
-
-func (h *Handler) agentExecutionLanesEnabled(ctx context.Context) bool {
-	return featureflags.AgentExecutionLanesEnabled(ctx, h.FeatureFlags)
-}
 
 func agentLanesFromDB(a db.Agent) executionlane.AgentLanes {
 	return executionlane.AgentLanes{
@@ -41,10 +35,7 @@ func taskRuntimeMatchesAgent(task db.AgentTaskQueue, a db.Agent) bool {
 		a.FailoverRuntimeID == task.RuntimeID
 }
 
-func applyClaimLaneSelection(a db.Agent, task db.AgentTaskQueue, enabled bool) executionlane.Selection {
-	if !enabled {
-		return executionlane.ResolveClaim(agentLanesFromDB(a), executionlane.LanePrimary, "")
-	}
+func applyClaimLaneSelection(a db.Agent, task db.AgentTaskQueue) executionlane.Selection {
 	return executionlane.ResolveClaim(
 		agentLanesFromDB(a),
 		executionlane.ParseLane(task.ExecutionLane),
@@ -77,9 +68,6 @@ func (h *Handler) applyCreateAgentLanes(
 	runtime db.AgentRuntime,
 	params *db.CreateAgentParams,
 ) bool {
-	if !h.agentExecutionLanesEnabled(r.Context()) {
-		return true
-	}
 	if err := h.validateLaneThinking(r, runtime, req.LightweightThinkingLevel); err != nil {
 		writeLaneError(w, err)
 		return false
@@ -127,9 +115,6 @@ func (h *Handler) applyUpdateAgentLanes(
 	params *db.UpdateAgentParams,
 ) (laneClearFlags, bool) {
 	var clears laneClearFlags
-	if !h.agentExecutionLanesEnabled(r.Context()) {
-		return clears, true
-	}
 
 	if req.RuntimeID != nil {
 		if req.LightweightModel == nil {

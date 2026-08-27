@@ -7,19 +7,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/events"
 	"github.com/multica-ai/multica/server/internal/executionlane"
-	"github.com/multica-ai/multica/server/internal/featureflags"
 	"github.com/multica-ai/multica/server/internal/testutil"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
-	"github.com/multica-ai/multica/server/pkg/featureflag"
 	"github.com/multica-ai/multica/server/pkg/taskfailure"
 )
-
-func executionLanesTestFlags(enabled bool) *featureflag.Service {
-	provider := featureflag.NewStaticProvider()
-	provider.Set(featureflags.AgentExecutionLanes, featureflag.Rule{Default: enabled})
-	return featureflag.NewService(provider)
-}
 
 func TestFailTaskHopsLightweightToPrimary(t *testing.T) {
 	pool := newResolveOriginatorPool(t)
@@ -55,10 +47,9 @@ func TestFailTaskHopsLightweightToPrimary(t *testing.T) {
 	})
 
 	svc := &TaskService{
-		Queries:      db.New(pool),
-		TxStarter:    pool,
-		Bus:          events.New(),
-		FeatureFlags: executionLanesTestFlags(true),
+		Queries:   db.New(pool),
+		TxStarter: pool,
+		Bus:       events.New(),
 	}
 	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
 		"model haiku not found", "", "", "",
@@ -138,10 +129,9 @@ func TestFailTaskHopsPrimaryToFailover(t *testing.T) {
 	})
 
 	svc := &TaskService{
-		Queries:      db.New(pool),
-		TxStarter:    pool,
-		Bus:          events.New(),
-		FeatureFlags: executionLanesTestFlags(true),
+		Queries:   db.New(pool),
+		TxStarter: pool,
+		Bus:       events.New(),
 	}
 	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
 		"rate limit exceeded", "", "", "",
@@ -159,56 +149,6 @@ func TestFailTaskHopsPrimaryToFailover(t *testing.T) {
 	}
 	if childLane != string(executionlane.LaneFailover) || childModel != "sonnet" {
 		t.Fatalf("want failover/sonnet, got %s/%s", childLane, childModel)
-	}
-}
-
-func TestFailTaskDoesNotHopWhenFlagOff(t *testing.T) {
-	pool := newResolveOriginatorPool(t)
-	ctx := context.Background()
-	_, _, agentID, _ := seedAttributionFixture(t, pool)
-
-	var runtimeID string
-	if err := pool.QueryRow(ctx, `SELECT runtime_id::text FROM agent WHERE id = $1`, agentID).Scan(&runtimeID); err != nil {
-		t.Fatalf("load agent runtime: %v", err)
-	}
-	if _, err := pool.Exec(ctx, `
-		UPDATE agent SET failover_model = 'sonnet' WHERE id = $1`, agentID); err != nil {
-		t.Fatalf("stamp failover: %v", err)
-	}
-
-	var taskID string
-	if err := pool.QueryRow(ctx, `
-		INSERT INTO agent_task_queue
-			(agent_id, runtime_id, status, priority, attempt, max_attempts, started_at)
-		VALUES ($1, $2, 'running', 0, 1, 1, now())
-		RETURNING id`, agentID, runtimeID).Scan(&taskID); err != nil {
-		t.Fatalf("seed running task: %v", err)
-	}
-	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(),
-			`DELETE FROM agent_task_queue WHERE id = $1 OR retry_of_task_id = $1`, taskID)
-	})
-
-	svc := &TaskService{
-		Queries:      db.New(pool),
-		TxStarter:    pool,
-		Bus:          events.New(),
-		FeatureFlags: executionLanesTestFlags(false),
-	}
-	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
-		"rate limit exceeded", "", "", "",
-		string(taskfailure.ReasonAgentProviderCapacityOrRateLimit),
-		false, "", ""); err != nil {
-		t.Fatalf("FailTask: %v", err)
-	}
-
-	var n int
-	if err := pool.QueryRow(ctx, `
-		SELECT count(*) FROM agent_task_queue WHERE retry_of_task_id = $1`, taskID).Scan(&n); err != nil {
-		t.Fatalf("count children: %v", err)
-	}
-	if n != 0 {
-		t.Fatalf("flag off must not hop, got %d children", n)
 	}
 }
 
@@ -242,10 +182,9 @@ func TestFailTaskDoesNotHopAutopilot(t *testing.T) {
 	})
 
 	svc := &TaskService{
-		Queries:      db.New(pool),
-		TxStarter:    pool,
-		Bus:          events.New(),
-		FeatureFlags: executionLanesTestFlags(true),
+		Queries:   db.New(pool),
+		TxStarter: pool,
+		Bus:       events.New(),
 	}
 	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
 		"rate limit exceeded", "", "", "",
@@ -292,10 +231,9 @@ func TestFailTaskDoesNotHopUnknownReason(t *testing.T) {
 	})
 
 	svc := &TaskService{
-		Queries:      db.New(pool),
-		TxStarter:    pool,
-		Bus:          events.New(),
-		FeatureFlags: executionLanesTestFlags(true),
+		Queries:   db.New(pool),
+		TxStarter: pool,
+		Bus:       events.New(),
 	}
 	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
 		"worker failed diagnostic details", "", "", "",
@@ -313,8 +251,8 @@ func TestFailTaskDoesNotHopUnknownReason(t *testing.T) {
 	}
 }
 
-func TestInitialLaneStampUsesLightweightWhenEnabled(t *testing.T) {
-	svc := &TaskService{FeatureFlags: executionLanesTestFlags(true)}
+func TestInitialLaneStampUsesLightweight(t *testing.T) {
+	svc := &TaskService{}
 	stamp := svc.initialLaneStamp(context.Background(), db.Agent{
 		Model:            pgtype.Text{String: "opus", Valid: true},
 		LightweightModel: pgtype.Text{String: "haiku", Valid: true},
@@ -327,14 +265,13 @@ func TestInitialLaneStampUsesLightweightWhenEnabled(t *testing.T) {
 		t.Fatalf("stamp = %+v", stamp)
 	}
 
-	off := &TaskService{FeatureFlags: executionLanesTestFlags(false)}
-	disabled := off.initialLaneStamp(context.Background(), db.Agent{
+	primary := svc.initialLaneStamp(context.Background(), db.Agent{
 		Model:            pgtype.Text{String: "opus", Valid: true},
 		LightweightModel: pgtype.Text{String: "haiku", Valid: true},
-		StartLightweight: true,
+		StartLightweight: false,
 	})
-	if disabled.Lane.String != string(executionlane.LanePrimary) || disabled.ModelOverride.Valid {
-		t.Fatalf("disabled stamp = %+v", disabled)
+	if primary.Lane.String != string(executionlane.LanePrimary) || primary.ModelOverride.Valid {
+		t.Fatalf("start off stamp = %+v", primary)
 	}
 }
 
@@ -371,10 +308,9 @@ func TestFailTaskHopsLightweightClearsEmptyPrimaryOverride(t *testing.T) {
 	})
 
 	svc := &TaskService{
-		Queries:      db.New(pool),
-		TxStarter:    pool,
-		Bus:          events.New(),
-		FeatureFlags: executionLanesTestFlags(true),
+		Queries:   db.New(pool),
+		TxStarter: pool,
+		Bus:       events.New(),
 	}
 	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
 		"model haiku not found", "", "", "",
@@ -438,10 +374,9 @@ func TestClaimTaskForRuntimeAcceptsCrossRuntimeFailoverHop(t *testing.T) {
 	})
 
 	svc := &TaskService{
-		Queries:      db.New(pool),
-		TxStarter:    pool,
-		Bus:          events.New(),
-		FeatureFlags: executionLanesTestFlags(true),
+		Queries:   db.New(pool),
+		TxStarter: pool,
+		Bus:       events.New(),
 	}
 	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
 		"rate limit exceeded", "", "", "",
@@ -517,10 +452,9 @@ func TestFailTaskDoesNotHopFromFailoverLane(t *testing.T) {
 	})
 
 	svc := &TaskService{
-		Queries:      db.New(pool),
-		TxStarter:    pool,
-		Bus:          events.New(),
-		FeatureFlags: executionLanesTestFlags(true),
+		Queries:   db.New(pool),
+		TxStarter: pool,
+		Bus:       events.New(),
 	}
 	if _, err := svc.FailTask(ctx, util.MustParseUUID(taskID),
 		"rate limit exceeded", "", "", "",
