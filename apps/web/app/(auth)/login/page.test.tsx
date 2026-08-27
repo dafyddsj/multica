@@ -163,6 +163,7 @@ describe("LoginPage", () => {
     expect(
       screen.getByRole("button", { name: "Continue" })
     ).toBeInTheDocument();
+    expect(screen.queryByTestId("clerk-sign-in")).not.toBeInTheDocument();
   });
 
   it("does not call sendCode when email is empty", async () => {

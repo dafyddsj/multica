@@ -308,4 +308,12 @@ describe("proxy root and locale handling", () => {
       res.headers.get(`x-middleware-request-${MULTICA_LOCALE_HEADER}`),
     ).toBe("zh-Hans");
   });
+
+  it("leaves /login unwrapped when Clerk env is absent", () => {
+    const res = proxy(makeRequest("/login"));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+  });
 });
