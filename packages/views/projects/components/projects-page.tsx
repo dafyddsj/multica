@@ -26,10 +26,11 @@ import {
   useDeleteProject,
   useProjectViewStore,
   type ProjectColumnKey,
-  type ProjectListFilters,
+  type ProjectGroupBy,
   type ProjectSortField,
   type ProjectViewMode,
 } from "@multica/core/projects";
+import { initiativeListOptions } from "@multica/core/initiatives/queries";
 import {
   pinListOptions,
   useCreatePin,
@@ -73,6 +74,7 @@ import {
 } from "@multica/ui/components/ui/dropdown-menu";
 import {
   ListGrid,
+  ListGridBody,
   ListGridCell,
   ListGridHeader,
   ListGridHeaderCell,
@@ -92,6 +94,7 @@ import {
   TooltipTrigger,
 } from "@multica/ui/components/ui/tooltip";
 import type {
+  Initiative,
   MemberWithUser,
   Project,
   ProjectPriority,
@@ -104,6 +107,7 @@ import {
   CollectionPageState,
 } from "../../layout/collection-page";
 import { ProjectIcon } from "./project-icon";
+import { InitiativeIcon } from "../../initiatives/components/initiative-icon";
 import { useT } from "../../i18n";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 import { useFormatRelativeDate } from "./labels";
@@ -111,31 +115,16 @@ import { ProjectStatusBadge, ProjectPriorityBadge } from "./project-badge";
 import { ProjectLeadPicker } from "./project-lead-picker";
 import { PAGE_GUTTER, PAGE_TOOLBAR } from "../../layout/page-header";
 import { cn } from "@multica/ui/lib/utils";
-
-// Sort order maps for the enum columns (header sort needs a total order).
-const PRIORITY_ORDER: Record<ProjectPriority, number> = {
-  urgent: 4,
-  high: 3,
-  medium: 2,
-  low: 1,
-  none: 0,
-};
-const STATUS_ORDER: Record<ProjectStatus, number> = {
-  planned: 0,
-  in_progress: 1,
-  paused: 2,
-  completed: 3,
-  cancelled: 4,
-};
-
-const progressOf = (p: Project) =>
-  p.issue_count > 0 ? p.done_count / p.issue_count : -1;
-
-// Composite "type:id" lead value so the string[] filter holds member/agent
-// refs alike.
-function leadFilterValue(p: Project): string | null {
-  return p.lead_type && p.lead_id ? `${p.lead_type}:${p.lead_id}` : null;
-}
+import {
+  NO_INITIATIVE_FILTER,
+  compareProjects,
+  countActiveFilters,
+  groupProjectsByInitiative,
+  leadFilterValue,
+  matchesProjectSearch,
+  projectPassesFilters,
+  sortProjectGroups,
+} from "./project-list";
 
 // ---------------------------------------------------------------------------
 // Table (compact) view — ListGrid. Name + status are the core columns;
@@ -362,8 +351,31 @@ function CheckboxCell({
   );
 }
 
+function ProjectInitiativeMark({
+  initiative,
+  emptyLabel,
+}: {
+  initiative: Pick<Initiative, "title" | "icon"> | null;
+  emptyLabel: string;
+}) {
+  if (!initiative) {
+    return (
+      <span className="min-w-0 truncate text-caption text-muted-foreground">
+        {emptyLabel}
+      </span>
+    );
+  }
+  return (
+    <span className="flex min-w-0 items-center gap-1 text-caption text-muted-foreground">
+      <InitiativeIcon initiative={initiative} size="sm" />
+      <span className="truncate">{initiative.title}</span>
+    </span>
+  );
+}
+
 function ProjectTableRow({
   project,
+  initiative,
   pinned,
   canDelete,
   isColVisible,
@@ -373,6 +385,7 @@ function ProjectTableRow({
   rowLink,
 }: {
   project: Project;
+  initiative: Pick<Initiative, "title" | "icon"> | null;
   pinned: boolean;
   canDelete: boolean;
   isColVisible: (key: ProjectColumnKey) => boolean;
@@ -399,6 +412,12 @@ function ProjectTableRow({
         <span className="min-w-0 truncate text-body font-medium">
           {project.title}
         </span>
+        {initiative ? (
+          <span className="flex min-w-0 max-w-36 items-center gap-1 text-caption text-muted-foreground">
+            <InitiativeIcon initiative={initiative} size="sm" />
+            <span className="truncate">{initiative.title}</span>
+          </span>
+        ) : null}
       </ListGridCell>
 
       {/* status — core column, always visible */}
@@ -578,10 +597,12 @@ function ProjectTableHeader({
 
 function ProjectCard({
   project,
+  initiative,
   pinned,
   canDelete,
 }: {
   project: Project;
+  initiative: Pick<Initiative, "title" | "icon"> | null;
   pinned: boolean;
   canDelete: boolean;
 }) {
@@ -612,6 +633,14 @@ function ProjectCard({
           <ProjectRowActions project={project} pinned={pinned} canDelete={canDelete} />
           <ProjectStatusBadge project={project} handleUpdate={handleUpdate} triggerClassName="shrink-0" />
         </div>
+        {initiative ? (
+          <div className="pt-1.5">
+            <ProjectInitiativeMark
+              initiative={initiative}
+              emptyLabel=""
+            />
+          </div>
+        ) : null}
 
         {project.issue_count > 0 ? (
           <div className="flex items-center justify-end gap-1.5 pt-2">
@@ -684,15 +713,15 @@ const STATUS_VALUES: ProjectStatus[] = [
 ];
 const PRIORITY_VALUES: ProjectPriority[] = ["urgent", "high", "medium", "low", "none"];
 const COLUMN_KEYS: ProjectColumnKey[] = ["priority", "progress", "lead", "issues", "created"];
-const SORT_FIELDS: ProjectSortField[] = ["name", "priority", "status", "progress", "created"];
-
-function countActiveFilters(f: ProjectListFilters): number {
-  let c = 0;
-  if (f.statuses.length) c++;
-  if (f.priorities.length) c++;
-  if (f.leads.length) c++;
-  return c;
-}
+const SORT_FIELDS: ProjectSortField[] = [
+  "name",
+  "priority",
+  "status",
+  "progress",
+  "created",
+  "initiative",
+];
+const GROUP_BY_VALUES: ProjectGroupBy[] = ["none", "initiative"];
 
 // Batch toolbar — page-anchored (not viewport). Pin all selected (any
 // member) + Delete (workspace admin). Mirrors the other lists.
@@ -808,16 +837,19 @@ export function ProjectsPage() {
   const sortDirection = useProjectViewStore((s) => s.sortDirection);
   const hiddenColumns = useProjectViewStore((s) => s.hiddenColumns);
   const filters = useProjectViewStore((s) => s.filters);
+  const groupBy = useProjectViewStore((s) => s.groupBy);
   const toggleSort = useProjectViewStore((s) => s.toggleSort);
   const setSortField = useProjectViewStore((s) => s.setSortField);
   const setSortDirection = useProjectViewStore((s) => s.setSortDirection);
   const toggleColumn = useProjectViewStore((s) => s.toggleColumn);
   const toggleFilter = useProjectViewStore((s) => s.toggleFilter);
   const clearFilters = useProjectViewStore((s) => s.clearFilters);
+  const setGroupBy = useProjectViewStore((s) => s.setGroupBy);
   const isCompact = viewMode === "compact";
   const isColVisible = (key: ProjectColumnKey) => !hiddenColumns.includes(key);
 
   const { data: projects = [], isLoading } = useQuery(projectListOptions(wsId));
+  const { data: initiatives = [] } = useQuery(initiativeListOptions(wsId));
   const { data: members = [] } = useQuery(memberListOptions(wsId));
   const { data: pins = [] } = useQuery({
     ...pinListOptions(wsId, currentUser?.id ?? ""),
@@ -864,45 +896,48 @@ export function ProjectsPage() {
     return m;
   }, [projects]);
 
+  const initiativeById = useMemo(() => {
+    const m = new Map<string, Initiative>();
+    for (const initiative of initiatives) m.set(initiative.id, initiative);
+    return m;
+  }, [initiatives]);
+
+  const initiativeTitle = useCallback(
+    (id: string | null) => {
+      if (!id) return t(($) => $.toolbar.no_initiative);
+      return initiativeById.get(id)?.title ?? t(($) => $.toolbar.no_initiative);
+    },
+    [initiativeById, t],
+  );
+
+  const initiativeOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    let unassigned = 0;
+    for (const p of projects) {
+      if (!p.initiative_id) {
+        unassigned += 1;
+        continue;
+      }
+      counts.set(p.initiative_id, (counts.get(p.initiative_id) ?? 0) + 1);
+    }
+    return { counts, unassigned };
+  }, [projects]);
+
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const filtered = projects.filter((p) => {
-      if (q && !p.title.toLowerCase().includes(q) && !matchesPinyin(p.title, q)) {
-        return false;
-      }
-      if (filters.statuses.length && !filters.statuses.includes(p.status)) return false;
-      if (filters.priorities.length && !filters.priorities.includes(p.priority)) {
-        return false;
-      }
-      if (filters.leads.length) {
-        const v = leadFilterValue(p);
-        if (!v || !filters.leads.includes(v)) return false;
-      }
-      return true;
-    });
-    const dir = sortDirection === "asc" ? 1 : -1;
-    const sorted = [...filtered];
-    sorted.sort((a, b) => {
-      if (sortField === "name") return a.title.localeCompare(b.title) * dir;
-      if (sortField === "priority") {
-        return (
-          (PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]) * dir ||
-          a.title.localeCompare(b.title)
-        );
-      }
-      if (sortField === "status") {
-        return (
-          (STATUS_ORDER[a.status] - STATUS_ORDER[b.status]) * dir ||
-          a.title.localeCompare(b.title)
-        );
-      }
-      if (sortField === "progress") {
-        return (progressOf(a) - progressOf(b)) * dir || a.title.localeCompare(b.title);
-      }
-      return (Date.parse(a.created_at) - Date.parse(b.created_at)) * dir;
-    });
-    return sorted;
-  }, [projects, search, filters, sortField, sortDirection]);
+    const filtered = projects.filter(
+      (p) => matchesProjectSearch(p, search, matchesPinyin) && projectPassesFilters(p, filters),
+    );
+    return [...filtered].sort((a, b) =>
+      compareProjects(a, b, sortField, sortDirection, initiativeTitle),
+    );
+  }, [projects, search, filters, sortField, sortDirection, initiativeTitle]);
+
+  const visibleGroups = useMemo(() => {
+    if (groupBy !== "initiative") {
+      return [{ key: "all", initiativeId: null as string | null, projects: visible }];
+    }
+    return sortProjectGroups(groupProjectsByInitiative(visible), initiativeTitle);
+  }, [groupBy, visible, initiativeTitle]);
 
   const selectedProjects = visible.filter((p) => selectedIds.has(p.id));
   const allSelected = visible.length > 0 && selectedProjects.length === visible.length;
@@ -919,7 +954,11 @@ export function ProjectsPage() {
           ? t(($) => $.table.status)
           : f === "progress"
             ? t(($) => $.table.progress)
-            : t(($) => $.table.created);
+            : f === "initiative"
+              ? t(($) => $.table.initiative)
+              : t(($) => $.table.created);
+  const groupLabel = (value: ProjectGroupBy) =>
+    value === "initiative" ? t(($) => $.toolbar.group_initiative) : t(($) => $.toolbar.group_none);
   const columnLabel = (k: ProjectColumnKey) =>
     k === "priority"
       ? t(($) => $.table.priority)
@@ -1097,6 +1136,40 @@ export function ProjectsPage() {
                       ))}
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <span className="flex-1">{t(($) => $.toolbar.section_initiative)}</span>
+                      {filters.initiatives.length > 0 && (
+                        <span className="text-caption font-medium text-primary">{filters.initiatives.length}</span>
+                      )}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="max-h-72 w-auto min-w-48 overflow-y-auto">
+                      {initiatives.map((initiative) => (
+                        <DropdownMenuCheckboxItem
+                          key={initiative.id}
+                          checked={filters.initiatives.includes(initiative.id)}
+                          onCheckedChange={() => toggleFilter("initiatives", initiative.id)}
+                          className={FILTER_ITEM_CLASS}
+                        >
+                          <HoverCheck checked={filters.initiatives.includes(initiative.id)} />
+                          <InitiativeIcon initiative={initiative} size="sm" />
+                          <span className="min-w-0 truncate">{initiative.title}</span>
+                          {countBadge(initiativeOptions.counts.get(initiative.id) ?? 0)}
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                      {initiativeOptions.unassigned > 0 && (
+                        <DropdownMenuCheckboxItem
+                          checked={filters.initiatives.includes(NO_INITIATIVE_FILTER)}
+                          onCheckedChange={() => toggleFilter("initiatives", NO_INITIATIVE_FILTER)}
+                          className={FILTER_ITEM_CLASS}
+                        >
+                          <HoverCheck checked={filters.initiatives.includes(NO_INITIATIVE_FILTER)} />
+                          <span className="min-w-0 truncate">{t(($) => $.toolbar.no_initiative)}</span>
+                          {countBadge(initiativeOptions.unassigned)}
+                        </DropdownMenuCheckboxItem>
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -1155,6 +1228,31 @@ export function ProjectsPage() {
                           {sortDirection === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />}
                         </Button>
                       </div>
+                    </div>
+                    <div className="border-b px-3 py-2.5">
+                      <span className="text-caption font-medium text-muted-foreground">{t(($) => $.toolbar.group_by)}</span>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button variant="outline" size="sm" className="mt-2 w-full justify-between text-caption">
+                              {groupLabel(groupBy)}
+                              <ChevronDown className="size-3 text-muted-foreground" />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="start" className="w-auto">
+                          <DropdownMenuRadioGroup
+                            value={groupBy}
+                            onValueChange={(v) => setGroupBy(v as ProjectGroupBy)}
+                          >
+                            {GROUP_BY_VALUES.map((value) => (
+                              <DropdownMenuRadioItem key={value} value={value}>
+                                {groupLabel(value)}
+                              </DropdownMenuRadioItem>
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     {isCompact && (
                       <div className="px-3 py-2.5">
@@ -1250,18 +1348,44 @@ export function ProjectsPage() {
                   someSelected={someSelected}
                   onToggleAll={handleToggleAll}
                 />
-                {visible.map((project) => (
-                  <ProjectTableRow
-                    key={project.id}
-                    project={project}
-                    pinned={pinnedProjectIds.has(project.id)}
-                    canDelete={isWorkspaceAdmin}
-                    isColVisible={isColVisible}
-                    selected={selectedIds.has(project.id)}
-                    onToggleSelect={() => toggleSelected(project.id)}
-                    rowHref={wsPaths.projectDetail(project.id)}
-                    rowLink={rowLink}
-                  />
+                {visibleGroups.map((group) => (
+                  <ListGridBody key={group.key}>
+                    {groupBy === "initiative" ? (
+                      <div
+                        role="row"
+                        className="col-span-full flex h-9 items-center gap-2 px-3 text-caption font-medium text-muted-foreground"
+                      >
+                        <InitiativeIcon
+                          initiative={
+                            group.initiativeId
+                              ? initiativeById.get(group.initiativeId) ?? null
+                              : null
+                          }
+                          size="sm"
+                        />
+                        <span className="truncate">{initiativeTitle(group.initiativeId)}</span>
+                        <span className="tabular-nums">{group.projects.length}</span>
+                      </div>
+                    ) : null}
+                    {group.projects.map((project) => (
+                      <ProjectTableRow
+                        key={project.id}
+                        project={project}
+                        initiative={
+                          project.initiative_id
+                            ? initiativeById.get(project.initiative_id) ?? null
+                            : null
+                        }
+                        pinned={pinnedProjectIds.has(project.id)}
+                        canDelete={isWorkspaceAdmin}
+                        isColVisible={isColVisible}
+                        selected={selectedIds.has(project.id)}
+                        onToggleSelect={() => toggleSelected(project.id)}
+                        rowHref={wsPaths.projectDetail(project.id)}
+                        rowLink={rowLink}
+                      />
+                    ))}
+                  </ListGridBody>
                 ))}
               </ListGrid>
             </div>
@@ -1271,13 +1395,36 @@ export function ProjectsPage() {
                 className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4"
                 style={{ paddingBottom: LIST_GRID_BOTTOM_CLEARANCE }}
               >
-                {visible.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    pinned={pinnedProjectIds.has(project.id)}
-                    canDelete={isWorkspaceAdmin}
-                  />
+                {visibleGroups.map((group) => (
+                  <div key={group.key} className="col-span-full contents">
+                    {groupBy === "initiative" ? (
+                      <div className="col-span-full flex h-9 items-center gap-2 text-caption font-medium text-muted-foreground">
+                        <InitiativeIcon
+                          initiative={
+                            group.initiativeId
+                              ? initiativeById.get(group.initiativeId) ?? null
+                              : null
+                          }
+                          size="sm"
+                        />
+                        <span className="truncate">{initiativeTitle(group.initiativeId)}</span>
+                        <span className="tabular-nums">{group.projects.length}</span>
+                      </div>
+                    ) : null}
+                    {group.projects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        initiative={
+                          project.initiative_id
+                            ? initiativeById.get(project.initiative_id) ?? null
+                            : null
+                        }
+                        pinned={pinnedProjectIds.has(project.id)}
+                        canDelete={isWorkspaceAdmin}
+                      />
+                    ))}
+                  </div>
                 ))}
               </div>
             </div>

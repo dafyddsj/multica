@@ -26,7 +26,8 @@
     "progress": "Progress",
     "lead": "Lead",
     "created": "Created",
-    "issues": "Issues"
+    "issues": "Issues",
+    "initiative": "Initiative"
   },
   "status": {
     "planned": "Planned",
@@ -163,6 +164,11 @@
     "section_status": "Status",
     "section_priority": "Priority",
     "section_lead": "Lead",
+    "section_initiative": "Initiative",
+    "no_initiative": "No initiative",
+    "group_by": "Group by",
+    "group_none": "No grouping",
+    "group_initiative": "Initiative",
     "display": "Display",
     "sort_by": "Sort by",
     "direction_asc": "Ascending",
