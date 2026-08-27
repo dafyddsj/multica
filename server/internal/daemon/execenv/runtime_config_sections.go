@@ -272,7 +272,15 @@ func writeAvailableCommands(b *strings.Builder, ctx TaskContextForEnv) {
 	b.WriteString("- `multica issue metadata list <issue-id> [--output json]` — list KV metadata.\n")
 	b.WriteString("- `multica issue metadata set <issue-id> --key <k> --value <v> [--type string|number|bool]` — pin or overwrite a key.\n")
 	b.WriteString("- `multica issue metadata delete <issue-id> --key <k>` — remove a key.\n")
-	b.WriteString("- `multica repo checkout <url> [--ref <branch-or-sha>]` — repository checkout on a dedicated branch.\n\n")
+	b.WriteString("- `multica repo checkout <url> [--ref <branch-or-sha>]` — repository checkout on a dedicated branch.\n")
+	if ctx.MemoryEnabled {
+		b.WriteString("- `multica memory list --scope <scope> --owner-id <id> --output json` — list notes on a bank.\n")
+		b.WriteString("- `multica memory add --scope <scope> --owner-id <id> --body \"...\" [--kind fact|preference|procedure|observation]` — pin a note.\n")
+		b.WriteString("- `multica memory search --scope <scope> --owner-id <id> --q \"...\" --output json` — search a bank.\n")
+		b.WriteString("- `multica memory recall [--issue-id ...] [--q ...] --output json` — recall across the current ancestry.\n")
+		b.WriteString("- `multica memory forget <id>` — forget a note.\n")
+	}
+	b.WriteString("\n")
 	// Squad maintenance is squad-leader surface: an agent that leads no squad
 	// has no squad to change roles in, so this shipped to every run as dead
 	// weight (MUL-5442). IsSquadLeader is a PER-TASK role (the daemon derives

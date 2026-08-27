@@ -6732,6 +6732,7 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		IssueStatuses:                    convertIssueStatusesForEnv(task.IssueStatuses),
 		IssueStatusesOmitted:             task.IssueStatusesOmitted,
 		ConnectedApps:                    task.ConnectedApps,
+		MemoryEnabled:                    task.MemoryEnabled,
 	}
 
 	// Mark candidate env roots as active before any env work so the GC loop

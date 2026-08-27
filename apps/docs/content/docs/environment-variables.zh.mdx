@@ -295,6 +295,15 @@ multica config show
 | `METRICS_ADDR` | 空 | Prometheus metrics 监听地址；空表示不启动 |
 | `REALTIME_METRICS_TOKEN` | 空 | 保护 `/health/realtime` 的 bearer token |
 
+## 功能开关
+
+| 变量 | 默认值 | 说明 |
+|---|---|---|
+| `MULTICA_FEATURE_FLAGS_FILE` | 空 | 部署级功能开关的 YAML 规则文件 |
+| `FF_<FLAG_KEY>` | 未设置 | 单个开关覆盖，优先级高于 YAML。`true` / `on` / `1` 表示打开 |
+
+记忆 v1 需要同时打开 `FF_MEMORY_V1=true`（或 YAML 里的 `memory_v1`）和工作区实验室开关。见[记忆](/memory)。
+
 ## 接下来
 
 - [登录与注册](/auth-setup) — 登录方式与注册限制。

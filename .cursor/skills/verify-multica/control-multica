@@ -132,8 +132,9 @@ cmd_doctor() {
     die "/health commit is '$health_commit', this checkout is '$expected'. Refuse to drive a stale or foreign API. $API_DETAIL"
   fi
 
-  curl -sf --max-time 15 "$WEB_URL" >/dev/null \
-    || die "GET $WEB_URL failed."
+  FRONTEND_PORT="$FRONTEND_PORT" FRONTEND_ORIGIN="$WEB_URL" \
+    bash "$REPO_ROOT/scripts/warm-web.sh" \
+    || die "demo routes did not compile at $WEB_URL"
 
   echo "control-multica doctor: ok"
   echo "  env     $ENV_NAME"
@@ -199,7 +200,7 @@ usage: control-multica <command>
 
   launch      Start this checkout with make up C=api,web, or reuse it if doctor already passes
   prereqs     Read-only: go, docker, node, pnpm on PATH
-  doctor      Read-only: this checkout owns api+web, /health commit matches HEAD, web answers
+  doctor      This checkout owns api+web, /health commit matches HEAD, demo routes compile
   urls        Print web, api, local sign-in email/code, artifacts dir
   artifacts <feature-id>
               Create and print artifacts/<feature-id>

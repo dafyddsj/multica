@@ -295,6 +295,15 @@ A few value rules:
 | `METRICS_ADDR` | empty | Prometheus metrics listen address; empty means not started |
 | `REALTIME_METRICS_TOKEN` | empty | Bearer token protecting `/health/realtime` |
 
+## Feature flags
+
+| Variable | Default | Description |
+|---|---|---|
+| `MULTICA_FEATURE_FLAGS_FILE` | empty | YAML rule file for deployment flags |
+| `FF_<FLAG_KEY>` | unset | Per-flag override. Beats the YAML file. `true` / `on` / `1` enables |
+
+Memory v1 is off until both `FF_MEMORY_V1=true` (or a YAML `memory_v1` rule) and the workspace Labs toggle are on. See [Memory](/memory).
+
 ## Next steps
 
 - [Sign-in and signup](/auth-setup) — sign-in methods and signup restrictions.

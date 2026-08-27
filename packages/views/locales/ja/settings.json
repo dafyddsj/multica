@@ -693,9 +693,29 @@
     "deleting": "削除中..."
   },
   "labs": {
+    "page_description": "任意の実験機能です。既定ではオフで、ここでオンにするまで有効になりません。",
     "section_placeholder_title": "まだ実験機能はありません",
     "section_placeholder_description": "実験的な設定はリリースされ次第ここに表示されます。現在このタブは意図的に空にしてあります。",
-    "toast_failed": "設定を更新できませんでした"
+    "toast_failed": "設定を更新できませんでした",
+    "memory_title": "メモリ",
+    "memory_description": "エージェントとメンバーがワークスペース、プロジェクト、タスク、スクワッド、エージェントにノートを固定・検索・削除できます。オフにすると API と実行時のリコールが止まります。保存済みのノートは残ります。"
+  },
+  "memory": {
+    "title": "メモリ",
+    "search_placeholder": "ノートを検索",
+    "add_placeholder": "ノートを固定…",
+    "add": "追加",
+    "forget": "忘れる",
+    "empty": "このバンクにはまだノートがありません。",
+    "loading": "ノートを読み込み中…",
+    "load_failed": "ノートを読み込めませんでした。",
+    "showing_count": "{{shown}} / {{total}}",
+    "kind_label": "種類",
+    "kind_fact": "事実",
+    "kind_preference": "好み",
+    "kind_procedure": "手順",
+    "kind_observation": "観察",
+    "toast_failed": "メモリを更新できませんでした"
   },
   "github": {
     "page_description": "GitHub App を接続し、Pull request が Multica 内でどう表示されるかを制御し、エージェントがコミット履歴に残す情報を設定します。",

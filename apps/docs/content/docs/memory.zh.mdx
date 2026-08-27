@@ -1,0 +1,60 @@
+---
+title: 记忆
+description: 在工作区、项目、任务、小队、智能体和你自己的用户库上固定、检索和忘记笔记。
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+记忆是 Multica 自己持有的笔记库。智能体和成员可以把事实、偏好、流程和观察固定在已经存在的对象上。Hermes 的 `MEMORY.md` 仍然是运行时自己的草稿本。
+
+<Callout>
+记忆默认关闭。部署需要打开 `memory_v1` 功能开关，工作区的 owner 或 admin 还要在 **设置 → 实验室** 里打开记忆。
+</Callout>
+
+## 一条笔记是什么
+
+一种类型。库由 `scope` 加上 `owner_id` 决定。
+
+| Scope | Owner | 谁能写 |
+| --- | --- | --- |
+| `workspace` | 工作区 id | owner / admin |
+| `initiative` | 专项 id | 成员 |
+| `project` | 项目 id | 成员 |
+| `issue` | 任务 id | 成员 |
+| `squad` | 小队 id | 小队 leader、owner、admin |
+| `agent` | 智能体 id | owner、admin、调用者、该智能体自己 |
+| `user` | 用户 id | 仅该用户 |
+
+每个库最多 200 条未删除笔记。忘记是软删除。owner 被删除（智能体和小队是归档）时，对应的库一并删除。用户笔记在工作区删除后仍然保留。
+
+## 智能体怎么看到它
+
+领取 task 时，如果两道门都开着，Multica 会回忆一小段祖先链，并把它追加到**当轮**提示的 `## Memory`。这段内容每次执行都会变，所以不会写进缓存的 brief。
+
+一次执行的祖先链：
+
+- 永远包含工作区和这个智能体
+- 领取时已经解析出的任务、项目、专项
+- 这是 leader task，或任务分配给了该小队时，包含小队
+- 运行时 owner 的用户库（和 `## Requesting User` 是同一个人）
+
+智能体只跟 Multica 说话（`multica memory …`），不会直接调用检索引擎。
+
+## CLI
+
+```bash
+multica memory add --scope issue --owner-id <issue-id> --body "Prefer rebase" --kind preference
+multica memory list --scope issue --owner-id <issue-id> --output json
+multica memory search --scope workspace --owner-id <workspace-id> --q Thursday
+multica memory get <id>
+multica memory recall --issue-id <issue-id> --q rebase
+multica memory forget <id>
+```
+
+手动 `recall` 只会带上你传入的库（`--issue-id`、`--agent-id` 等），再加上当前工作区和你自己的用户库。领取任务时的回忆会自动解析这次运行的祖先链。
+
+`forget` 就是 DELETE。HTTP 接口是 `/api/memory`。还有 `PATCH /api/memory/{id}` 用来改正文、类型和 provenance；CLI 还没有包这一层。
+
+## 以后的 provider
+
+v1 把行存在 Postgres，用 `ILIKE` 搜索。服务端留了 `MemoryEngine` 接口，以后可以接入 Hindsight（或类似产品）而不改 API 和 CLI。不要把 Hermes 文件双向同步进这个库。要把 Hermes 笔记提升到平台，用 `multica memory add`。

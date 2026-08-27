@@ -19,6 +19,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/analytics"
 	"github.com/multica-ai/multica/server/internal/attribution"
 	"github.com/multica-ai/multica/server/internal/logger"
+	"github.com/multica-ai/multica/server/internal/memory"
 	obsmetrics "github.com/multica-ai/multica/server/internal/metrics"
 	"github.com/multica-ai/multica/server/internal/runtimeapps"
 	"github.com/multica-ai/multica/server/internal/service"
@@ -566,6 +567,13 @@ type AgentTaskResponse struct {
 	// owning user; the daemon must not fall back to its own credential. See
 	// MUL-3292.
 	AuthToken string `json:"auth_token,omitempty"`
+	// MemoryEnabled is true when both the memory_v1 flag and the workspace
+	// Labs toggle are on. The daemon uses it to show `multica memory` in the
+	// brief. omitempty keeps existing deployments byte-identical while off.
+	MemoryEnabled bool `json:"memory_enabled,omitempty"`
+	// MemoryHits are standing notes recalled for this run. Rendered in the
+	// per-turn prompt, never the cached brief (MUL-5377).
+	MemoryHits []memory.Hit `json:"memory_hits,omitempty"`
 }
 
 // TaskAttribution is the wire shape of a run's accountable-human provenance
@@ -2441,6 +2449,12 @@ func (h *Handler) ArchiveAgent(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("archive agent failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 		writeError(w, http.StatusInternalServerError, "failed to archive agent")
 		return
+	}
+	// Archive is the terminal product event for the bank. Restore does not
+	// bring notes back. Delete after the archive succeeds so a failed UPDATE
+	// cannot empty a still-live agent.
+	if err := deleteOwnerMemory(r.Context(), h.Queries, memory.ScopeAgent, agent.ID, agent.WorkspaceID); err != nil {
+		slog.Warn("delete agent memory failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 	}
 
 	// Cancel all pending/active tasks for this agent. Discard the returned

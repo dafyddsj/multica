@@ -26,6 +26,7 @@ import { useNavigation } from "../../navigation";
 import { TitleEditor, ContentEditor, type ContentEditorRef } from "../../editor";
 import { PriorityIcon } from "../../issues/components/priority-icon";
 import { ProjectResourcesSection } from "./project-resources-section";
+import { MemoryPanel } from "../../memory";
 import { ProjectStartDatePicker } from "./project-start-date-picker";
 import { ProjectDueDatePicker } from "./project-due-date-picker";
 import { InitiativePicker } from "../../initiatives/components/initiative-picker";
@@ -477,6 +478,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
       {/* Resources */}
       <ProjectResourcesSection projectId={projectId} />
+      <div className="px-2 pt-3">
+        <MemoryPanel scope="project" ownerId={projectId} compact />
+      </div>
     </div>
   );
 

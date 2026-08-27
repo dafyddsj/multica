@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/logger"
+	"github.com/multica-ai/multica/server/internal/memory"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/protocol"
@@ -481,6 +482,10 @@ func (h *Handler) DeleteInitiative(w http.ResponseWriter, r *http.Request) {
 		ItemID:   initiative.ID,
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to delete initiative pins")
+		return
+	}
+	if err := deleteOwnerMemory(r.Context(), qtx, memory.ScopeInitiative, initiative.ID, initiative.WorkspaceID); err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to delete initiative memory")
 		return
 	}
 	if err := qtx.DeleteInitiative(r.Context(), db.DeleteInitiativeParams{

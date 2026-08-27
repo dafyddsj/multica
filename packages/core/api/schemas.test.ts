@@ -65,6 +65,10 @@ import {
   PluginPreviewSchema,
   EMPTY_PLUGIN_INSTALLATION_LIST,
   EMPTY_PLUGIN_PREVIEW,
+  MemoryEntrySchema,
+  MemoryListResponseSchema,
+  EMPTY_MEMORY_ENTRY,
+  EMPTY_MEMORY_LIST_RESPONSE,
 } from "./schemas";
 import { IssueViewSchema, IssueViewListSchema } from "./schemas";
 import {
@@ -2040,5 +2044,42 @@ describe("issue status catalog schemas", () => {
       { endpoint: "POST /api/issue-statuses" },
     );
     expect(parsed).toEqual(EMPTY_ISSUE_STATUS_ENTRY);
+  });
+});
+
+describe("memory schemas", () => {
+  it("parses a well-formed entry", () => {
+    const parsed = MemoryEntrySchema.parse({
+      id: "11111111-1111-1111-1111-111111111111",
+      workspace_id: "ws-1",
+      scope: "issue",
+      owner_id: "issue-1",
+      body: "prefer rebase",
+      kind: "preference",
+      provenance: {},
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    });
+    expect(parsed.body).toBe("prefer rebase");
+  });
+
+  it("falls back on a malformed list", () => {
+    const parsed = parseWithFallback(
+      { entries: "nope" },
+      MemoryListResponseSchema,
+      EMPTY_MEMORY_LIST_RESPONSE,
+      { endpoint: "GET /api/memory" },
+    );
+    expect(parsed).toEqual(EMPTY_MEMORY_LIST_RESPONSE);
+  });
+
+  it("falls back on a malformed entry", () => {
+    const parsed = parseWithFallback(
+      { id: 12 },
+      MemoryEntrySchema,
+      EMPTY_MEMORY_ENTRY,
+      { endpoint: "POST /api/memory" },
+    );
+    expect(parsed).toEqual(EMPTY_MEMORY_ENTRY);
   });
 });
