@@ -34,6 +34,6 @@ protocol_family = amp
 command_name    = amp
 ```
 
-`InjectRuntimeConfig(workDir, "amp", ctx)` writes the brief into `AGENTS.md`. `providerNeedsInlineSystemPrompt("amp")` stays false until a canary says otherwise.
+`InjectRuntimeConfig(workDir, "amp", ctx)` writes the brief into `AGENTS.md`. Skills land in `{workDir}/.agents/skills/`. `providerNeedsInlineSystemPrompt("amp")` stays false until a canary says otherwise.
 
 `Result.SessionID` is only a parsed `T-<uuid>` or empty. Do not store a raw unparsed `session_id` and hand it back on the next claim.

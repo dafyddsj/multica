@@ -12,7 +12,7 @@ A task workdir for provider `amp` receives the Multica runtime brief in `AGENTS.
 - `runtime_config_test.go`: one row `{"amp", "AGENTS.md"}` next to the existing table.
 - Leave `providerNeedsInlineSystemPrompt` unchanged. Record a follow-up to canary-probe a real Amp the way MUL-5392 did for Claude.
 
-Skills directory. Amp reads `AGENTS.md` and its own plugin settings. If Amp documents a project skills dir, add it to `skillsDirPath` and `localSkillRootsForProvider`. If it does not, leave the dim/zeroclaw fallback (`.agent_context/skills`, no user-level import) and say so in providers.mdx. Do not invent `.amp/skills`.
+Skills directory. Amp CLI 0.0.1787871856 documents workspace skills at `.agents/skills/` (plus `~/.config/agents/skills/` and legacy `~/.agents/skills/`). Write Multica skills there via `skillsDirPath`. Do not use `.agent_context/skills/` (Amp does not scan it) and do not invent `.amp/skills`. Do not install Multica skills into the user's global Amp dirs.
 
 - `sidecar_manifest_test.go` `allFileBasedProviders`: add `"amp"`. The comment on that list says a new workdir writer must appear there.
 - Do not add Amp to `loadRuntimeMcpServerConfigs`. Claude/Codex merge user MCP files. CodeBuddy does not.
