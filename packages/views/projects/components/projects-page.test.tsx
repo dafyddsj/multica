@@ -278,6 +278,28 @@ describe("ProjectsPage initiative display", () => {
     mocks.projectViewState.groupBy = "initiative";
     renderProjects();
     expect(screen.getAllByText("Atlas").length).toBeGreaterThan(1);
+    expect(screen.getByRole("rowheader", { name: /Atlas/ })).toBeInTheDocument();
+  });
+
+  it("shows the parent initiative on a card", () => {
+    PROJECT.initiative_id = "init-1";
+    mocks.initiatives = [{ id: "init-1", title: "Atlas", icon: "🎯" }];
+    mocks.projectViewState.viewMode = "comfortable";
+    renderProjects();
+    const card = screen
+      .getByRole("heading", { name: PROJECT.title })
+      .closest(".group\\/card");
+    expect(card).not.toBeNull();
+    expect(within(card as HTMLElement).getByText("Atlas")).toBeInTheDocument();
+  });
+
+  it("labels an unresolved initiative as unknown, not unassigned", () => {
+    PROJECT.initiative_id = "missing";
+    mocks.initiatives = [];
+    mocks.projectViewState.groupBy = "initiative";
+    renderProjects();
+    expect(screen.getByText("Unknown initiative")).toBeInTheDocument();
+    expect(screen.queryByText("No initiative")).not.toBeInTheDocument();
   });
 });
 

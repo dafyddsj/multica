@@ -166,6 +166,7 @@
     "section_lead": "Lead",
     "section_initiative": "Initiative",
     "no_initiative": "No initiative",
+    "unknown_initiative": "Unknown initiative",
     "group_by": "Group by",
     "group_none": "No grouping",
     "group_initiative": "Initiative",

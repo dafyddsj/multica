@@ -902,12 +902,17 @@ export function ProjectsPage() {
     return m;
   }, [initiatives]);
 
-  const initiativeTitle = useCallback(
+  const initiativeTitleOf = useCallback(
+    (id: string) => initiativeById.get(id)?.title,
+    [initiativeById],
+  );
+
+  const initiativeHeading = useCallback(
     (id: string | null) => {
       if (!id) return t(($) => $.toolbar.no_initiative);
-      return initiativeById.get(id)?.title ?? t(($) => $.toolbar.no_initiative);
+      return initiativeTitleOf(id) ?? t(($) => $.toolbar.unknown_initiative);
     },
-    [initiativeById, t],
+    [initiativeTitleOf, t],
   );
 
   const initiativeOptions = useMemo(() => {
@@ -928,16 +933,20 @@ export function ProjectsPage() {
       (p) => matchesProjectSearch(p, search, matchesPinyin) && projectPassesFilters(p, filters),
     );
     return [...filtered].sort((a, b) =>
-      compareProjects(a, b, sortField, sortDirection, initiativeTitle),
+      compareProjects(a, b, sortField, sortDirection, initiativeTitleOf),
     );
-  }, [projects, search, filters, sortField, sortDirection, initiativeTitle]);
+  }, [projects, search, filters, sortField, sortDirection, initiativeTitleOf]);
 
   const visibleGroups = useMemo(() => {
     if (groupBy !== "initiative") {
       return [{ key: "all", initiativeId: null as string | null, projects: visible }];
     }
-    return sortProjectGroups(groupProjectsByInitiative(visible), initiativeTitle);
-  }, [groupBy, visible, initiativeTitle]);
+    return sortProjectGroups(
+      groupProjectsByInitiative(visible),
+      initiativeTitleOf,
+      sortField === "initiative" ? sortDirection : "asc",
+    );
+  }, [groupBy, visible, initiativeTitleOf, sortField, sortDirection]);
 
   const selectedProjects = visible.filter((p) => selectedIds.has(p.id));
   const allSelected = visible.length > 0 && selectedProjects.length === visible.length;
@@ -1355,16 +1364,18 @@ export function ProjectsPage() {
                         role="row"
                         className="col-span-full flex h-9 items-center gap-2 px-3 text-caption font-medium text-muted-foreground"
                       >
-                        <InitiativeIcon
-                          initiative={
-                            group.initiativeId
-                              ? initiativeById.get(group.initiativeId) ?? null
-                              : null
-                          }
-                          size="sm"
-                        />
-                        <span className="truncate">{initiativeTitle(group.initiativeId)}</span>
-                        <span className="tabular-nums">{group.projects.length}</span>
+                        <div role="rowheader" className="flex min-w-0 items-center gap-2">
+                          <InitiativeIcon
+                            initiative={
+                              group.initiativeId
+                                ? initiativeById.get(group.initiativeId) ?? null
+                                : null
+                            }
+                            size="sm"
+                          />
+                          <span className="truncate">{initiativeHeading(group.initiativeId)}</span>
+                          <span className="tabular-nums">{group.projects.length}</span>
+                        </div>
                       </div>
                     ) : null}
                     {group.projects.map((project) => (
@@ -1407,7 +1418,7 @@ export function ProjectsPage() {
                           }
                           size="sm"
                         />
-                        <span className="truncate">{initiativeTitle(group.initiativeId)}</span>
+                        <span className="truncate">{initiativeHeading(group.initiativeId)}</span>
                         <span className="tabular-nums">{group.projects.length}</span>
                       </div>
                     ) : null}

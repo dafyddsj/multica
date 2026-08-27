@@ -64,12 +64,33 @@ export function projectPassesFilters(project: Project, filters: ProjectListFilte
   return true;
 }
 
+export type InitiativeTitleOf = (id: string) => string | undefined;
+
+/** Named → unresolved → unassigned. Direction only applies inside a bucket. */
+export function compareInitiativeIds(
+  a: string | null,
+  b: string | null,
+  direction: "asc" | "desc",
+  titleOf: InitiativeTitleOf,
+): number {
+  const rank = (id: string | null): number => {
+    if (!id) return 2;
+    return titleOf(id) ? 0 : 1;
+  };
+  const aRank = rank(a);
+  const bRank = rank(b);
+  if (aRank !== bRank) return aRank - bRank;
+  if (!a || !b) return 0;
+  const dir = direction === "asc" ? 1 : -1;
+  return (titleOf(a) ?? a).localeCompare(titleOf(b) ?? b) * dir;
+}
+
 export function compareProjects(
   a: Project,
   b: Project,
   sortField: ProjectSortField,
   direction: "asc" | "desc",
-  initiativeTitle: (id: string | null) => string,
+  titleOf: InitiativeTitleOf,
 ): number {
   const dir = direction === "asc" ? 1 : -1;
   if (sortField === "name") return a.title.localeCompare(b.title) * dir;
@@ -90,7 +111,7 @@ export function compareProjects(
   }
   if (sortField === "initiative") {
     return (
-      initiativeTitle(a.initiative_id).localeCompare(initiativeTitle(b.initiative_id)) * dir ||
+      compareInitiativeIds(a.initiative_id, b.initiative_id, direction, titleOf) ||
       a.title.localeCompare(b.title)
     );
   }
@@ -125,11 +146,10 @@ export function groupProjectsByInitiative(projects: Project[]): ProjectListGroup
 
 export function sortProjectGroups(
   groups: ProjectListGroup[],
-  initiativeTitle: (id: string | null) => string,
+  titleOf: InitiativeTitleOf,
+  direction: "asc" | "desc" = "asc",
 ): ProjectListGroup[] {
-  return [...groups].sort((a, b) => {
-    if (a.initiativeId === null) return 1;
-    if (b.initiativeId === null) return -1;
-    return initiativeTitle(a.initiativeId).localeCompare(initiativeTitle(b.initiativeId));
-  });
+  return [...groups].sort((a, b) =>
+    compareInitiativeIds(a.initiativeId, b.initiativeId, direction, titleOf),
+  );
 }

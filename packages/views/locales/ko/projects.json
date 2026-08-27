@@ -164,6 +164,7 @@
     "section_lead": "리드",
     "section_initiative": "이니셔티브",
     "no_initiative": "이니셔티브 없음",
+    "unknown_initiative": "알 수 없는 이니셔티브",
     "group_by": "그룹",
     "group_none": "그룹 없음",
     "group_initiative": "이니셔티브",

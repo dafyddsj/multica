@@ -164,6 +164,7 @@
     "section_lead": "负责人",
     "section_initiative": "专项",
     "no_initiative": "无专项",
+    "unknown_initiative": "未知专项",
     "group_by": "分组",
     "group_none": "不分组",
     "group_initiative": "专项",

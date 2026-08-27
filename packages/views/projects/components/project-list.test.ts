@@ -40,7 +40,7 @@ const titles: Record<string, string> = {
   "init-b": "Beacon",
 };
 
-const initiativeTitle = (id: string | null) => (id ? (titles[id] ?? id) : "");
+const titleOf = (id: string) => titles[id];
 
 describe("projectPassesFilters", () => {
   it("treats an empty initiatives list as inactive", () => {
@@ -94,25 +94,66 @@ describe("matchesProjectSearch", () => {
   });
 });
 
+describe("projectPassesFilters", () => {
+  it("ANDs initiative with other dimensions", () => {
+    const match = makeProject({ initiative_id: "init-a", status: "planned" });
+    const otherStatus = makeProject({
+      id: "p2",
+      initiative_id: "init-a",
+      status: "completed",
+    });
+    const filters = { ...EMPTY_PROJECT_FILTERS, initiatives: ["init-a"], statuses: ["planned"] };
+    expect(projectPassesFilters(match, filters)).toBe(true);
+    expect(projectPassesFilters(otherStatus, filters)).toBe(false);
+  });
+});
+
 describe("compareProjects", () => {
   it("sorts by initiative title, then name", () => {
     const a = makeProject({ id: "1", title: "Zulu", initiative_id: "init-a" });
     const b = makeProject({ id: "2", title: "Alpha", initiative_id: "init-b" });
     const c = makeProject({ id: "3", title: "Mid", initiative_id: "init-a" });
     const sorted = [a, b, c].sort((left, right) =>
-      compareProjects(left, right, "initiative", "asc", initiativeTitle),
+      compareProjects(left, right, "initiative", "asc", titleOf),
     );
     expect(sorted.map((p) => p.id)).toEqual(["3", "1", "2"]);
+  });
+
+  it("reverses named titles on desc and keeps unassigned last", () => {
+    const none = makeProject({ id: "n", title: "Loose", initiative_id: null });
+    const a = makeProject({ id: "1", title: "Zulu", initiative_id: "init-a" });
+    const b = makeProject({ id: "2", title: "Alpha", initiative_id: "init-b" });
+    const sorted = [none, a, b].sort((left, right) =>
+      compareProjects(left, right, "initiative", "desc", titleOf),
+    );
+    expect(sorted.map((p) => p.id)).toEqual(["2", "1", "n"]);
+  });
+
+  it("sorts unresolved ids after named titles and before unassigned", () => {
+    const named = makeProject({ id: "1", title: "Zulu", initiative_id: "init-a" });
+    const unresolved = makeProject({ id: "u", title: "Ghost", initiative_id: "missing" });
+    const none = makeProject({ id: "n", title: "Loose", initiative_id: null });
+    const sorted = [none, unresolved, named].sort((left, right) =>
+      compareProjects(left, right, "initiative", "asc", titleOf),
+    );
+    expect(sorted.map((p) => p.id)).toEqual(["1", "u", "n"]);
   });
 });
 
 describe("groupProjectsByInitiative", () => {
-  it("keeps first-seen order, then sorts named groups before none", () => {
+  it("sorts named groups before none, and honors desc", () => {
     const none = makeProject({ id: "n", title: "Loose", initiative_id: null });
     const a = makeProject({ id: "a", title: "One", initiative_id: "init-b" });
     const b = makeProject({ id: "b", title: "Two", initiative_id: "init-a" });
-    const grouped = sortProjectGroups(groupProjectsByInitiative([none, a, b]), initiativeTitle);
+    const grouped = sortProjectGroups(
+      groupProjectsByInitiative([none, a, b]),
+      titleOf,
+      "asc",
+    );
     expect(grouped.map((g) => g.key)).toEqual(["init-a", "init-b", NO_INITIATIVE_FILTER]);
     expect(grouped[0]?.projects.map((p) => p.id)).toEqual(["b"]);
+
+    const desc = sortProjectGroups(groupProjectsByInitiative([none, a, b]), titleOf, "desc");
+    expect(desc.map((g) => g.key)).toEqual(["init-b", "init-a", NO_INITIATIVE_FILTER]);
   });
 });

@@ -164,6 +164,7 @@
     "section_lead": "リード",
     "section_initiative": "イニシアチブ",
     "no_initiative": "イニシアチブなし",
+    "unknown_initiative": "不明なイニシアチブ",
     "group_by": "グループ",
     "group_none": "グループなし",
     "group_initiative": "イニシアチブ",
