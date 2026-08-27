@@ -53,7 +53,7 @@ func (c *Client) SyncOrgs(ctx context.Context, clerkUserID string, userID pgtype
 			continue
 		}
 		seen[orgID] = struct{}{}
-		if err := upsertOrgWorkspace(ctx, store, userID, membership.Org, MapClerkRole(membership.Role), reserved); err != nil {
+		if err := upsertOrgWorkspace(ctx, store, userID, membership.Org, membership.Role, reserved); err != nil {
 			return err
 		}
 	}
@@ -76,9 +76,9 @@ func (c *Client) SyncOrgs(ctx context.Context, clerkUserID string, userID pgtype
 	return nil
 }
 
-func upsertOrgWorkspace(ctx context.Context, store OrgStore, userID pgtype.UUID, org OrgRef, role string, reserved func(string) bool) error {
+func upsertOrgWorkspace(ctx context.Context, store OrgStore, userID pgtype.UUID, org OrgRef, clerkRole string, reserved func(string) bool) error {
 	if ws, err := store.GetWorkspaceByClerkOrgID(ctx, util.StrToText(org.ID)); err == nil {
-		return ensureMember(ctx, store, ws.ID, userID, role)
+		return ensureMember(ctx, store, ws.ID, userID, clerkRole)
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return err
 	}
@@ -99,7 +99,7 @@ func upsertOrgWorkspace(ctx context.Context, store OrgStore, userID pgtype.UUID,
 				return err
 			}
 			if existing, ok := lookupWorkspaceByOrg(ctx, store, org.ID); ok {
-				return ensureMember(ctx, store, existing.ID, userID, role)
+				return ensureMember(ctx, store, existing.ID, userID, clerkRole)
 			}
 			continue
 		}
@@ -110,7 +110,7 @@ func upsertOrgWorkspace(ctx context.Context, store OrgStore, userID pgtype.UUID,
 		})
 		if err != nil {
 			if existing, ok := lookupWorkspaceByOrg(ctx, store, org.ID); ok {
-				return ensureMember(ctx, store, existing.ID, userID, role)
+				return ensureMember(ctx, store, existing.ID, userID, clerkRole)
 			}
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrBindConflict
@@ -120,12 +120,12 @@ func upsertOrgWorkspace(ctx context.Context, store OrgStore, userID pgtype.UUID,
 		if err := store.SeedIssueStatusEntries(ctx, bound.ID); err != nil {
 			return err
 		}
-		return ensureMember(ctx, store, bound.ID, userID, role)
+		return ensureMember(ctx, store, bound.ID, userID, clerkRole)
 	}
 	return ErrSlugExhausted
 }
 
-func ensureMember(ctx context.Context, store OrgStore, workspaceID, userID pgtype.UUID, role string) error {
+func ensureMember(ctx context.Context, store OrgStore, workspaceID, userID pgtype.UUID, clerkRole string) error {
 	member, err := store.GetMemberByUserAndWorkspace(ctx, db.GetMemberByUserAndWorkspaceParams{
 		UserID:      userID,
 		WorkspaceID: workspaceID,
@@ -134,19 +134,20 @@ func ensureMember(ctx context.Context, store OrgStore, workspaceID, userID pgtyp
 		_, err = store.CreateMember(ctx, db.CreateMemberParams{
 			WorkspaceID: workspaceID,
 			UserID:      userID,
-			Role:        role,
+			Role:        MapClerkRole(clerkRole),
 		})
 		return err
 	}
 	if err != nil {
 		return err
 	}
-	if member.Role == role {
+	next := ConvergeMemberRole(member.Role, clerkRole)
+	if member.Role == next {
 		return nil
 	}
 	_, err = store.UpdateMemberRole(ctx, db.UpdateMemberRoleParams{
 		ID:   member.ID,
-		Role: role,
+		Role: next,
 	})
 	return err
 }

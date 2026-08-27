@@ -24,6 +24,25 @@ func TestMapClerkRole(t *testing.T) {
 	}
 }
 
+func TestConvergeMemberRole(t *testing.T) {
+	cases := []struct {
+		local, clerk, want string
+	}{
+		{"admin", "org:admin", "admin"},
+		{"admin", "org:owner", "admin"},
+		{"admin", "org:member", "member"},
+		{"owner", "org:admin", "owner"},
+		{"owner", "org:member", "member"},
+		{"member", "org:admin", "owner"},
+		{"", "org:admin", "owner"},
+	}
+	for _, tc := range cases {
+		if got := ConvergeMemberRole(tc.local, tc.clerk); got != tc.want {
+			t.Errorf("ConvergeMemberRole(%q, %q)=%q want %q", tc.local, tc.clerk, got, tc.want)
+		}
+	}
+}
+
 func TestClerkRoleFromMember(t *testing.T) {
 	if got := ClerkRoleFromMember("owner"); got != "org:admin" {
 		t.Fatalf("owner: %q", got)

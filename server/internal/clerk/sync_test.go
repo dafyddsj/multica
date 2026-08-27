@@ -244,6 +244,35 @@ func TestSyncOrgsUpdatesRoleAndRemovesLeftOrg(t *testing.T) {
 	}
 }
 
+func TestSyncOrgsKeepsLocalAdminUnderClerkAdmin(t *testing.T) {
+	userID := testUserID()
+	mapped := db.Workspace{
+		ID:         util.MustParseUUID("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+		Name:       "Old Org",
+		Slug:       "old-org",
+		ClerkOrgID: util.StrToText("org_old"),
+	}
+	store := &memoryOrgStore{
+		workspaces: []db.Workspace{mapped},
+		members: []db.Member{{
+			ID:          util.MustParseUUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+			WorkspaceID: mapped.ID,
+			UserID:      userID,
+			Role:        "admin",
+		}},
+	}
+	c := &Client{Orgs: stubOrgs{memberships: []OrgMembership{{
+		Org:  OrgRef{ID: "org_old", Name: "Old Org", Slug: "old-org"},
+		Role: "org:admin",
+	}}}}
+	if err := c.SyncOrgs(context.Background(), "user_clerk", userID, store, nil); err != nil {
+		t.Fatal(err)
+	}
+	if store.members[0].Role != "admin" {
+		t.Fatalf("admin collapsed to %q", store.members[0].Role)
+	}
+}
+
 func TestSyncOrgsNoopsWithoutDirectory(t *testing.T) {
 	store := &memoryOrgStore{}
 	c := &Client{}
