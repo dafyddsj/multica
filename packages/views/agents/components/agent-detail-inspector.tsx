@@ -138,6 +138,36 @@ export function AgentDetailInspector({
         : null,
     [modelsQuery.data, modelsQuery.isSuccess],
   );
+  const [coAuthorEmail, setCoAuthorEmail] = useState(
+    agent.co_authored_by_email ?? "",
+  );
+
+  useEffect(() => {
+    setCoAuthorEmail(agent.co_authored_by_email ?? "");
+  }, [agent.id]);
+
+  const gitDraft = useMemo(
+    () => ({ email: coAuthorEmail.trim() }),
+    [coAuthorEmail],
+  );
+  const savedGit = useMemo(
+    () => ({ email: (agent.co_authored_by_email ?? "").trim() }),
+    [agent.co_authored_by_email],
+  );
+  const saveGit = useCallback(
+    async (next: { email: string }) => {
+      await update({ co_authored_by_email: next.email });
+    },
+    [update],
+  );
+  const gitAutoSave = useAutoSave({
+    value: gitDraft,
+    savedValue: savedGit,
+    onSave: saveGit,
+    enabled: canEdit,
+    isEqual: (left, right) => left.email === right.email,
+  });
+
   const handleModelChange = useCallback(
     (model: string) =>
       update(
@@ -311,6 +341,43 @@ export function AgentDetailInspector({
               value={agent.max_concurrent_tasks}
               canEdit={canEdit}
               onSave={(next) => update({ max_concurrent_tasks: next })}
+            />
+          </SettingsRow>
+        </SettingsCard>
+      </SettingsSection>
+
+      <SettingsSection
+        title={t(($) => $.inspector.section_git)}
+        description={t(($) => $.inspector.section_git_hint)}
+        action={
+          <SettingsSaveState
+            status={gitAutoSave.status}
+            savingLabel={ts(($) => $.auto_save.saving)}
+            savedLabel={ts(($) => $.auto_save.saved)}
+            errorLabel={ts(($) => $.auto_save.failed)}
+          />
+        }
+      >
+        <SettingsCard>
+          <SettingsRow
+            label={t(($) => $.inspector.prop_co_authored_by_email)}
+            description={t(($) => $.inspector.prop_co_authored_by_email_hint)}
+            size="text"
+            align="start"
+          >
+            <Input
+              type="text"
+              inputMode="email"
+              name="agent-co-authored-by-email"
+              autoComplete="off"
+              aria-label={t(($) => $.inspector.prop_co_authored_by_email)}
+              value={coAuthorEmail}
+              onChange={(event) => setCoAuthorEmail(event.target.value)}
+              onBlur={gitAutoSave.flush}
+              disabled={!canEdit}
+              placeholder={t(
+                ($) => $.inspector.prop_co_authored_by_email_placeholder,
+              )}
             />
           </SettingsRow>
         </SettingsCard>

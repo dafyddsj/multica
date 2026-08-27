@@ -190,6 +190,13 @@ future Codex catalog IDs, while the daemon verifies the exact model/tier pair
 before execution and omits a stale incompatible override. Agents without an
 explicit model fail closed because the effective config.toml model is unknown.
 
+`co_authored_by_email` is an optional extra commit trailer for one agent. Set
+it with `--co-authored-by-email` on `agent update`; use
+`--co-authored-by-email ""` to clear it. The workspace GitHub
+`co_authored_by_enabled` toggle still appends the shared
+`Co-authored-by: multica-agent <github@multica.ai>` trailer. The agent email
+is additional, not a replacement.
+
 ### model vs custom_args
 
 `model` is a first-class persisted column the daemon reads directly.

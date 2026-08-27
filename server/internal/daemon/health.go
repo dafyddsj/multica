@@ -109,11 +109,12 @@ type repoCheckoutRequest struct {
 }
 
 type activeRepoCheckoutTask struct {
-	WorkspaceID string
-	TaskID      string
-	AgentID     string
-	AgentName   string
-	WorkDir     string
+	WorkspaceID       string
+	TaskID            string
+	AgentID           string
+	AgentName         string
+	CoAuthoredByEmail string
+	WorkDir           string
 }
 
 // registerActiveRepoCheckoutTask binds checkout identity to the active task.
@@ -480,6 +481,7 @@ func (d *Daemon) repoCheckoutHandler() http.HandlerFunc {
 			AgentName:           req.AgentName,
 			TaskID:              req.TaskID,
 			CoAuthoredByEnabled: d.workspaceCoAuthoredByEnabled(req.WorkspaceID),
+			CoAuthoredByEmail:   activeTask.CoAuthoredByEmail,
 			IsolatedGitMetadata: req.CheckoutMode == repoCheckoutModeIsolated,
 		}
 		if req.RetryBusy {

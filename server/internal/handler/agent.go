@@ -111,6 +111,10 @@ type AgentResponse struct {
 	// ServiceTier is the runtime-native Codex execution tier persisted for
 	// this agent (empty = inherit local Codex configuration).
 	ServiceTier string `json:"service_tier"`
+	// CoAuthoredByEmail is an optional extra Co-authored-by address for this
+	// agent's commits. Empty means no extra trailer. The workspace GitHub
+	// toggle still controls the shared Multica trailer.
+	CoAuthoredByEmail string `json:"co_authored_by_email"`
 	// ComposioToolkitAllowlist is the subset of Composio toolkit slugs this
 	// agent is allowed to mount as MCP at task dispatch — for ANY run that
 	// passes the agent's invocation permission, using the agent OWNER's
@@ -226,6 +230,7 @@ func (h *Handler) agentToResponse(a db.Agent) AgentResponse {
 		Model:                    a.Model.String,
 		ThinkingLevel:            a.ThinkingLevel.String,
 		ServiceTier:              a.ServiceTier.String,
+		CoAuthoredByEmail:        a.CoAuthoredByEmail.String,
 		ComposioToolkitAllowlist: composioAllowlist,
 		OwnerID:                  uuidToPtr(a.OwnerID),
 		Skills:                   []AgentSkillSummary{},
@@ -743,6 +748,7 @@ type TaskAgentData struct {
 	Model                 string                      `json:"model,omitempty"`
 	ThinkingLevel         string                      `json:"thinking_level,omitempty"`
 	ServiceTier           string                      `json:"service_tier,omitempty"`
+	CoAuthoredByEmail     string                      `json:"co_authored_by_email,omitempty"`
 	DisabledRuntimeSkills []DisabledRuntimeSkill      `json:"disabled_runtime_skills,omitempty"`
 	// RuntimeConfig is the agent's saved runtime_config JSON as-is. The
 	// daemon decodes it per-provider — e.g. the openclaw backend reads
@@ -1535,6 +1541,9 @@ type UpdateAgentRequest struct {
 	// ServiceTier follows the same tri-state contract as ThinkingLevel:
 	// omitted preserves, empty clears, and non-empty sets a Codex catalog ID.
 	ServiceTier *string `json:"service_tier"`
+	// CoAuthoredByEmail is tri-state: omitted preserves, "" clears, non-empty
+	// stores the canonical email used as an extra commit trailer.
+	CoAuthoredByEmail *string `json:"co_authored_by_email"`
 	// ComposioToolkitAllowlist is a tri-state, same pattern as
 	// thinking_level, mcp_config:
 	//   - field omitted → no change (column preserved as-is)
@@ -1890,6 +1899,20 @@ func (h *Handler) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 		}
 		params.MaxConcurrentTasks = pgtype.Int4{Int32: *req.MaxConcurrentTasks, Valid: true}
 	}
+	shouldClearCoAuthoredByEmail := false
+	if req.CoAuthoredByEmail != nil {
+		email, err := parseCoAuthoredByEmail(*req.CoAuthoredByEmail)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if email == "" {
+			shouldClearCoAuthoredByEmail = true
+		} else {
+			params.CoAuthoredByEmail = pgtype.Text{String: email, Valid: true}
+		}
+	}
+
 	if req.Model != nil {
 		params.Model = pgtype.Text{String: *req.Model, Valid: true}
 	} else if req.RuntimeID != nil && existing.Model.Valid && agent.ModelKnownIncompatibleWithProvider(targetProvider, existing.Model.String) {
@@ -2096,6 +2119,14 @@ func (h *Handler) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			slog.Warn("clear agent service_tier failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 			writeError(w, http.StatusInternalServerError, "failed to clear service_tier: "+err.Error())
+			return
+		}
+	}
+	if shouldClearCoAuthoredByEmail {
+		updated, err = h.Queries.ClearAgentCoAuthoredByEmail(r.Context(), updated.ID)
+		if err != nil {
+			slog.Warn("clear agent co_authored_by_email failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
+			writeError(w, http.StatusInternalServerError, "failed to clear co_authored_by_email: "+err.Error())
 			return
 		}
 	}

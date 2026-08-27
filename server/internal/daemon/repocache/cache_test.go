@@ -2022,6 +2022,252 @@ func TestRemoveCoAuthoredByHookPreservesUserHook(t *testing.T) {
 	}
 }
 
+func commitMessage(t *testing.T, repoPath string) string {
+	t.Helper()
+	out, err := exec.Command("git", "-C", repoPath, "log", "-1", "--format=%B").Output()
+	if err != nil {
+		t.Fatalf("git log failed: %v", err)
+	}
+	return string(out)
+}
+
+func commitInWorktree(t *testing.T, worktreePath, filename, body string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(worktreePath, filename), []byte(body), 0o644); err != nil {
+		t.Fatalf("write %s: %v", filename, err)
+	}
+	runGitAuthored(t, worktreePath, "add", ".")
+	runGitAuthored(t, worktreePath, "commit", "-m", "test commit")
+}
+
+func TestCreateWorktreeAppendsExtraCoAuthoredByTrailer(t *testing.T) {
+	t.Parallel()
+	sourceRepo := createTestRepo(t)
+	cache := New(t.TempDir(), testLogger())
+	if err := cache.Sync("ws-1", []RepoInfo{{URL: sourceRepo}}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	result, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             t.TempDir(),
+		AgentName:           "Review Bot",
+		TaskID:              "aaaa1111-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: true,
+		CoAuthoredByEmail:   "review-bot@example.com",
+	})
+	if err != nil {
+		t.Fatalf("CreateWorktree failed: %v", err)
+	}
+
+	commitInWorktree(t, result.Path, "test.txt", "hello\n")
+	msg := commitMessage(t, result.Path)
+	if !strings.Contains(msg, "Co-authored-by: multica-agent <github@multica.ai>") {
+		t.Errorf("missing workspace trailer.\ngot:\n%s", msg)
+	}
+	if !strings.Contains(msg, "Co-authored-by: Review Bot <review-bot@example.com>") {
+		t.Errorf("missing agent trailer.\ngot:\n%s", msg)
+	}
+}
+
+func TestCreateWorktreeExtraTrailerWithoutWorkspaceFlag(t *testing.T) {
+	t.Parallel()
+	sourceRepo := createTestRepo(t)
+	cache := New(t.TempDir(), testLogger())
+	if err := cache.Sync("ws-1", []RepoInfo{{URL: sourceRepo}}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	result, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             t.TempDir(),
+		AgentName:           "Solo Agent",
+		TaskID:              "bbbb2222-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: false,
+		CoAuthoredByEmail:   "solo@example.com",
+	})
+	if err != nil {
+		t.Fatalf("CreateWorktree failed: %v", err)
+	}
+
+	commitInWorktree(t, result.Path, "test.txt", "hello\n")
+	msg := commitMessage(t, result.Path)
+	if strings.Contains(msg, "Co-authored-by: multica-agent") {
+		t.Errorf("workspace trailer appeared with the toggle off.\ngot:\n%s", msg)
+	}
+	if !strings.Contains(msg, "Co-authored-by: Solo Agent <solo@example.com>") {
+		t.Errorf("missing agent trailer.\ngot:\n%s", msg)
+	}
+}
+
+func TestCreateWorktreeExtraTrailerDoesNotLeakAcrossWorktrees(t *testing.T) {
+	t.Parallel()
+	sourceRepo := createTestRepo(t)
+	cache := New(t.TempDir(), testLogger())
+	if err := cache.Sync("ws-1", []RepoInfo{{URL: sourceRepo}}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	first, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             t.TempDir(),
+		AgentName:           "Agent A",
+		TaskID:              "cccc3333-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: false,
+		CoAuthoredByEmail:   "a@example.com",
+	})
+	if err != nil {
+		t.Fatalf("CreateWorktree A failed: %v", err)
+	}
+
+	second, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             t.TempDir(),
+		AgentName:           "Agent B",
+		TaskID:              "dddd4444-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: false,
+		CoAuthoredByEmail:   "b@example.com",
+	})
+	if err != nil {
+		t.Fatalf("CreateWorktree B failed: %v", err)
+	}
+
+	commitInWorktree(t, first.Path, "a.txt", "a\n")
+	commitInWorktree(t, second.Path, "b.txt", "b\n")
+
+	msgA := commitMessage(t, first.Path)
+	msgB := commitMessage(t, second.Path)
+	if !strings.Contains(msgA, "Co-authored-by: Agent A <a@example.com>") {
+		t.Errorf("A missing its trailer.\ngot:\n%s", msgA)
+	}
+	if strings.Contains(msgA, "b@example.com") {
+		t.Errorf("A inherited B's trailer.\ngot:\n%s", msgA)
+	}
+	if !strings.Contains(msgB, "Co-authored-by: Agent B <b@example.com>") {
+		t.Errorf("B missing its trailer.\ngot:\n%s", msgB)
+	}
+	if strings.Contains(msgB, "a@example.com") {
+		t.Errorf("B inherited A's trailer.\ngot:\n%s", msgB)
+	}
+}
+
+func TestCreateIsolatedCheckoutAppendsExtraCoAuthoredByTrailer(t *testing.T) {
+	t.Parallel()
+	sourceRepo := createTestRepo(t)
+	cache := New(t.TempDir(), testLogger())
+	if err := cache.Sync("ws-1", []RepoInfo{{URL: sourceRepo}}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	result, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             t.TempDir(),
+		AgentName:           "Isolated Agent",
+		TaskID:              "1111aaaa-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: false,
+		CoAuthoredByEmail:   "isolated@example.com",
+		IsolatedGitMetadata: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateWorktree failed: %v", err)
+	}
+
+	commitInWorktree(t, result.Path, "test.txt", "hello\n")
+	msg := commitMessage(t, result.Path)
+	if strings.Contains(msg, "Co-authored-by: multica-agent") {
+		t.Errorf("workspace trailer appeared with the toggle off.\ngot:\n%s", msg)
+	}
+	if !strings.Contains(msg, "Co-authored-by: Isolated Agent <isolated@example.com>") {
+		t.Errorf("missing agent trailer.\ngot:\n%s", msg)
+	}
+}
+
+func TestCreateWorktreeKeepsSharedHookWhenSiblingHasExtra(t *testing.T) {
+	t.Parallel()
+	sourceRepo := createTestRepo(t)
+	cache := New(t.TempDir(), testLogger())
+	if err := cache.Sync("ws-1", []RepoInfo{{URL: sourceRepo}}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	first, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             t.TempDir(),
+		AgentName:           "Keep Extra",
+		TaskID:              "2222bbbb-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: false,
+		CoAuthoredByEmail:   "keep@example.com",
+	})
+	if err != nil {
+		t.Fatalf("CreateWorktree (extra) failed: %v", err)
+	}
+
+	if _, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             t.TempDir(),
+		AgentName:           "No Extra",
+		TaskID:              "3333cccc-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: false,
+		CoAuthoredByEmail:   "",
+	}); err != nil {
+		t.Fatalf("CreateWorktree (empty) failed: %v", err)
+	}
+
+	commitInWorktree(t, first.Path, "later.txt", "later\n")
+	msg := commitMessage(t, first.Path)
+	if !strings.Contains(msg, "Co-authored-by: Keep Extra <keep@example.com>") {
+		t.Errorf("sibling checkout removed the extra trailer hook.\ngot:\n%s", msg)
+	}
+}
+
+func TestCreateWorktreeClearsStaleExtraTrailer(t *testing.T) {
+	t.Parallel()
+	sourceRepo := createTestRepo(t)
+	cache := New(t.TempDir(), testLogger())
+	if err := cache.Sync("ws-1", []RepoInfo{{URL: sourceRepo}}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	workDir := t.TempDir()
+	first, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             workDir,
+		AgentName:           "Reuse Agent",
+		TaskID:              "eeee5555-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: false,
+		CoAuthoredByEmail:   "old@example.com",
+	})
+	if err != nil {
+		t.Fatalf("CreateWorktree (set) failed: %v", err)
+	}
+
+	if _, err := cache.CreateWorktree(WorktreeParams{
+		WorkspaceID:         "ws-1",
+		RepoURL:             sourceRepo,
+		WorkDir:             workDir,
+		AgentName:           "Reuse Agent",
+		TaskID:              "ffff6666-0000-0000-0000-000000000000",
+		CoAuthoredByEnabled: false,
+		CoAuthoredByEmail:   "",
+	}); err != nil {
+		t.Fatalf("CreateWorktree (clear) failed: %v", err)
+	}
+
+	commitInWorktree(t, first.Path, "later.txt", "later\n")
+	msg := commitMessage(t, first.Path)
+	if strings.Contains(msg, "old@example.com") {
+		t.Errorf("cleared extra trailer still applied.\ngot:\n%s", msg)
+	}
+}
+
 // TestGetRemoteDefaultBranchAmbiguousOriginReturnsEmpty verifies step 4's
 // safe-scan gating: when the cache has multiple refs/remotes/origin/*
 // entries, none match the common defaults, and none match the bare HEAD

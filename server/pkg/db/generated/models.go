@@ -53,6 +53,7 @@ type Agent struct {
 	DisabledRuntimeSkills []byte             `json:"disabled_runtime_skills"`
 	ServiceTier           pgtype.Text        `json:"service_tier"`
 	StarterPrompts        []byte             `json:"starter_prompts"`
+	CoAuthoredByEmail     pgtype.Text        `json:"co_authored_by_email"`
 	PausedAt              pgtype.Timestamptz `json:"paused_at"`
 	PausedBy              pgtype.UUID        `json:"paused_by"`
 }

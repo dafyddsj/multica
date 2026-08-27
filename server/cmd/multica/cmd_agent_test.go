@@ -2032,6 +2032,77 @@ func TestAgentServiceTierFlagsAndBodies(t *testing.T) {
 	})
 }
 
+func TestAgentUpdateCoAuthoredByEmailFlagAndBody(t *testing.T) {
+	if agentUpdateCmd.Flag("co-authored-by-email") == nil {
+		t.Fatal("agent update must expose --co-authored-by-email")
+	}
+	if agentCreateCmd.Flag("co-authored-by-email") != nil {
+		t.Fatal("agent create must not expose --co-authored-by-email")
+	}
+
+	t.Run("update sends email", func(t *testing.T) {
+		var gotBody map[string]any
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+				t.Errorf("decode request body: %v", err)
+			}
+			json.NewEncoder(w).Encode(map[string]any{"id": "agent-123"})
+		}))
+		defer srv.Close()
+		t.Setenv("MULTICA_SERVER_URL", srv.URL)
+		t.Setenv("MULTICA_WORKSPACE_ID", "ws-1")
+		t.Setenv("MULTICA_TOKEN", "test-token")
+		t.Setenv("MULTICA_AGENT_ID", "")
+		t.Setenv("MULTICA_TASK_ID", "")
+
+		cmd := &cobra.Command{Use: "update"}
+		cmd.Flags().String("co-authored-by-email", "", "")
+		cmd.Flags().String("output", "json", "")
+		cmd.Flags().String("profile", "", "")
+		if err := cmd.Flags().Set("co-authored-by-email", "Review@Example.com"); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := runAgentUpdate(cmd, []string{"agent-123"}); err != nil {
+			t.Fatalf("runAgentUpdate: %v", err)
+		}
+		if gotBody["co_authored_by_email"] != "Review@Example.com" {
+			t.Fatalf("co_authored_by_email body = %v, want Review@Example.com", gotBody["co_authored_by_email"])
+		}
+	})
+
+	t.Run("update sends explicit clear", func(t *testing.T) {
+		var gotBody map[string]any
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if err := json.NewDecoder(r.Body).Decode(&gotBody); err != nil {
+				t.Errorf("decode request body: %v", err)
+			}
+			json.NewEncoder(w).Encode(map[string]any{"id": "agent-123"})
+		}))
+		defer srv.Close()
+		t.Setenv("MULTICA_SERVER_URL", srv.URL)
+		t.Setenv("MULTICA_WORKSPACE_ID", "ws-1")
+		t.Setenv("MULTICA_TOKEN", "test-token")
+		t.Setenv("MULTICA_AGENT_ID", "")
+		t.Setenv("MULTICA_TASK_ID", "")
+
+		cmd := &cobra.Command{Use: "update"}
+		cmd.Flags().String("co-authored-by-email", "", "")
+		cmd.Flags().String("output", "json", "")
+		cmd.Flags().String("profile", "", "")
+		if err := cmd.Flags().Set("co-authored-by-email", ""); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := runAgentUpdate(cmd, []string{"agent-123"}); err != nil {
+			t.Fatalf("runAgentUpdate: %v", err)
+		}
+		if value, ok := gotBody["co_authored_by_email"]; !ok || value != "" {
+			t.Fatalf("co_authored_by_email clear body = %v (exists=%v), want empty string", value, ok)
+		}
+	})
+}
+
 // TestAgentCreateThinkingLevelServerRejectionSurfaces proves the CLI does not
 // own thinking-level validation: a runtime whose provider has no thinking
 // concept (or an unknown literal) is rejected server-side with a 400, and that
