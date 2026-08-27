@@ -478,7 +478,7 @@ export interface Agent {
    *  workspace's own notes — the product half is `system_instructions`. */
   instructions: string;
   /** Up to three agent-authored first-turn suggestions. Older servers omit it. */
-  starter_prompts?: AgentStarterPrompt[];
+  conversation_starters?: AgentConversationStarter[];
   /** Set for product-defined agents (e.g. "mika"). Absent for user- and
    *  template-created agents. Identity for "maintained by Multica" checks —
    *  never the display name, which owners may change. */
@@ -602,7 +602,7 @@ export interface Agent {
   paused_by?: string | null;
 }
 
-export interface AgentStarterPrompt {
+export interface AgentConversationStarter {
   /** Short chip label shown in the empty state. */
   label: string;
   /** Full editable text copied into the composer when selected. */
@@ -646,7 +646,7 @@ export interface CreateAgentRequest {
   name: string;
   description?: string;
   instructions?: string;
-  starter_prompts?: AgentStarterPrompt[];
+  conversation_starters?: AgentConversationStarter[];
   avatar_url?: string;
   runtime_id: string;
   runtime_config?: Record<string, unknown>;
@@ -699,7 +699,7 @@ export interface StoredAgentDraft {
   name: string;
   description: string;
   instructions: string;
-  starter_prompts: AgentStarterPrompt[];
+  conversation_starters: AgentConversationStarter[];
   avatar_url: string | null;
   model: string;
   thinking_level: string;
@@ -742,7 +742,7 @@ export interface UpdateAgentRequest {
   name?: string;
   description?: string;
   instructions?: string;
-  starter_prompts?: AgentStarterPrompt[];
+  conversation_starters?: AgentConversationStarter[];
   avatar_url?: string;
   runtime_id?: string;
   runtime_config?: Record<string, unknown>;

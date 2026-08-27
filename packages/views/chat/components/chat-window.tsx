@@ -24,7 +24,7 @@ import {
   agentIsPaused,
   isAgentRuntimeBound,
   useAgentPresenceDetail,
-  useCustomizeStarterPromptsHref,
+  useCustomizeConversationStartersHref,
   useWorkspaceAgentAvailability,
 } from "@multica/core/agents";
 import { ActorAvatar } from "../../common/actor-avatar";
@@ -147,7 +147,7 @@ export function ChatWindow() {
   const allMessages = [...messagePages].reverse().flatMap((page) => page.messages);
   // Skeleton only shows for an un-cached session fetch. Cached switches
   // return data synchronously — no flash. `enabled: false` (new chat)
-  // keeps isLoading false so the starter prompts aren't hidden.
+  // keeps isLoading false so the conversation starters aren't hidden.
   // Server-authoritative pending task. Survives refresh / reopen / session
   // switch because it's keyed on sessionId in the Query cache; WS events
   // (chat:message / chat:done / task:*) keep it invalidated in real time.
@@ -192,23 +192,23 @@ export function ChatWindow() {
   // Nonce handed to ChatInput to pull focus into the compose box: when a new
   // chat starts (⊕ or switching agent), and whenever the window itself opens.
   const { focusRequest, requestInputFocus } = useChatInputFocus(isOpen);
-  const [starterPromptRequest, setStarterPromptRequest] = useState<{
+  const [conversationStarterRequest, setConversationStarterRequest] = useState<{
     id: number;
     content: string;
   } | null>(null);
-  const nextStarterPromptRequestIdRef = useRef(0);
-  const prefillStarterPrompt = useCallback(
+  const nextConversationStarterRequestIdRef = useRef(0);
+  const prefillConversationStarter = useCallback(
     (prompt: string) => {
-      setStarterPromptRequest({
-        id: ++nextStarterPromptRequestIdRef.current,
+      setConversationStarterRequest({
+        id: ++nextConversationStarterRequestIdRef.current,
         content: prompt,
       });
       requestInputFocus();
     },
     [requestInputFocus],
   );
-  const handleStarterPromptApplied = useCallback(
-    () => setStarterPromptRequest(null),
+  const handleConversationStarterApplied = useCallback(
+    () => setConversationStarterRequest(null),
     [],
   );
 
@@ -278,7 +278,7 @@ export function ChatWindow() {
 
   // "Customize" under the starter buttons — the only place the empty state
   // admits that those buttons are configuration at all.
-  const customizeStarterPromptsHref = useCustomizeStarterPromptsHref(
+  const customizeConversationStartersHref = useCustomizeConversationStartersHref(
     activeAgent,
     wsId,
   );
@@ -961,8 +961,8 @@ export function ChatWindow() {
         <EmptyState
           agent={activeAgent}
           hasSessions={sessions.length > 0}
-          onPickPrompt={prefillStarterPrompt}
-          customizeHref={customizeStarterPromptsHref}
+          onPickPrompt={prefillConversationStarter}
+          customizeHref={customizeConversationStartersHref}
         />
       )}
 
@@ -1008,8 +1008,8 @@ export function ChatWindow() {
       <ChatInput
         onSend={handleSend}
         restoreDraftRequest={restoreDraftRequest}
-        starterPromptRequest={starterPromptRequest}
-        onStarterPromptApplied={handleStarterPromptApplied}
+        conversationStarterRequest={conversationStarterRequest}
+        onConversationStarterApplied={handleConversationStarterApplied}
         onRestoreDraftApplied={handleRestoreDraftApplied}
         uploadEnabled={!!activeAgent && !isAgentAccessRevoked}
         onStop={handleStop}
