@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_memory_entry_workspace_scope_owner;

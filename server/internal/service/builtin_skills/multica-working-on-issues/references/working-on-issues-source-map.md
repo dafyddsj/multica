@@ -207,6 +207,15 @@ about the issue — there is no assignee gate (MUL-6417).
 | Shared actor-reference types and helpers | `packages/core/types/property.ts` (`parseActorRef`, `actorRefsFromValue`, `MAX_ISSUE_PROPERTY_ACTOR_VALUES`) |
 | API routes (`/api/properties`, PUT/DELETE `/api/issues/{id}/properties/{propertyId}`) | `server/cmd/server/router.go` |
 
+## Memory CLI and gates
+
+| Behavior | File |
+|---|---|
+| CLI `multica memory {add,list,search,get,recall,forget}` | `server/cmd/multica/cmd_memory.go` |
+| HTTP `/api/memory` and `/api/memory/recall` | `server/cmd/server/router.go`, `server/internal/handler/memory.go` |
+| Dual gate (`memory_v1` + Labs `memory_enabled`) | `server/internal/memory/enabled.go` |
+| Claim-time recall into the per-turn prompt | `server/internal/handler/memory.go` (`attachClaimMemory`), `server/internal/daemon/prompt.go` (`buildMemoryBlock`) |
+
 ## Verification command
 
 Re-derive any line above before depending on it:

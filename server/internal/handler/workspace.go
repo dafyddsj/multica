@@ -1196,6 +1196,10 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 			run:  func() error { return deleteWorkspaceTasks(ctx, qtx, requester.WorkspaceID) },
 		},
 		{
+			name: "delete memory entries",
+			run:  func() error { return qtx.DeleteWorkspaceMemoryEntries(ctx, requester.WorkspaceID) },
+		},
+		{
 			name: "delete leaf data",
 			run:  func() error { return qtx.DeleteWorkspaceLeafData(ctx, requester.WorkspaceID) },
 		},

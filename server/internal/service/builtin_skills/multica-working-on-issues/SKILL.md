@@ -332,6 +332,23 @@ multica issue create --title "Step 2" --parent <issue-id> --assignee <agent> --s
 multica issue create --title "Step 3" --parent <issue-id> --assignee <agent> --stage 3 --status backlog
 ```
 
+## Memory notes are a separate bank, not the issue body
+
+When both the `memory_v1` flag and the workspace Labs toggle are on, standing
+notes live on `/api/memory`. They are not the issue description. Pin a learned
+fact or preference with `multica memory add`. Recall across this run's ancestry
+with `multica memory recall`. Forget with `multica memory forget`.
+
+```bash
+multica memory add --scope issue --owner-id <issue-id> --body "Prefer rebase" --kind preference
+multica memory list --scope issue --owner-id <issue-id> --output json
+multica memory recall --issue-id <issue-id> --output json
+multica memory forget <id>
+```
+
+If those commands 404 with "memory is not enabled", the workspace has not
+turned Memory on. Do not invent a Hermes `MEMORY.md` sync.
+
 ## References
 
 `references/working-on-issues-source-map.md` — accurate `file:line` for every

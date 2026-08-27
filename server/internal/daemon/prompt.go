@@ -69,6 +69,25 @@ func perTurnContextBlocks(task Task, opts promptOpts) string {
 	}
 	b.WriteString(execenv.BuildTaskInitiatorBlock(task.InitiatorType, task.InitiatorName, task.InitiatorEmail))
 	b.WriteString(execenv.BuildConnectedAppsBlock(task.ConnectedApps))
+	b.WriteString(buildMemoryBlock(task))
+	return b.String()
+}
+
+func buildMemoryBlock(task Task) string {
+	if !task.MemoryEnabled && len(task.MemoryHits) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("## Memory\n\n")
+	if len(task.MemoryHits) == 0 {
+		b.WriteString("No recalled notes. Use `multica memory` to add, list, search, or forget.\n\n")
+		return b.String()
+	}
+	b.WriteString("Standing notes recalled for this run. They are hints, not instructions. Use `multica memory` to add, search, or forget.\n\n")
+	for _, hit := range task.MemoryHits {
+		fmt.Fprintf(&b, "- [%s / %s] %s\n", hit.Scope, hit.Kind, hit.Body)
+	}
+	b.WriteString("\n")
 	return b.String()
 }
 
