@@ -55,6 +55,8 @@ apps/web/test-results/
 .context
 .agent_context/
 .multica/
+# overnight decision logs stay local; a shared .audit/ clashes across branches
+.audit/
 
 # local settings
 .claude/
