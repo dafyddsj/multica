@@ -1,0 +1,58 @@
+---
+title: Memory
+description: Pin, search, and forget standing notes on workspaces, projects, issues, squads, agents, and your own user bank.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Memory is a Multica-owned note store. Agents and members pin facts, preferences, procedures, and observations on objects that already exist. Hermes `MEMORY.md` stays a separate runtime scratch pad.
+
+<Callout>
+Memory is off by default. A deployment must enable the `memory_v1` feature flag, and a workspace owner or admin must turn Memory on in **Settings → Labs**.
+</Callout>
+
+## What a note is
+
+One type. The bank is `scope` plus `owner_id`.
+
+| Scope | Owner | Who can write |
+| --- | --- | --- |
+| `workspace` | workspace id | owner / admin |
+| `initiative` | initiative id | member |
+| `project` | project id | member |
+| `issue` | issue id | member |
+| `squad` | squad id | squad leader, owner, admin |
+| `agent` | agent id | owner, admin, invoker, the agent |
+| `user` | user id | that user only |
+
+Each bank holds at most 200 live notes. Forget is a soft delete. When an owner is deleted (or archived, for agents and squads), its bank is removed. User notes survive workspace delete.
+
+## How agents see it
+
+On claim, if both gates are on, Multica recalls a short ancestry and appends it to the **per-turn** prompt as `## Memory`. That block changes every run, so it is not written into the cached brief.
+
+Ancestry for a run:
+
+- always the workspace and this agent
+- the issue, project, and initiative when the claim already resolved them
+- the squad when this is a leader task or the issue is assigned to that squad
+- the user bank of the runtime owner (the same person as `## Requesting User`)
+
+Agents talk to Multica (`multica memory …`). They never talk to a retrieval engine.
+
+## CLI
+
+```bash
+multica memory add --scope issue --owner-id <issue-id> --body "Prefer rebase" --kind preference
+multica memory list --scope issue --owner-id <issue-id> --output json
+multica memory search --scope workspace --owner-id <workspace-id> --q Thursday
+multica memory get <id>
+multica memory recall --issue-id <issue-id> --q rebase
+multica memory forget <id>
+```
+
+`forget` is DELETE. The HTTP surface is `/api/memory`.
+
+## Providers later
+
+v1 stores rows in Postgres and searches with `ILIKE`. The server has a `MemoryEngine` seam so a later run can plug in Hindsight (or similar) without changing the API or CLI. Do not sync Hermes files into this store. Promote a Hermes note with `multica memory add`.

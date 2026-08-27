@@ -295,6 +295,15 @@ multica config show
 | `METRICS_ADDR` | 空 | Prometheus metrics のリッスンアドレス。空なら起動しません |
 | `REALTIME_METRICS_TOKEN` | 空 | `/health/realtime` を保護する bearer token |
 
+## フィーチャーフラグ
+
+| 変数 | デフォルト | 説明 |
+|---|---|---|
+| `MULTICA_FEATURE_FLAGS_FILE` | 空 | デプロイ用フラグの YAML ルールファイル |
+| `FF_<FLAG_KEY>` | 未設定 | フラグ単位の上書き。YAML より優先。`true` / `on` / `1` で有効 |
+
+Memory v1 は `FF_MEMORY_V1=true`（または YAML の `memory_v1`）とワークスペースの Labs トグルの両方がオンになるまで無効です。[メモリ](/memory) を参照。
+
 ## 次のステップ
 
 - [ログインとサインアップ](/auth-setup) — ログイン方式とサインアップ制限。
