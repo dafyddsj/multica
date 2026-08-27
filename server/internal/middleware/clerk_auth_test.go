@@ -61,14 +61,33 @@ func TestAuthenticateNilClerkUsesNativeJWT(t *testing.T) {
 	}
 }
 
-func TestAuthenticateClerkRejectsNativeJWT(t *testing.T) {
+func TestAuthenticateClerkAcceptsNativeHMACBearer(t *testing.T) {
 	client := &clerk.Client{Verifier: testVerifier{err: clerk.ErrInvalidSession}}
-	handler := clerkThenNative(client, mappedUserStore{}, Auth(nil, nil, nil))(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Fatal("next must not run for a native JWT when Clerk is on")
+	handler := clerkThenNative(client, mappedUserStore{}, Auth(nil, nil, nil))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-User-ID"); got != "test-user-id" {
+			t.Fatalf("X-User-ID: got %q", got)
+		}
+		w.WriteHeader(http.StatusNoContent)
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
 	req.Header.Set("Authorization", "Bearer "+generateToken(validClaims(), auth.JWTSecret()))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("cli HMAC bearer: want 204, got %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAuthenticateClerkRejectsNativeCookie(t *testing.T) {
+	client := &clerk.Client{Verifier: testVerifier{err: clerk.ErrInvalidSession}}
+	handler := clerkThenNative(client, mappedUserStore{}, Auth(nil, nil, nil))(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("next must not run for a native cookie when Clerk is on")
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req.AddCookie(&http.Cookie{Name: auth.AuthCookieName, Value: generateToken(validClaims(), auth.JWTSecret())})
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 

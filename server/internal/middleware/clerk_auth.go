@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/multica-ai/multica/server/internal/auth"
 	"github.com/multica-ai/multica/server/internal/clerk"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
@@ -72,6 +73,10 @@ func clerkThenNative(clerkClient *clerk.Client, store clerk.UserStore, native fu
 
 			identity, err := clerkClient.Resolve(r.Context(), tokenString, store)
 			if err != nil {
+				if isNativeHMACBearer(tokenString) {
+					nativeHandler.ServeHTTP(w, r)
+					return
+				}
 				slog.Warn("auth: clerk session rejected", "path", r.URL.Path, "error", err)
 				http.Error(w, `{"error":"invalid token"}`, http.StatusUnauthorized)
 				return
@@ -95,4 +100,14 @@ func isMachineToken(token string) bool {
 		}
 	}
 	return false
+}
+
+func isNativeHMACBearer(token string) bool {
+	parsed, err := jwt.Parse(token, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return auth.JWTSecret(), nil
+	})
+	return err == nil && parsed != nil && parsed.Valid
 }
