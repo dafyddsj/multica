@@ -52,7 +52,6 @@ describe("LabsTab", () => {
   it("shows the memory toggle when memory_v1 is on", () => {
     data.flagEnabled = true;
     render(<LabsTab />, { wrapper: Wrapper });
-    expect(screen.getByLabelText("Memory")).toBeInTheDocument();
-    expect(screen.getByRole("switch")).not.toBeChecked();
+    expect(screen.getByRole("switch", { name: "Memory" })).not.toBeChecked();
   });
 });
