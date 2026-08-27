@@ -29,6 +29,24 @@ await create.mutateAsync({
 
 The card reads `current_period.spent_usd_ticks` and `current_period.state`. It does not call `estimateCost` for the bar.
 
+### Waiver (owner or admin)
+
+```tsx
+import { useCreateBudgetWaiver } from "@multica/core/budgets";
+
+const waive = useCreateBudgetWaiver(wsId);
+
+await waive.mutateAsync({
+  scope: "project",
+  owner_id: projectId,
+  starts_at: new Date().toISOString(), // default now
+  ends_at: monthEndUtc.toISOString(),  // default end of current UTC month
+  reason: "launch week",               // optional
+});
+```
+
+The bar still shows spent versus limit. The card shows teeth waived until `ends_at`. Spend keeps posting. Soften and hold from the waived resource scopes do not apply until the window ends.
+
 ### Claim
 
 ```go
@@ -64,7 +82,9 @@ Example. Agent A, project P, initiative I.
 
 Composed result is `soften`. Flip I to `pause` and the result is `hold` held by I.
 
-Agent and squad `pause` writes `paused_at` at debit time. Project and initiative `pause` holds the task at claim. Both mean no new covered work starts.
+Add an active project waiver on P. Resource accounts that the waiver covers (P, and I for tasks stamped with P) contribute `proceed`. Agent A is unchanged. Composed result is `proceed`. Flip A's over-limit to `pause` with A exhausted and the result is still a principal pause. The waiver does not clear `paused_at`.
+
+Agent and squad `pause` writes `paused_at` at debit time. Project and initiative `pause` holds the task at claim. Both mean no new covered work starts. A waiver only turns off the resource-scope teeth.
 
 ## Shape
 
@@ -96,6 +116,13 @@ budget_debit
   priced_by ('provider' | 'rate_table' | 'unpriced')
   UNIQUE (budget_id, task_id, provider, model)
 
+budget_waiver
+  id, workspace_id,
+  scope CHECK IN ('project', 'initiative'),
+  owner_id,
+  starts_at, ends_at CHECK (ends_at > starts_at),
+  created_by, reason NULL, created_at
+
 agent
   + paused_by_budget_id   -- budget pause. Human pause keeps paused_by.
 ```
@@ -113,6 +140,10 @@ No foreign keys. Each unique or lookup index is its own `CREATE [UNIQUE] INDEX C
 | Double-count a re-report | unique debit key, adjust by delta |
 | Sweep resumes a human pause | resume only where `paused_by_budget_id` is set |
 | Squad bar that looks like $0 | `state` includes `unattributed` and `pricing_incomplete` |
+| Waiver on agent or squad | `scope` CHECK allows only `project` and `initiative` |
+| Empty or inverted window | `ends_at > starts_at`, constructors reject the rest |
+| Two live waivers on one owner | service refuses overlap. History rows may sit in the past |
+| Member-created waiver | handler, owner or admin only |
 
 ### Pure core (`server/internal/budgetpolicy`)
 
@@ -126,24 +157,31 @@ type Account struct {
     Unpriced   int
     SoftenAt   *int16
     OverLimit  OverLimit
+    Waived     bool // resource-scope teeth off. Principal accounts never set this.
 }
 
 func Decide(accounts []Account, forAutopilot bool) Admission
-func StateOf(a Account) AccountState // ok | softened | exhausted | pricing_incomplete | unattributed
+func StateOf(a Account) AccountState // ok | softened | exhausted | pricing_incomplete | unattributed | waived
+func WaiverCovers(w Waiver, account BudgetRef, task TaskRef) bool
 ```
 
-`Decide` uses max over local results. An account with `Unpriced > 0` and `over_limit=pause` contributes `hold`. The same account with `allow` contributes `soften` if the threshold is crossed on known spend, else `proceed`. Autopilot downgrades `soften` to `proceed`.
+`Decide` uses max over local results. A waived account contributes `proceed` and nothing else. An account with `Unpriced > 0` and `over_limit=pause` contributes `hold`. The same account with `allow` contributes `soften` if the threshold is crossed on known spend, else `proceed`. Autopilot downgrades `soften` to `proceed`.
+
+`WaiverCovers` is the depth rule. A project waiver matches that project account, and the parent initiative account when the task's project stamp is the waived project. An initiative waiver matches that initiative account, and every project account whose task initiative stamp is the waived initiative. Agent and squad refs never match.
 
 ### Service (`BudgetService`)
 
 ```go
-Admit(ctx, task) (Admission, error)      // read periods, Decide
+Admit(ctx, task) (Admission, error)      // read periods, active waivers, Decide
 PostUsage(ctx, task, lines)              // price, debit, enforce principals
 Create/Update/Delete/List...
+CreateWaiver/DeleteWaiver/ListWaivers...
 Reconcile(ctx) error                     // resume budget pauses that no longer apply
 ```
 
-`Admit` resolves coverage from the task snapshot. Missing period means spent 0.
+`Admit` resolves coverage from the task snapshot, loads waivers whose window contains now, sets `Account.Waived` through `WaiverCovers`, then calls `Decide`. Missing period means spent 0.
+
+`PostUsage` still posts debits on waived scopes. The bar stays honest. `enforce` on agent and squad ignores resource waivers. A waived project does not resume a budget-paused agent.
 
 `PostUsage` prices each line (authoritative ticks if > 0, else the catalog, else unpriced). It upserts the debit, moves the period by the delta, then `enforce()` on agent and squad scopes.
 
@@ -174,9 +212,13 @@ GET    /api/budgets
 POST   /api/budgets
 PATCH  /api/budgets/{id}
 DELETE /api/budgets/{id}
+
+GET    /api/budgets/waivers
+POST   /api/budgets/waivers
+DELETE /api/budgets/waivers/{id}
 ```
 
-Writes follow the ACL in [overview.md](overview.md). `budget:updated` invalidates `["budgets", wsId]`.
+Budget writes follow the ACL in [overview.md](overview.md). Waiver writes are workspace owner or admin only. Members may list waivers so the card can render the chip. `budget:updated` invalidates `["budgets", wsId]` and `["budgets", wsId, "waivers"]`.
 
 ### TypeScript
 
@@ -188,7 +230,20 @@ type AccountState =
   | "softened"
   | "exhausted"
   | "pricing_incomplete"
-  | "unattributed";
+  | "unattributed"
+  | "waived";
+
+type WaiverScope = "project" | "initiative";
+
+interface BudgetWaiver {
+  id: string;
+  scope: WaiverScope;
+  owner_id: string;
+  starts_at: string;
+  ends_at: string;
+  created_by: string;
+  reason: string | null;
+}
 
 interface Budget {
   id: string;
@@ -207,13 +262,13 @@ interface Budget {
 }
 ```
 
-Form state uses `{ kind: "off" } | { kind: "at"; percent: number }` and collapses to the nullable wire field.
+Form state uses `{ kind: "off" } | { kind: "at"; percent: number }` and collapses to the nullable wire field. Waiver form is a window, not a boolean. `{ kind: "inactive" } | { kind: "active"; starts_at: string; ends_at: string; reason: string | null }`.
 
 ## Modules
 
 | Module | Owns |
 | --- | --- |
-| `server/internal/budgetpolicy` | `Decide`, `StateOf`, month window |
+| `server/internal/budgetpolicy` | `Decide`, `StateOf`, `WaiverCovers`, month window |
 | `server/internal/service/budget.go` | ledger, CRUD, `Admit`, `PostUsage`, `Reconcile` |
 | `server/internal/service/agent_pause.go` | the only `paused_at` writer |
 | `server/internal/executionlane` | `Soften` |
@@ -245,6 +300,8 @@ Base is candidate 1.
 - We accept overshoot by in-flight tasks. Copy must say the cap applies to new tasks.
 - We accept that a squad budget pauses member agents' other work.
 - We accept UTC months in v1.
+- We accept that a project waiver does not unpause an agent. Pause stays the workspace-wide stop. Owner or admin resume the agent if that project's work must run on a budget-paused agent.
+- We accept overlapping waiver history as many rows, with the service refusing a second live window on the same owner.
 
 ## Next implementation step
 

@@ -8,14 +8,14 @@ Back to [overview.md](overview.md). Sketch in [design.md](design.md).
 
 ## Changes
 
-- Add `server/internal/budgetpolicy` with `Decide`, `StateOf`, and `MonthWindow`.
-- Cover the composition example and its pause/allow flip. Cover lattice associativity. Cover unpriced+pause, unpriced+allow, autopilot soften downgrade, principal versus resource pause.
-- Migrations for `budget`, `budget_period`, `budget_debit`, and `agent.paused_by_budget_id`. Each concurrent index in its own file.
+- Add `server/internal/budgetpolicy` with `Decide`, `StateOf`, `MonthWindow`, and `WaiverCovers`.
+- Cover the composition example and its pause/allow flip. Cover lattice associativity. Cover unpriced+pause, unpriced+allow, autopilot soften downgrade, principal versus resource pause. Cover waived project, waived parent initiative, waived initiative over child project, and a principal pause that a waiver cannot clear.
+- Migrations for `budget`, `budget_period`, `budget_debit`, `budget_waiver`, and `agent.paused_by_budget_id`. Each concurrent index in its own file.
 - sqlc queries named in the sketch. Do not wire handlers.
 
 ## Data structures
 
-`Account`, `Verdict`, `Admission`. Period rows lazily created later. This phase only needs the types and empty tables.
+`Account`, `Verdict`, `Admission`, `Waiver`. Period rows lazily created later. This phase only needs the types and empty tables.
 
 ## Verification
 

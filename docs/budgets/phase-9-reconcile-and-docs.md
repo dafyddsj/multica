@@ -11,8 +11,9 @@ Crash windows and month rollover converge. Humans can read how budgets work.
 - Scheduler job calls `BudgetService.Reconcile` on the rollup cadence. Resume agents whose `paused_by_budget_id` account is no longer exhausted. Re-apply pauses lost between commit and `enforce`.
 - Product docs under `apps/docs/content/docs/` for budgets. Link from Analytics.
 - Builtin skill touch if agents are told they can set or respect a budget. Update `SKILL.md` and the matching `references/*-source-map.md` in the same change.
-- Workspace delete walks `budget`, `budget_period`, and `budget_debit` in the same explicit cleanup that already deletes usage.
-- Initiative, project, squad archive/delete, and agent archive delete the matching budget in the same application transaction.
+- Workspace delete walks `budget`, `budget_period`, `budget_debit`, and `budget_waiver` in the same explicit cleanup that already deletes usage.
+- Initiative, project, squad archive/delete, and agent archive delete the matching budget and any waiver on that owner in the same application transaction.
+- Reconcile does not invent waivers and does not end them early. An expired window drops out of `Admit` because now is outside `[starts_at, ends_at)`.
 
 ## Data structures
 

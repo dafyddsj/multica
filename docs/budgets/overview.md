@@ -24,6 +24,7 @@ Spend today is written once at the end of a task (`ReportTaskUsage`), rolled up 
 - Reuse of `PauseAgent` and `executionlane`, after a pause-service extract
 - Removal of `agent_execution_lanes` before any budget promises soften
 - Squad attribution as the root squad invocation, stamped onto worker tasks
+- Time-bounded waiver. Workspace owner or admin can bypass resource-scope teeth (soften and hold) for one project or one initiative
 
 **Out of v1**
 
@@ -36,6 +37,7 @@ Spend today is written once at the end of a task (`ReportTaskUsage`), rolled up 
 - Debit audit UI
 - Autopilot soften (holds still apply)
 - Chat-session `project_id` as project spend (chat stays in the null-project bucket)
+- Waiver of agent or squad teeth. A paused agent stays paused. A project waiver does not unpause anyone.
 
 ## Constraints
 
@@ -48,6 +50,7 @@ Spend today is written once at the end of a task (`ReportTaskUsage`), rolled up 
 - Display dollars and gate dollars share one generated rate catalog. Custom browser rates stay display-only.
 - Pause does not cancel running tasks. Budgets inherit that.
 - Fail open on `Admit` store errors, the same way autopilot quota fails open on a missing entitlement.
+- Waiver writes are workspace owner or admin only. `Decide` sees `Account.Waived`. Callers do not special-case a waiver.
 
 ## Alternatives
 
@@ -64,6 +67,10 @@ The ledger already contains an observe budget. Soften off plus `allow` draws a b
 **Why not query `task_usage_hourly` at claim.** The rollup lags about five minutes, has no squad dimension, and re-attributes when a project moves. Claim would become an analytic query on the hot path.
 
 **Why not pause every agent on a project budget.** A project cap would stop unrelated work. Project and initiative `pause` holds covered tasks at claim. Agent and squad `pause` writes `paused_at`, because those scopes really cover everything the agent runs.
+
+**Why a waiver table, not a flag on the budget row.** Teeth need a start and an end that are not the budget month. A waiver can cover a project that has no budget of its own so its tasks escape a parent initiative cap. Agent and squad accounts stay in `Decide`. A boolean on `budget` cannot express that.
+
+**Why not waive agent teeth for that project's tasks.** Pause is agent-wide (`paused_at`). Letting waived-project work through would mean either unpausing the agent (unrelated work starts) or a claim exception that punches the pause SQL. v1 keeps pause as the hard stop. Owner or admin who needs that agent running resumes it.
 
 ## Applicable skills
 
@@ -105,7 +112,7 @@ pnpm exec vitest run packages/core/budgets packages/views/dashboard packages/vie
 pnpm typecheck
 ```
 
-Runtime. Drive `/{slug}/usage` with `verify-multica` or `control-ui`. Create a project budget, watch the bar, trip soften, trip pause. Unit tests do not replace that.
+Runtime. Drive `/{slug}/usage` with `verify-multica` or `control-ui`. Create a project budget, watch the bar, trip soften, trip pause, then waive that project and confirm the next task on it claims. Unit tests do not replace that.
 
 ## Implementation guidance
 
@@ -123,7 +130,7 @@ Runtime. Drive `/{slug}/usage` with `verify-multica` or `control-ui`. Create a p
 
 **Independent workstreams.** After phase 4, work serializes on the budget types. Do not fan out two writers onto `budget` / `Admit` / the Analytics card. Prerequisite PRs 1 through 4 can stack. They do not share tables.
 
-**Shared mutable state.** Only `AgentPauseService` writes pause columns. Only `BudgetService` writes budget tables. The rate JSON has one owner (the generator). `ReportTaskUsage` stays the usage writer. `PostUsage` runs after the upsert and must not become a second usage store.
+**Shared mutable state.** Only `AgentPauseService` writes pause columns. Only `BudgetService` writes budget tables and waivers. The rate JSON has one owner (the generator). `ReportTaskUsage` stays the usage writer. `PostUsage` runs after the upsert and must not become a second usage store.
 
 **Smallest safe decomposition.** One owner from phase 5 onward. The schema, the API, the card, and admission share one type sketch. Splitting those across agents produces two money types.
 
@@ -136,3 +143,5 @@ These are product calls. The sketch picked a default so implementation can start
 3. **Manual resume of a budget-paused agent.** Honored until the next `PostUsage` that still finds the account exhausted. The sweep never clears a human pause (`paused_by` set, `paused_by_budget_id` null).
 4. **Unpriced lines on a `pause` budget.** Fail closed (refuse new covered work) and show a `pricing_incomplete` state. `allow` budgets keep running and show the unpriced count.
 5. **Squad pause.** Pause the leader and every member agent on the squad. The covered set is the invocation roster, not "anyone who was ever a member."
+6. **Waiver window.** Default `starts_at` is now. Default `ends_at` is the end of the current UTC month. Owner or admin may pick any future `ends_at`.
+7. **Waiver depth.** A project waiver skips that project account and the parent initiative account for tasks stamped with that project. An initiative waiver skips the initiative account and every child project account for tasks stamped with that initiative. Agent and squad accounts still evaluate.

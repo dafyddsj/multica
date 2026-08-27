@@ -26,7 +26,8 @@ Walk this path before you call enforcement done:
 4. Switch the same budget to pause and cross 100 percent. Confirm the agent is paused in the list and chat is blocked.
 5. Resume from the menu. Confirm work runs (softened) until the next report re-pauses.
 6. Create a project budget with pause. Confirm a task on that project holds and a task on another project for the same agent starts.
-7. Confirm a squad without origin stamps shows unattributed, not $0.
+7. As owner, waive that project through the rest of the month. Confirm the next task on it starts and the bar still shows over. Confirm a member cannot open the waiver control.
+8. Confirm a squad without origin stamps shows unattributed, not $0.
 
 ## What this does not prove
 
