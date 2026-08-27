@@ -11,10 +11,49 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const bindWorkspaceClerkOrgID = `-- name: BindWorkspaceClerkOrgID :one
+UPDATE workspace SET
+    clerk_org_id = $2,
+    updated_at = now()
+WHERE id = $1
+  AND (clerk_org_id IS NULL OR clerk_org_id = $2)
+RETURNING id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed, clerk_org_id
+`
+
+type BindWorkspaceClerkOrgIDParams struct {
+	ID         pgtype.UUID `json:"id"`
+	ClerkOrgID pgtype.Text `json:"clerk_org_id"`
+}
+
+// Attaches a Clerk organization id to an existing Multica workspace.
+// Refuses to overwrite a different bound id so two Clerk orgs cannot
+// steal the same workspace.
+func (q *Queries) BindWorkspaceClerkOrgID(ctx context.Context, arg BindWorkspaceClerkOrgIDParams) (Workspace, error) {
+	row := q.db.QueryRow(ctx, bindWorkspaceClerkOrgID, arg.ID, arg.ClerkOrgID)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Description,
+		&i.Settings,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Context,
+		&i.Repos,
+		&i.IssuePrefix,
+		&i.IssueCounter,
+		&i.AvatarUrl,
+		&i.AttributionFailClosed,
+		&i.ClerkOrgID,
+	)
+	return i, err
+}
+
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspace (name, slug, description, context, issue_prefix)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed
+RETURNING id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed, clerk_org_id
 `
 
 type CreateWorkspaceParams struct {
@@ -48,6 +87,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams
 		&i.IssueCounter,
 		&i.AvatarUrl,
 		&i.AttributionFailClosed,
+		&i.ClerkOrgID,
 	)
 	return i, err
 }
@@ -227,7 +267,7 @@ func (q *Queries) GetDaemonWorkspace(ctx context.Context, id pgtype.UUID) (GetDa
 }
 
 const getWorkspace = `-- name: GetWorkspace :one
-SELECT id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed FROM workspace
+SELECT id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed, clerk_org_id FROM workspace
 WHERE id = $1
 `
 
@@ -248,6 +288,7 @@ func (q *Queries) GetWorkspace(ctx context.Context, id pgtype.UUID) (Workspace, 
 		&i.IssueCounter,
 		&i.AvatarUrl,
 		&i.AttributionFailClosed,
+		&i.ClerkOrgID,
 	)
 	return i, err
 }
@@ -266,8 +307,35 @@ func (q *Queries) GetWorkspaceAttributionFailClosed(ctx context.Context, id pgty
 	return attribution_fail_closed, err
 }
 
+const getWorkspaceByClerkOrgID = `-- name: GetWorkspaceByClerkOrgID :one
+SELECT id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed, clerk_org_id FROM workspace
+WHERE clerk_org_id = $1
+`
+
+func (q *Queries) GetWorkspaceByClerkOrgID(ctx context.Context, clerkOrgID pgtype.Text) (Workspace, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceByClerkOrgID, clerkOrgID)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Description,
+		&i.Settings,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Context,
+		&i.Repos,
+		&i.IssuePrefix,
+		&i.IssueCounter,
+		&i.AvatarUrl,
+		&i.AttributionFailClosed,
+		&i.ClerkOrgID,
+	)
+	return i, err
+}
+
 const getWorkspaceBySlug = `-- name: GetWorkspaceBySlug :one
-SELECT id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed FROM workspace
+SELECT id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed, clerk_org_id FROM workspace
 WHERE slug = $1
 `
 
@@ -288,6 +356,7 @@ func (q *Queries) GetWorkspaceBySlug(ctx context.Context, slug string) (Workspac
 		&i.IssueCounter,
 		&i.AvatarUrl,
 		&i.AttributionFailClosed,
+		&i.ClerkOrgID,
 	)
 	return i, err
 }
@@ -303,6 +372,40 @@ func (q *Queries) IncrementIssueCounter(ctx context.Context, id pgtype.UUID) (in
 	var issue_counter int32
 	err := row.Scan(&issue_counter)
 	return issue_counter, err
+}
+
+const listClerkMappedWorkspacesForUser = `-- name: ListClerkMappedWorkspacesForUser :many
+SELECT w.id, w.clerk_org_id, m.id AS member_id
+FROM member m
+JOIN workspace w ON w.id = m.workspace_id
+WHERE m.user_id = $1
+  AND w.clerk_org_id IS NOT NULL
+`
+
+type ListClerkMappedWorkspacesForUserRow struct {
+	ID         pgtype.UUID `json:"id"`
+	ClerkOrgID pgtype.Text `json:"clerk_org_id"`
+	MemberID   pgtype.UUID `json:"member_id"`
+}
+
+func (q *Queries) ListClerkMappedWorkspacesForUser(ctx context.Context, userID pgtype.UUID) ([]ListClerkMappedWorkspacesForUserRow, error) {
+	rows, err := q.db.Query(ctx, listClerkMappedWorkspacesForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClerkMappedWorkspacesForUserRow{}
+	for rows.Next() {
+		var i ListClerkMappedWorkspacesForUserRow
+		if err := rows.Scan(&i.ID, &i.ClerkOrgID, &i.MemberID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listDaemonWorkspaces = `-- name: ListDaemonWorkspaces :many
@@ -345,7 +448,8 @@ func (q *Queries) ListDaemonWorkspaces(ctx context.Context, userID pgtype.UUID) 
 const listWorkspaces = `-- name: ListWorkspaces :many
 SELECT w.id, w.name, w.slug, w.description, w.settings,
        w.created_at, w.updated_at, w.context, w.repos,
-       w.issue_prefix, w.issue_counter, w.avatar_url, w.attribution_fail_closed
+       w.issue_prefix, w.issue_counter, w.avatar_url, w.attribution_fail_closed,
+       w.clerk_org_id
 FROM member m
 JOIN workspace w ON w.id = m.workspace_id
 WHERE m.user_id = $1
@@ -375,6 +479,7 @@ func (q *Queries) ListWorkspaces(ctx context.Context, userID pgtype.UUID) ([]Wor
 			&i.IssueCounter,
 			&i.AvatarUrl,
 			&i.AttributionFailClosed,
+			&i.ClerkOrgID,
 		); err != nil {
 			return nil, err
 		}
@@ -441,7 +546,7 @@ UPDATE workspace SET
     avatar_url = COALESCE($8, avatar_url),
     updated_at = now()
 WHERE id = $1
-RETURNING id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed
+RETURNING id, name, slug, description, settings, created_at, updated_at, context, repos, issue_prefix, issue_counter, avatar_url, attribution_fail_closed, clerk_org_id
 `
 
 type UpdateWorkspaceParams struct {
@@ -481,6 +586,7 @@ func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams
 		&i.IssueCounter,
 		&i.AvatarUrl,
 		&i.AttributionFailClosed,
+		&i.ClerkOrgID,
 	)
 	return i, err
 }

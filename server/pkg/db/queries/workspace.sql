@@ -1,7 +1,8 @@
 -- name: ListWorkspaces :many
 SELECT w.id, w.name, w.slug, w.description, w.settings,
        w.created_at, w.updated_at, w.context, w.repos,
-       w.issue_prefix, w.issue_counter, w.avatar_url, w.attribution_fail_closed
+       w.issue_prefix, w.issue_counter, w.avatar_url, w.attribution_fail_closed,
+       w.clerk_org_id
 FROM member m
 JOIN workspace w ON w.id = m.workspace_id
 WHERE m.user_id = $1
@@ -32,6 +33,28 @@ WHERE id = $1;
 -- name: GetWorkspaceBySlug :one
 SELECT * FROM workspace
 WHERE slug = $1;
+
+-- name: GetWorkspaceByClerkOrgID :one
+SELECT * FROM workspace
+WHERE clerk_org_id = $1;
+
+-- name: BindWorkspaceClerkOrgID :one
+-- Attaches a Clerk organization id to an existing Multica workspace.
+-- Refuses to overwrite a different bound id so two Clerk orgs cannot
+-- steal the same workspace.
+UPDATE workspace SET
+    clerk_org_id = $2,
+    updated_at = now()
+WHERE id = $1
+  AND (clerk_org_id IS NULL OR clerk_org_id = $2)
+RETURNING *;
+
+-- name: ListClerkMappedWorkspacesForUser :many
+SELECT w.id, w.clerk_org_id, m.id AS member_id
+FROM member m
+JOIN workspace w ON w.id = m.workspace_id
+WHERE m.user_id = $1
+  AND w.clerk_org_id IS NOT NULL;
 
 -- name: GetWorkspaceAttributionFailClosed :one
 -- Lean read of the fail-closed attribution policy for the enqueue hot path
