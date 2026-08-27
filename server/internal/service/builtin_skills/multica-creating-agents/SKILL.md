@@ -235,6 +235,11 @@ backends may consume protocol selectors before launch:
   parameter. `zeroclaw acp` has no such CLI flag. Set one of these custom args
   when ZeroClaw has multiple agents and no `[acp].default_agent`; omit it for a
   sole-agent config so ZeroClaw can auto-select that agent.
+- Amp owns `--execute` / `-x`, `--stream-json*`, `--dangerously-allow-all`,
+  `--mcp-config`, `--resume`, `--continue`, `threads continue <id>`, `--no-tui`,
+  `--executor`, `-p`, and `--output-format`. Those tokens are stripped from
+  `custom_args`. Put extra Amp flags in `custom_args` or `MULTICA_AMP_ARGS`;
+  do not put `--model` there expecting Multica to honor a picker value.
 
 Never put credentials or other secrets in `custom_args`. Daemon command logs
 redact argument values, but values that a backend does not consume still live

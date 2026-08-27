@@ -1,0 +1,6 @@
+{"type":"system","subtype":"init","session_id":"T-f9941a55-3765-421e-972f-05dc1138c3a3","cwd":"/work","tools":[]}
+{"type":"assistant","session_id":"T-f9941a55-3765-421e-972f-05dc1138c3a3","message":{"role":"assistant","model":"amp-test","content":[{"type":"thinking","thinking":"planning the answer"}]}}
+{"type":"assistant","session_id":"T-f9941a55-3765-421e-972f-05dc1138c3a3","message":{"role":"assistant","model":"amp-test","content":[{"type":"tool_use","id":"call-1","name":"list_directory","input":{"path":"/work"}}]}}
+{"type":"user","session_id":"T-f9941a55-3765-421e-972f-05dc1138c3a3","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"call-1","content":"Listed 1 item"}]}}
+{"type":"assistant","session_id":"T-f9941a55-3765-421e-972f-05dc1138c3a3","message":{"role":"assistant","model":"amp-test","content":[{"type":"redacted_thinking"},{"type":"text","text":"PONG"}],"usage":{"input_tokens":10,"output_tokens":2,"cache_read_input_tokens":3}}}
+{"type":"result","subtype":"success","session_id":"T-f9941a55-3765-421e-972f-05dc1138c3a3","is_error":false,"result":"PONG","usage":{"input_tokens":20,"output_tokens":4,"cache_read_input_tokens":6}}

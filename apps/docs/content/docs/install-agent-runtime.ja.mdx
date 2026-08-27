@@ -15,6 +15,7 @@ Multica は現在、次のコマンドを検出します。
 
 | ツール | 検出するコマンド | 公式インストールガイド |
 | --- | --- | --- |
+| Amp | `amp` | [Amp](https://ampcode.com) |
 | Antigravity CLI | `agy` | [Antigravity のインストールとログイン](https://antigravity.google/docs/cli-install) |
 | Claude Code | `claude` | [Claude Code クイックスタート](https://code.claude.com/docs/en/quickstart) |
 | CodeBuddy Code | `codebuddy` | [CodeBuddy クイックスタート](https://www.codebuddy.ai/docs/cli/quickstart) |
@@ -49,6 +50,8 @@ Multica は現在、次のコマンドを検出します。
 Reasonix を使う場合は、デーモンを起動する前に `reasonix setup` を実行し、デフォルトのプロバイダーとモデルを設定してください。
 
 QwenPaw を使う場合は、QwenPaw 側の設定でプロバイダーとモデルを選んでください。Multica が実行時に QwenPaw のモデルを上書きすることはできません。
+
+Amp は `amp login` でログインするか `AMP_API_KEY` を設定してください。モデルは Amp が選び、Multica は `--model` を送りません。
 
 MiniMax Code を使う場合は、対応する Node.js バージョン（`>=22.19 <23` または `>=24 <27`）をインストールし、`npm install --global @minimax-ai/code@latest` を実行してください。npm のグローバルインストールによって `mcode` は npm のグローバル実行ファイルディレクトリに配置されます。`command -v mcode` または `Get-Command mcode` で見つからない場合は、そのディレクトリを `PATH` に追加してください。その後 `mcode login` を実行します。モデルは MiniMax Code が管理し、Multica から ACP 経由で上書きすることはできません。
 

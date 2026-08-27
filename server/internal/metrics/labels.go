@@ -136,6 +136,7 @@ var (
 		"unknown": "unknown",
 	}
 	knownRuntimeProviders = map[string]string{
+		"amp":           "amp",
 		"antigravity":   "antigravity",
 		"claude":        "claude",
 		"codebuddy":     "codebuddy",

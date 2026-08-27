@@ -15,6 +15,7 @@ Multica currently detects these commands:
 
 | Tool | Detected command | Official install guide |
 | --- | --- | --- |
+| Amp | `amp` | [Amp](https://ampcode.com) |
 | Antigravity CLI | `agy` | [Antigravity install and sign-in](https://antigravity.google/docs/cli-install) |
 | Claude Code | `claude` | [Claude Code quickstart](https://code.claude.com/docs/en/quickstart) |
 | CodeBuddy Code | `codebuddy` | [CodeBuddy quickstart](https://www.codebuddy.ai/docs/cli/quickstart) |
@@ -49,6 +50,8 @@ After installing, launch the tool once in a terminal on its own and complete its
 For Reasonix, run `reasonix setup` and configure a default provider and model before starting the daemon.
 
 For QwenPaw, choose the provider and model in QwenPaw's own configuration. Multica cannot override a QwenPaw model at run time.
+
+For Amp, sign in with `amp login` or set `AMP_API_KEY`. Amp picks its own model; Multica does not send `--model`.
 
 For MiniMax Code, install a supported Node.js release (`>=22.19 <23` or `>=24 <27`) and run `npm install --global @minimax-ai/code@latest`. A global npm install places `mcode` on npm's global binary path; if `command -v mcode` or `Get-Command mcode` cannot find it, add that path to `PATH`. Then run `mcode login`. MiniMax Code owns the model selection; Multica cannot override it through ACP.
 

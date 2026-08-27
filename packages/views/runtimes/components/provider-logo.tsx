@@ -350,6 +350,23 @@ function DimLogo({ className }: { className: string }) {
 // mark (three claw-scratch strokes) rather than a claimed "official" logo.
 // currentColor keeps it legible in both themes; swap for a real asset once
 // ZeroClaw ships one, following the DimLogo <img> pattern.
+function AmpLogo({ className }: { className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 3l8 18H4L12 3z" />
+      <path d="M9 15h6" />
+    </svg>
+  );
+}
+
 function ZeroClawLogo({ className }: { className: string }) {
   return (
     <svg
@@ -424,6 +441,8 @@ export function ProviderLogo({
       return <DimLogo className={className} />;
     case "zeroclaw":
       return <ZeroClawLogo className={className} />;
+    case "amp":
+      return <AmpLogo className={className} />;
     default:
       return <Monitor className={className} />;
   }
