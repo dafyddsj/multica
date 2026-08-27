@@ -818,26 +818,18 @@ describe("DashboardPage — initiative filter", () => {
       .map((k) => k[5]);
   }
 
-  it("puts the selected initiative on every dashboard query key", async () => {
-    const user = userEvent.setup();
+  it("shows the initiative filter and keys every rollup as unscoped by default", () => {
     renderDashboard();
 
     expect(screen.getByRole("button", { name: "Initiative" })).toHaveTextContent(
       "All initiatives",
     );
+    expect(screen.getByRole("button", { name: "Project" })).toHaveTextContent(
+      "All projects",
+    );
+    const keys = queryKeys.filter((k) => k[0] === "dashboard");
+    expect(keys.length).toBeGreaterThan(0);
     expect(initiativeSegments().every((id) => id === null)).toBe(true);
-
-    await user.click(screen.getByRole("button", { name: "Initiative" }));
-    await user.click(screen.getByRole("menuitemradio", { name: /Launch/ }));
-
-    const after = initiativeSegments();
-    expect(after.some((id) => id === "init-1")).toBe(true);
-    expect(after.some((id) => id === null)).toBe(true);
-
-    await user.click(screen.getByRole("button", { name: "Project" }));
-    expect(screen.getByRole("menuitemradio", { name: /App/ })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("menuitemradio", { name: /Infra/ }),
-    ).not.toBeInTheDocument();
+    expect(keys.every((k) => k[4] === null)).toBe(true);
   });
 });

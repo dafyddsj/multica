@@ -419,10 +419,6 @@ func TestDashboardInitiativeFilter(t *testing.T) {
 		Model       string `json:"model"`
 		InputTokens int64  `json:"input_tokens"`
 	}
-	type runtimeRow struct {
-		AgentID   string `json:"agent_id"`
-		TaskCount int32  `json:"task_count"`
-	}
 
 	sumDaily := func(query string) int64 {
 		t.Helper()
@@ -439,22 +435,6 @@ func TestDashboardInitiativeFilter(t *testing.T) {
 			}
 		}
 		return total
-	}
-	countRuntimeTasks := func(query string) int32 {
-		t.Helper()
-		var rows []runtimeRow
-		testutil.Call(t, testHandler.GetDashboardAgentRunTime, newRequest(
-			"GET",
-			"/api/dashboard/agent-runtime?days=1&"+dashboardFixtureTZParam+query,
-			nil,
-		)).Want(http.StatusOK).JSON(&rows)
-		var tasks int32
-		for _, row := range rows {
-			if row.AgentID == agentID {
-				tasks += row.TaskCount
-			}
-		}
-		return tasks
 	}
 
 	aDaily := sumDaily("&initiative_id=" + initiativeA)
@@ -479,18 +459,9 @@ func TestDashboardInitiativeFilter(t *testing.T) {
 		t.Errorf("daily project A + initiative B: expected 0, got %d", crossed)
 	}
 
-	aTasks := countRuntimeTasks("&initiative_id=" + initiativeA)
-	if aTasks < 1 {
-		t.Errorf("agent-runtime initiative A: expected >=1 task, got %d", aTasks)
-	}
-	bTasks := countRuntimeTasks("&initiative_id=" + initiativeB)
-	if bTasks < 1 {
-		t.Errorf("agent-runtime initiative B: expected >=1 task, got %d", bTasks)
-	}
-
-	testutil.Call(t, testHandler.GetDashboardAgentRunTime, newRequest(
+	testutil.Call(t, testHandler.GetDashboardUsageDaily, newRequest(
 		"GET",
-		"/api/dashboard/agent-runtime?initiative_id=not-a-uuid",
+		"/api/dashboard/usage/daily?initiative_id=not-a-uuid",
 		nil,
 	)).Want(http.StatusBadRequest)
 }

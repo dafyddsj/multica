@@ -42,10 +42,7 @@ export function dimsForDays(days: TimeRange): readonly Dim[] {
   );
 }
 
-/** Sentinel for "no project filter" — kept distinct from the empty string so
- *  it survives a refactor that ever lets a project be slug-keyed. */
-export const ALL_PROJECTS = "__all__";
-export const ALL_INITIATIVES = "__all__";
+export { ALL_INITIATIVES, ALL_PROJECTS } from "../dashboard-scope";
 
 /**
  * Card-local segmented control — the pill toggle used *inside* a card to pick

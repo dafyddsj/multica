@@ -59,13 +59,18 @@ import {
   mergeAgentDashboardRows,
 } from "../utils";
 import {
-  ALL_INITIATIVES,
-  ALL_PROJECTS,
   DurationNumberFlow,
   dimsForDays,
   type TimeRange,
 } from "./dashboard-shared";
 import { InitiativeFilter, ProjectFilter, TimeRangeFilter } from "./dashboard-filters";
+import {
+  ALL_INITIATIVES,
+  ALL_PROJECTS,
+  projectsForInitiative,
+  resolveDashboardInitiativeId,
+  resolveDashboardProjectId,
+} from "../dashboard-scope";
 import { UsageTrendCard } from "./usage-trend-card";
 import { Leaderboard } from "./leaderboard";
 import { ErrorsTab } from "./errors-tab";
@@ -186,30 +191,28 @@ export function DashboardPage() {
   // Validate the picked initiative against the current workspace's list. A
   // stale UUID would silently empty every rollup while the chip still read
   // "All initiatives".
-  const initiativeId = useMemo(() => {
-    if (initiativeValue === ALL_INITIATIVES) return null;
-    return initiatives.some((initiative) => initiative.id === initiativeValue)
-      ? initiativeValue
-      : null;
-  }, [initiativeValue, initiatives]);
+  const initiativeId = useMemo(
+    () => resolveDashboardInitiativeId(initiativeValue, initiatives),
+    [initiativeValue, initiatives],
+  );
 
   // When an initiative is selected, the project menu only offers that
   // initiative's projects. A leftover project from another initiative then
   // fails this check and drops out of the query the same way a deleted id does.
-  const scopedProjects = useMemo(() => {
-    if (!initiativeId) return projects;
-    return projects.filter((project) => project.initiative_id === initiativeId);
-  }, [projects, initiativeId]);
+  const scopedProjects = useMemo(
+    () => projectsForInitiative(projects, initiativeId),
+    [projects, initiativeId],
+  );
 
   // Validate the picked project against the current workspace's list. A
   // stale UUID — left over from a project that's been deleted, or from the
   // previous workspace after a switch — would silently filter every query to
   // empty rows while the header still reads "All projects". Derive the
   // effective filter so the API call matches the user-visible selection.
-  const projectId = useMemo(() => {
-    if (projectValue === ALL_PROJECTS) return null;
-    return scopedProjects.some((p) => p.id === projectValue) ? projectValue : null;
-  }, [projectValue, scopedProjects]);
+  const projectId = useMemo(
+    () => resolveDashboardProjectId(projectValue, scopedProjects),
+    [projectValue, scopedProjects],
+  );
 
   // The weekly charts paint `ceil(days / 7)` trailing calendar weeks anchored
   // at today-in-UTC. In the worst case (today = Sunday) the leftmost Monday
