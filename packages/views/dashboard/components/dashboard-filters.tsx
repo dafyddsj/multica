@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronDown, FolderKanban } from "lucide-react";
+import { CalendarDays, ChevronDown, FolderKanban, Target } from "lucide-react";
 import { Button } from "@multica/ui/components/ui/button";
 import {
   DropdownMenu,
@@ -10,8 +10,14 @@ import {
   DropdownMenuRadioItem,
 } from "@multica/ui/components/ui/dropdown-menu";
 import { ProjectIcon } from "../../projects/components/project-icon";
+import { InitiativeIcon } from "../../initiatives/components/initiative-icon";
 import { useT } from "../../i18n";
-import { ALL_PROJECTS, TIME_RANGES, type TimeRange } from "./dashboard-shared";
+import {
+  ALL_INITIATIVES,
+  ALL_PROJECTS,
+  TIME_RANGES,
+  type TimeRange,
+} from "./dashboard-shared";
 
 type DashboardProject = { id: string; title: string; icon: string | null };
 
@@ -76,13 +82,13 @@ export function TimeRangeFilter({
 /**
  * Page-scoped project filter.
  *
- * A single-level dropdown, deliberately not a generic "Filter" menu: with one
- * dimension, a wrapper menu only hides what is filterable behind an extra
- * hover. The trigger states the current value like `TimeRangeFilter` does:
- * a neutral outline throughout, showing the selected project's own icon and
- * name once narrowed — the named value is the active-state signal, no filled
- * tier. If a second dimension ships (agent, model, runtime), fold this back
- * into a combined menu in the `IssueDisplayControls` grammar.
+ * A single-level dropdown, deliberately not a generic "Filter" menu. The
+ * trigger states the current value like `TimeRangeFilter` does: a neutral
+ * outline throughout, showing the selected project's own icon and name once
+ * narrowed — the named value is the active-state signal, no filled tier.
+ * Initiative is a sibling workspace-scope filter, not a new chart dimension
+ * (agent / model / runtime); those still fold into a combined menu if they
+ * ship.
  */
 export function ProjectFilter({
   projects,
@@ -136,6 +142,69 @@ export function ProjectFilter({
             <DropdownMenuRadioItem key={project.id} value={project.id}>
               <ProjectIcon project={project} size="sm" />
               <span className="truncate">{project.title}</span>
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+type DashboardInitiative = { id: string; title: string; icon: string | null };
+
+/**
+ * Page-scoped initiative filter. Same grammar as `ProjectFilter`: the trigger
+ * names the current value, and a stale id that no longer resolves reads as
+ * "all initiatives" so the chip cannot claim a filter the queries dropped.
+ */
+export function InitiativeFilter({
+  initiatives,
+  initiativeValue,
+  onInitiativeChange,
+}: {
+  initiatives: DashboardInitiative[];
+  initiativeValue: string;
+  onInitiativeChange: (value: string) => void;
+}) {
+  const { t } = useT("usage");
+  const allLabel = t(($) => $.filter.all_initiatives);
+  const selected = initiatives.find((initiative) => initiative.id === initiativeValue);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label={t(($) => $.filter.initiative_label)}
+            className={selected ? "gap-1 px-2.5" : "gap-1 px-2.5 text-muted-foreground"}
+          >
+            {selected ? (
+              <InitiativeIcon initiative={selected} size="sm" />
+            ) : (
+              <Target className="size-3.5" />
+            )}
+            <span className="max-w-40 truncate">
+              {selected ? selected.title : allLabel}
+            </span>
+            <ChevronDown className="size-3 text-muted-foreground" />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end" className="max-h-72 w-auto min-w-52">
+        <DropdownMenuRadioGroup
+          value={initiativeValue}
+          onValueChange={(value) => onInitiativeChange(value ?? ALL_INITIATIVES)}
+        >
+          <DropdownMenuRadioItem value={ALL_INITIATIVES}>
+            <Target className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate">{allLabel}</span>
+          </DropdownMenuRadioItem>
+          {initiatives.map((initiative) => (
+            <DropdownMenuRadioItem key={initiative.id} value={initiative.id}>
+              <InitiativeIcon initiative={initiative} size="sm" />
+              <span className="truncate">{initiative.title}</span>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

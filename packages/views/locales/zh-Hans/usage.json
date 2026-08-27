@@ -8,6 +8,8 @@
   "filter": {
     "project_label": "项目",
     "all_projects": "全部项目",
+    "initiative_label": "专项",
+    "all_initiatives": "全部专项",
     "period_label": "时间范围"
   },
   "kpi": {
