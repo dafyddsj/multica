@@ -528,10 +528,10 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       const workspaces = await queryClient.fetchQuery(workspaceListOptions());
       const ws = workspaces.find((w) => w.slug === slug);
       if (!ws) return null;
-      const initiatives = await queryClient.fetchQuery(initiativeListOptions(ws.id));
+      const listed = await queryClient.fetchQuery(initiativeListOptions(ws.id));
       const knownPrefixes = [
         ws.issue_prefix,
-        ...initiatives.map((initiative) => initiative.issue_prefix),
+        ...listed.initiatives.map((initiative) => initiative.issue_prefix),
       ].filter((value): value is string => Boolean(value));
       if (
         knownPrefixes.length > 0 &&
