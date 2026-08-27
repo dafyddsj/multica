@@ -22,4 +22,14 @@ echo "==> [start] Applying database migrations"
 set -a; . ./.env; set +a
 (cd server && go run ./cmd/migrate up)
 
+if [ -f .env ] && ! grep -q '^NODE_OPTIONS=' .env; then
+  printf '\nNODE_OPTIONS=--max-old-space-size=8192\n' >>.env
+fi
+
+if [ -f scripts/warm-web.sh ]; then
+  mkdir -p /tmp/cursor
+  echo "==> [start] Warming web demo routes in the background"
+  nohup bash scripts/warm-web.sh >>/tmp/cursor/warm-web.log 2>&1 &
+fi
+
 echo "==> [start] Ready"

@@ -55,3 +55,10 @@ make check            # Full verification pipeline
 ```
 
 See CLAUDE.md for the authoritative rules and common commands.
+
+## Cursor Cloud specific instructions
+
+- Cloud web is `next dev --webpack` (fumadocs forces webpack).
+- `.cursor/start.sh` backgrounds `scripts/warm-web.sh` and backfills `NODE_OPTIONS=--max-old-space-size=8192` into `.env` when missing.
+- `control-multica doctor` is not green until those demo routes have compiled.
+- Do not put `next build` / `next start` in install for demos; agents edit code and need HMR.
