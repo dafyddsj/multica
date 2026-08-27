@@ -120,8 +120,15 @@ const unusedFetchEvent = {
 } as NextFetchEvent;
 
 export function proxy(req: NextRequest, event: NextFetchEvent = unusedFetchEvent) {
-  if (!clerkOverlayKeys()) return appProxy(req);
-  return clerkMiddleware((_auth, request) => appProxy(request))(req, event);
+  const keys = clerkOverlayKeys();
+  if (!keys) return appProxy(req);
+  // Pass keys explicitly. clerkMiddleware does not read CLERK_PUBLISHABLE_KEY,
+  // only NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY, and throws when that alias is
+  // missing even though clerkOverlayKeys() already accepted both env names.
+  return clerkMiddleware((_auth, request) => appProxy(request), {
+    publishableKey: keys.publishableKey,
+    secretKey: keys.secretKey,
+  })(req, event);
 }
 
 export const config = {

@@ -89,7 +89,17 @@ export function ClerkLogin({
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <SignIn routing="hash" />
+      {/* Hash routing keeps the widget on /login. Pin Clerk's post-auth
+          redirects too: dashboard "home" is `/`, and without these props
+          the hosted widget navigates there after OTP before handleSuccess
+          can run. /login owns destination (onboarding vs workspace). */}
+      <SignIn
+        routing="hash"
+        forceRedirectUrl="/login"
+        fallbackRedirectUrl="/login"
+        signUpForceRedirectUrl="/login"
+        signUpFallbackRedirectUrl="/login"
+      />
     </div>
   );
 }

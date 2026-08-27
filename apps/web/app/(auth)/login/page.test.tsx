@@ -83,7 +83,22 @@ vi.mock("@/features/auth/auth-cookie", () => ({
 }));
 
 vi.mock("@clerk/nextjs", () => ({
-  SignIn: () => <div>Clerk Sign In</div>,
+  SignIn: (props: {
+    forceRedirectUrl?: string;
+    fallbackRedirectUrl?: string;
+    signUpForceRedirectUrl?: string;
+    signUpFallbackRedirectUrl?: string;
+  }) => (
+    <div
+      data-testid="clerk-sign-in"
+      data-force-redirect={props.forceRedirectUrl}
+      data-fallback-redirect={props.fallbackRedirectUrl}
+      data-signup-force-redirect={props.signUpForceRedirectUrl}
+      data-signup-fallback-redirect={props.signUpFallbackRedirectUrl}
+    >
+      Clerk Sign In
+    </div>
+  ),
   useAuth: () => ({
     isLoaded: true,
     isSignedIn: false,
@@ -130,7 +145,12 @@ describe("LoginPage", () => {
     });
     render(<LoginPage />, { wrapper: createWrapper() });
 
-    expect(screen.getByText("Clerk Sign In")).toBeInTheDocument();
+    const widget = screen.getByTestId("clerk-sign-in");
+    expect(widget).toHaveTextContent("Clerk Sign In");
+    expect(widget).toHaveAttribute("data-force-redirect", "/login");
+    expect(widget).toHaveAttribute("data-fallback-redirect", "/login");
+    expect(widget).toHaveAttribute("data-signup-force-redirect", "/login");
+    expect(widget).toHaveAttribute("data-signup-fallback-redirect", "/login");
     expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
   });
 

@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { proxy } from "../proxy";
 import manifest, { PWA_START_URL } from "./manifest";
+
+beforeEach(() => {
+  delete process.env.CLERK_SECRET_KEY;
+  delete process.env.CLERK_PUBLISHABLE_KEY;
+  delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+});
 
 function launch(cookies: Record<string, string>, host = "www.multica.ai") {
   const cookieHeader = Object.entries(cookies)
