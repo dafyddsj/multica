@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/multica-ai/multica/server/internal/entitystatus"
 	"github.com/multica-ai/multica/server/internal/logger"
 	"github.com/multica-ai/multica/server/internal/memory"
 	"github.com/multica-ai/multica/server/internal/util"
@@ -41,7 +42,6 @@ type InitiativeResponse struct {
 	DoneCount    int64   `json:"done_count"`
 }
 
-var validInitiativeStatuses = []string{"planned", "in_progress", "paused", "completed", "cancelled"}
 var validInitiativePriorities = []string{"urgent", "high", "medium", "low", "none"}
 
 func initiativeToResponse(i db.Initiative) InitiativeResponse {
@@ -240,7 +240,8 @@ func (h *Handler) CreateInitiative(w http.ResponseWriter, r *http.Request) {
 	if status == "" {
 		status = "planned"
 	}
-	if !validateProjectEnum(w, "status", status, validInitiativeStatuses) {
+	status, ok = h.resolveWritableEntityStatus(w, r, workspaceID, entitystatus.Initiative, status)
+	if !ok {
 		return
 	}
 	priority := req.Priority
@@ -360,10 +361,11 @@ func (h *Handler) UpdateInitiative(w http.ResponseWriter, r *http.Request) {
 		params.Title = pgtype.Text{String: *req.Title, Valid: true}
 	}
 	if req.Status != nil {
-		if !validateProjectEnum(w, "status", *req.Status, validInitiativeStatuses) {
+		resolved, ok := h.resolveWritableEntityStatus(w, r, workspaceID, entitystatus.Initiative, *req.Status)
+		if !ok {
 			return
 		}
-		params.Status = pgtype.Text{String: *req.Status, Valid: true}
+		params.Status = pgtype.Text{String: resolved, Valid: true}
 	}
 	if req.Priority != nil {
 		if !validateProjectEnum(w, "priority", *req.Priority, validInitiativePriorities) {

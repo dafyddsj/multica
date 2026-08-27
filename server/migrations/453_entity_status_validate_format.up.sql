@@ -1,0 +1,2 @@
+ALTER TABLE project VALIDATE CONSTRAINT project_status_format_check;
+ALTER TABLE initiative VALIDATE CONSTRAINT initiative_status_format_check;

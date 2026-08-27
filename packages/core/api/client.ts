@@ -132,6 +132,12 @@ import type {
   IssueStatusEntry,
   CreateIssueStatusRequest,
   UpdateIssueStatusRequest,
+  ListEntityStatusesResponse,
+  EntityStatusEntry,
+  EntityStatusResourceType,
+  EntityStatusCategory,
+  CreateEntityStatusRequest,
+  UpdateEntityStatusRequest,
   IssueLabelsResponse,
   LabelResourceType,
   ResourceLabelsResponse,
@@ -418,6 +424,10 @@ import {
   EMPTY_LIST_LABELS_RESPONSE,
   EMPTY_LIST_ISSUE_STATUSES_RESPONSE,
   EMPTY_ISSUE_STATUS_ENTRY,
+  ListEntityStatusesResponseSchema,
+  EntityStatusEntrySchema,
+  EMPTY_LIST_ENTITY_STATUSES_RESPONSE,
+  EMPTY_ENTITY_STATUS_ENTRY,
   EMPTY_RESOURCE_LABELS_RESPONSE,
   GitHubConnectResponseSchema,
   ListGitHubInstallationsResponseSchema,
@@ -3780,6 +3790,59 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(`/api/issue-statuses/${id}`, { method: "DELETE" });
     return parseWithFallback(raw, IssueStatusEntrySchema, EMPTY_ISSUE_STATUS_ENTRY, {
       endpoint: "DELETE /api/issue-statuses/{id}",
+    });
+  }
+
+  async listEntityStatuses(
+    resourceType: EntityStatusResourceType,
+    includeArchived = false,
+  ): Promise<ListEntityStatusesResponse> {
+    const params = new URLSearchParams({ resource_type: resourceType });
+    if (includeArchived) params.set("include_archived", "true");
+    const raw = await this.fetch<unknown>(`/api/entity-statuses?${params.toString()}`);
+    return parseWithFallback(raw, ListEntityStatusesResponseSchema, EMPTY_LIST_ENTITY_STATUSES_RESPONSE, {
+      endpoint: "GET /api/entity-statuses",
+    });
+  }
+
+  async createEntityStatus(data: CreateEntityStatusRequest): Promise<EntityStatusEntry> {
+    const raw = await this.fetch<unknown>(`/api/entity-statuses`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, EntityStatusEntrySchema, EMPTY_ENTITY_STATUS_ENTRY, {
+      endpoint: "POST /api/entity-statuses",
+    });
+  }
+
+  async updateEntityStatus(id: string, data: UpdateEntityStatusRequest): Promise<EntityStatusEntry> {
+    const raw = await this.fetch<unknown>(`/api/entity-statuses/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, EntityStatusEntrySchema, EMPTY_ENTITY_STATUS_ENTRY, {
+      endpoint: "PATCH /api/entity-statuses/{id}",
+    });
+  }
+
+  async reorderEntityStatuses(
+    resourceType: EntityStatusResourceType,
+    category: EntityStatusCategory,
+    ids: string[],
+  ): Promise<ListEntityStatusesResponse> {
+    const raw = await this.fetch<unknown>(`/api/entity-statuses/reorder`, {
+      method: "PATCH",
+      body: JSON.stringify({ resource_type: resourceType, category, ids }),
+    });
+    return parseWithFallback(raw, ListEntityStatusesResponseSchema, EMPTY_LIST_ENTITY_STATUSES_RESPONSE, {
+      endpoint: "PATCH /api/entity-statuses/reorder",
+    });
+  }
+
+  async archiveEntityStatus(id: string): Promise<EntityStatusEntry> {
+    const raw = await this.fetch<unknown>(`/api/entity-statuses/${id}`, { method: "DELETE" });
+    return parseWithFallback(raw, EntityStatusEntrySchema, EMPTY_ENTITY_STATUS_ENTRY, {
+      endpoint: "DELETE /api/entity-statuses/{id}",
     });
   }
 

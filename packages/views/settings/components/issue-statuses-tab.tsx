@@ -119,7 +119,7 @@ const EMPTY_DRAFT: StatusDraft = {
   color: COLOR_PICKER_PRESETS[6]!,
 };
 
-export function IssueStatusesTab() {
+export function IssueStatusesTab({ embedded = false }: { embedded?: boolean } = {}) {
   const { t } = useT("settings");
   const wsId = useWorkspaceId();
 
@@ -156,11 +156,8 @@ export function IssueStatusesTab() {
 
   const archivedCount = statuses.filter((s) => !s.is_system && s.archived_at).length;
 
-  return (
-    <SettingsTab
-      title={t(($) => $.issue_statuses.title)}
-      description={t(($) => $.issue_statuses.description)}
-    >
+  const body = (
+    <>
       <div className="space-y-4">
         {/* Offered only once the workspace has something archived. A permanently
             disabled "Show archived (0)" is a control that can never do
@@ -209,6 +206,17 @@ export function IssueStatusesTab() {
         status={editing}
       />
       <ArchiveStatusDialog status={pendingArchive} onClose={() => setPendingArchive(null)} />
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <SettingsTab
+      title={t(($) => $.issue_statuses.title)}
+      description={t(($) => $.issue_statuses.description)}
+    >
+      {body}
     </SettingsTab>
   );
 }

@@ -44,7 +44,7 @@ import { IntegrationsTab } from "./integrations-tab";
 import { LabsTab } from "./labs-tab";
 import { NotificationsTab } from "./notifications-tab";
 import { LabelsTab } from "./labels-tab";
-import { IssueStatusesTab } from "./issue-statuses-tab";
+import { StatusesTab } from "./statuses-tab";
 import { PropertiesTab } from "./properties-tab";
 import { QuickActionsTab } from "./quick-actions-tab";
 import { KeyboardShortcutsTab } from "./keyboard-shortcuts-tab";
@@ -89,7 +89,7 @@ const WORKSPACE_TAB_VALUES = {
   members: "members",
   billing: "billing",
   labels: "labels",
-  issue_statuses: "issue-statuses",
+  issue_statuses: "statuses",
   properties: "properties",
   quick_actions: "quick-actions",
   mcp: "mcp",
@@ -120,6 +120,7 @@ const TAB_QUERY_KEY = "tab";
 // tab; it now lives inside Integrations.
 const LEGACY_WORKSPACE_TAB_REDIRECTS: Record<string, string> = {
   lark: "integrations",
+  "issue-statuses": "statuses",
 };
 
 const SETTINGS_TAB_TRIGGER_CLASS =
@@ -264,7 +265,7 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
 
       {/* Right content */}
       <div className="min-w-0 flex-1 md:overflow-y-auto">
-        <div className={`mx-auto w-full p-4 sm:p-6 md:p-8 ${activeTab === "labels" || activeTab === "issue-statuses" || activeTab === "properties" || activeTab === "quick-actions"
+        <div className={`mx-auto w-full p-4 sm:p-6 md:p-8 ${activeTab === "labels" || activeTab === "statuses" || activeTab === "properties" || activeTab === "quick-actions"
               ? "max-w-5xl"
               : "max-w-3xl"}`}>
           <TabsContent value="profile"><AccountTab /></TabsContent>
@@ -284,7 +285,7 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
             <TabsContent value="billing"><BillingTab /></TabsContent>
           ) : null}
           <TabsContent value="labels"><LabelsTab /></TabsContent>
-          <TabsContent value="issue-statuses"><IssueStatusesTab /></TabsContent>
+          <TabsContent value="statuses"><StatusesTab /></TabsContent>
           <TabsContent value="properties"><PropertiesTab /></TabsContent>
           <TabsContent value="quick-actions"><QuickActionsTab /></TabsContent>
           <TabsContent value="mcp"><McpTab /></TabsContent>

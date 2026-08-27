@@ -78,6 +78,10 @@ import {
   IssueStatusEntrySchema,
   EMPTY_LIST_ISSUE_STATUSES_RESPONSE,
   EMPTY_ISSUE_STATUS_ENTRY,
+  ListEntityStatusesResponseSchema,
+  EntityStatusEntrySchema,
+  EMPTY_LIST_ENTITY_STATUSES_RESPONSE,
+  EMPTY_ENTITY_STATUS_ENTRY,
 } from "./schemas";
 import { parseWithFallback } from "./schema";
 
@@ -2046,6 +2050,64 @@ describe("issue status catalog schemas", () => {
       { endpoint: "POST /api/issue-statuses" },
     );
     expect(parsed).toEqual(EMPTY_ISSUE_STATUS_ENTRY);
+  });
+});
+
+describe("entity status catalog schemas", () => {
+  const baseStatus = {
+    id: "status-1",
+    workspace_id: "ws-1",
+    resource_type: "project",
+    key: "shipping",
+    name: "Shipping",
+    description: "Going out",
+    category: "in_progress",
+    color: "#22c55e",
+    is_system: false,
+    position: 1,
+    archived_at: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  };
+
+  it("parses a full catalog response", () => {
+    const parsed = ListEntityStatusesResponseSchema.parse({
+      statuses: [baseStatus],
+      resource_type: "project",
+      categories: ["planned", "in_progress", "paused", "completed", "cancelled"],
+      total: 1,
+    });
+    expect(parsed.statuses[0]?.key).toBe("shipping");
+    expect(parsed.resource_type).toBe("project");
+  });
+
+  it("falls back to the built-in categories on a malformed response", () => {
+    const parsed = parseWithFallback(
+      { statuses: "nope" },
+      ListEntityStatusesResponseSchema,
+      EMPTY_LIST_ENTITY_STATUSES_RESPONSE,
+      { endpoint: "GET /api/entity-statuses" },
+    );
+    expect(parsed).toEqual(EMPTY_LIST_ENTITY_STATUSES_RESPONSE);
+    expect(parsed.categories).toHaveLength(5);
+  });
+
+  it("defaults missing presentation fields", () => {
+    const { color: _c, is_system: _s, position: _p, description: _d, archived_at: _a, ...minimal } = baseStatus;
+    const parsed = EntityStatusEntrySchema.parse(minimal);
+    expect(parsed.color).toBe("#6b7280");
+    expect(parsed.is_system).toBe(false);
+    expect(parsed.archived_at).toBeNull();
+  });
+
+  it("falls back to an empty entry on a malformed single status", () => {
+    const parsed = parseWithFallback(
+      { id: 12345 },
+      EntityStatusEntrySchema,
+      EMPTY_ENTITY_STATUS_ENTRY,
+      { endpoint: "POST /api/entity-statuses" },
+    );
+    expect(parsed).toEqual(EMPTY_ENTITY_STATUS_ENTRY);
   });
 });
 

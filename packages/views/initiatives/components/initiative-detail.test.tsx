@@ -64,6 +64,10 @@ vi.mock("@multica/core/auth", () => ({
     selector({ user: { id: "user-1" } }),
 }));
 
+vi.mock("../../memory", () => ({
+  MemoryPanel: () => null,
+}));
+
 vi.mock("@multica/core/paths", () => ({
   useWorkspacePaths: () => ({
     initiatives: () => "/test-workspace/initiatives",
@@ -78,10 +82,6 @@ vi.mock("@multica/core/workspace/hooks", () => ({
 
 vi.mock("@multica/core/modals", () => ({
   useModalStore: { getState: () => ({ open: vi.fn() }) },
-}));
-
-vi.mock("../../memory", () => ({
-  MemoryPanel: () => null,
 }));
 
 vi.mock("sonner", () => ({
@@ -176,6 +176,31 @@ vi.mock("@multica/ui/components/ui/alert-dialog", () => ({
 vi.mock("../../editor", () => ({
   TitleEditor: ({ defaultValue }: { defaultValue: string }) => <div>{defaultValue}</div>,
   ContentEditor: () => null,
+}));
+
+vi.mock("../../common/entity-status-picker", () => ({
+  useEntityStatusPicker: () => ({
+    options: [
+      {
+        key: "planned",
+        label: "Planned",
+        category: "planned",
+        hex: null,
+        dotClass: "bg-muted-foreground",
+        badgeBg: "bg-muted",
+        badgeText: "text-muted-foreground",
+      },
+    ],
+    current: (key: string) => ({
+      key,
+      label: key,
+      category: "planned",
+      hex: null,
+      dotClass: "bg-muted-foreground",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    }),
+  }),
 }));
 
 vi.mock("../../common/actor-avatar", () => ({
