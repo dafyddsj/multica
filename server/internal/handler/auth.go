@@ -462,6 +462,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user = h.syncClerkProfile(r.Context(), user)
 	if err := h.syncClerkOrgs(r.Context(), user); err != nil {
 		slog.Error("clerk org sync failed", append(logger.RequestAttrs(r), "error", err, "user_id", userID)...)
 		writeError(w, http.StatusBadGateway, "failed to sync organizations")

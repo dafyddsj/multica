@@ -85,6 +85,52 @@ func TestGetMe_SyncsClerkOrganization(t *testing.T) {
 	}
 }
 
+type stubProfiles struct {
+	email string
+}
+
+func (s stubProfiles) Get(context.Context, string) (clerk.Profile, error) {
+	return clerk.Profile{Email: s.email, Name: "Ignored Clerk Name"}, nil
+}
+
+func TestGetMe_RefreshesClerkEmail(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+
+	ctx := context.Background()
+	const clerkUserID = "user_handler_email_sync"
+	const nextEmail = "clerk-refreshed@example.com"
+
+	var previousClerk *string
+	var previousEmail string
+	_ = testPool.QueryRow(ctx, `SELECT clerk_user_id, email FROM "user" WHERE id = $1`, testUserID).Scan(&previousClerk, &previousEmail)
+	_, _ = testPool.Exec(ctx, `UPDATE "user" SET clerk_user_id = $1 WHERE id = $2`, clerkUserID, testUserID)
+	t.Cleanup(func() {
+		if previousClerk == nil {
+			_, _ = testPool.Exec(context.Background(), `UPDATE "user" SET email = $1, clerk_user_id = NULL WHERE id = $2`, previousEmail, testUserID)
+		} else {
+			_, _ = testPool.Exec(context.Background(), `UPDATE "user" SET email = $1, clerk_user_id = $2 WHERE id = $3`, previousEmail, *previousClerk, testUserID)
+		}
+	})
+
+	orig := testHandler.Clerk
+	testHandler.Clerk = &clerk.Client{
+		Profiles: stubProfiles{email: "Clerk-Refreshed@example.com"},
+		Orgs:     stubHandlerOrgs{},
+	}
+	t.Cleanup(func() { testHandler.Clerk = orig })
+
+	var me UserResponse
+	testutil.Call(t, testHandler.GetMe, newRequest("GET", "/api/me", nil)).Want(http.StatusOK).JSON(&me)
+	if me.Email != nextEmail {
+		t.Fatalf("GetMe email: got %q want %q", me.Email, nextEmail)
+	}
+	if me.Name == "Ignored Clerk Name" {
+		t.Fatal("GetMe must not overwrite Multica name from Clerk")
+	}
+}
+
 type explodingOrgs struct{}
 
 func (explodingOrgs) ListMemberships(context.Context, string) ([]clerk.OrgMembership, error) {
