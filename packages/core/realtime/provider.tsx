@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { getApi } from "../api";
 import { WSClient } from "../api/ws-client";
 import type { WSEventType, StorageAdapter } from "../types";
 import type { ClientIdentity } from "../platform/types";
@@ -79,29 +80,50 @@ export function WSProvider({
   useEffect(() => {
     if (!user || !wsSlug) return;
 
-    // In token mode we need a token from storage; in cookie mode the HttpOnly
-    // cookie is sent automatically with the WS upgrade request.
-    const token = cookieAuth ? null : storage.getItem("multica_token");
-    if (!cookieAuth && !token) return;
+    // Token mode reads storage. Cookie mode normally rides the HttpOnly
+    // cookie, but a Clerk (or other) bearer on the API client still has
+    // to be sent as the first WS frame.
+    let cancelled = false;
+    let ws: WSClient | null = null;
+    const stored = cookieAuth ? null : storage.getItem("multica_token");
+    if (!cookieAuth && !stored) return;
 
-    const ws = new WSClient(wsUrl, {
-      logger: createLogger("ws"),
-      cookieAuth,
-      identity:
-        identityPlatform || identityVersion || identityOS
-          ? {
-              platform: identityPlatform,
-              version: identityVersion,
-              os: identityOS,
-            }
-          : undefined,
-    });
-    ws.setAuth(token, wsSlug);
-    setWsClient(ws);
-    ws.connect();
+    void (async () => {
+      let token = stored;
+      if (!token) {
+        try {
+          token = await getApi().resolveToken();
+        } catch {
+          token = null;
+        }
+      }
+      if (cancelled) return;
+      if (!cookieAuth && !token) return;
+
+      ws = new WSClient(wsUrl, {
+        logger: createLogger("ws"),
+        cookieAuth,
+        identity:
+          identityPlatform || identityVersion || identityOS
+            ? {
+                platform: identityPlatform,
+                version: identityVersion,
+                os: identityOS,
+              }
+            : undefined,
+      });
+      ws.setAuth(token, wsSlug);
+      if (cancelled) {
+        ws.disconnect();
+        return;
+      }
+      setWsClient(ws);
+      ws.connect();
+    })();
 
     return () => {
-      ws.disconnect();
+      cancelled = true;
+      ws?.disconnect();
       setWsClient(null);
     };
   }, [

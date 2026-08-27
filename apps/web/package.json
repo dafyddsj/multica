@@ -13,6 +13,7 @@
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.59.2",
     "@multica/core": "workspace:*",
     "@multica/ui": "workspace:*",
     "@multica/views": "workspace:*",

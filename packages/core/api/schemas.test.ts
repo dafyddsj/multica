@@ -1230,6 +1230,13 @@ describe("AppConfigSchema cdn_signed drift", () => {
     expect(AppConfigSchema.parse({ server_version: "1.2.3" }).server_version).toBe("1.2.3");
     expect(AppConfigSchema.parse({}).server_version).toBeUndefined();
   });
+
+  it("parses clerk_publishable_key and leaves it undefined when the server omits it", () => {
+    expect(AppConfigSchema.parse({ clerk_publishable_key: "pk_test_x" }).clerk_publishable_key).toBe(
+      "pk_test_x",
+    );
+    expect(AppConfigSchema.parse({}).clerk_publishable_key).toBeUndefined();
+  });
 });
 
 describe("InboxUnreadSummarySchema", () => {

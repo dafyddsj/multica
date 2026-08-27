@@ -82,6 +82,17 @@ vi.mock("@/features/auth/auth-cookie", () => ({
   setLoggedInCookie: vi.fn(),
 }));
 
+vi.mock("@clerk/clerk-react", () => ({
+  SignIn: () => <div>Clerk Sign In</div>,
+  useAuth: () => ({
+    isLoaded: true,
+    isSignedIn: false,
+    getToken: async () => null,
+  }),
+  useClerk: () => ({ signOut: async () => {} }),
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock api
 vi.mock("@multica/core/api", () => ({
   api: {
@@ -94,6 +105,7 @@ vi.mock("@multica/core/api", () => ({
   },
 }));
 
+import { configStore } from "@multica/core/config";
 import LoginPage from "./page";
 
 describe("LoginPage", () => {
@@ -104,6 +116,22 @@ describe("LoginPage", () => {
     authStateRef.state.isLoading = false;
     mockListWorkspaces.mockResolvedValue([]);
     mockListMyInvitations.mockResolvedValue([]);
+    configStore.getState().setAuthConfig({
+      allowSignup: true,
+      googleClientId: "",
+      clerkPublishableKey: "",
+    });
+  });
+
+  it("renders Clerk sign-in when the API advertises a publishable key", () => {
+    configStore.getState().setAuthConfig({
+      allowSignup: true,
+      clerkPublishableKey: "pk_test_x",
+    });
+    render(<LoginPage />, { wrapper: createWrapper() });
+
+    expect(screen.getByText("Clerk Sign In")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
   });
 
   it("renders login form with email input and continue button", () => {

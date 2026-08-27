@@ -733,6 +733,8 @@ export interface AppConfigResponse {
   cdn_signed?: boolean;
   allow_signup: boolean;
   google_client_id?: string;
+  /** Present only when the API has both Clerk keys configured. */
+  clerk_publishable_key?: string;
   posthog_key?: string;
   posthog_host?: string;
   analytics_environment?: string;
@@ -942,6 +944,7 @@ export const AppConfigSchema = z.object({
   cdn_signed: BooleanWithDefaultSchema(false),
   allow_signup: BooleanWithDefaultSchema(true),
   google_client_id: OptionalStringSchema,
+  clerk_publishable_key: OptionalStringSchema,
   posthog_key: OptionalStringSchema,
   posthog_host: OptionalStringSchema,
   analytics_environment: OptionalStringSchema,
@@ -960,6 +963,7 @@ export const EMPTY_APP_CONFIG: AppConfigResponse = {
   cdn_signed: false,
   allow_signup: true,
   google_client_id: "",
+  clerk_publishable_key: "",
   daemon_server_url: "",
   daemon_app_url: "",
   workspace_creation_disabled: false,

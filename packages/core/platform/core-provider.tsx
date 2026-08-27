@@ -91,6 +91,7 @@ export function CoreProvider({
   onLogin,
   onLogout,
   identity,
+  resolveAccessToken,
   locale,
   resources,
   localeAdapter,
@@ -117,6 +118,7 @@ export function CoreProvider({
         storage={storage}
         cookieAuth={cookieAuth}
         identity={identity}
+        resolveAccessToken={resolveAccessToken}
       >
         {/* Desktop's reporter owns both activity and runtime state so it must
             be the only writer for that installation. */}

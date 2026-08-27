@@ -37,6 +37,7 @@ export function AuthInitializer({
   storage = defaultStorage,
   cookieAuth,
   identity,
+  resolveAccessToken,
 }: {
   children: ReactNode;
   onLogin?: () => void;
@@ -44,6 +45,9 @@ export function AuthInitializer({
   storage?: StorageAdapter;
   cookieAuth?: boolean;
   identity?: ClientIdentity;
+  /** Optional bearer (Clerk session JWT). Called before getMe so cookie-mode
+   *  web can still send Authorization when native cookies are not the session. */
+  resolveAccessToken?: () => Promise<string | null>;
 }) {
   const qc = useQueryClient();
   const retryGeneration = useAuthStore((state) => state.retryGeneration);
@@ -69,6 +73,7 @@ export function AuthInitializer({
         configStore.getState().setAuthConfig({
           allowSignup: cfg.allow_signup,
           googleClientId: cfg.google_client_id,
+          clerkPublishableKey: cfg.clerk_publishable_key,
           // Old servers omit this field — treat that as "creation allowed"
           // (the managed-cloud default) rather than blocking the UI.
           workspaceCreationDisabled: cfg.workspace_creation_disabled === true,
@@ -270,6 +275,10 @@ export function AuthInitializer({
       inFlight = true;
 
       try {
+        if (resolveAccessToken) {
+          const token = await resolveAccessToken();
+          if (token) api.setToken(token);
+        }
         const user = await api.getMe();
         if (cancelled) return;
 

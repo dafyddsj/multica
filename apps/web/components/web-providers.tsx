@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { CoreProvider } from "@multica/core/platform";
 import { createBrowserCookieLocaleAdapter } from "@multica/core/i18n/browser";
 import type { LocaleResources, SupportedLocale } from "@multica/core/i18n";
 import { useWelcomeStore } from "@multica/core/onboarding";
+import { getApi } from "@multica/core/api";
 import packageJson from "../package.json";
 import { WebNavigationProvider } from "@/platform/navigation";
 import { WebScrollRestorationProvider } from "@/platform/scroll-restoration";
@@ -13,6 +14,8 @@ import {
   clearLoggedInCookie,
 } from "@/features/auth/auth-cookie";
 import { detectWebOS } from "@/platform/client-os";
+import { ClerkAuthGate } from "@/features/auth/clerk-shell";
+import { useClerkSessionBridge } from "@/features/auth/clerk-session";
 
 // Legacy token in localStorage → keep this session in token mode so users who
 // logged in before the cookie-auth migration stay authed. They migrate to
@@ -44,6 +47,23 @@ function deriveWsUrl(): string | undefined {
 const WEB_VERSION =
   process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version || "dev";
 
+function resetLocalSession() {
+  // welcome-store holds the transient post-onboarding signal. Must
+  // clear on logout so user B logging into the same browser doesn't
+  // inherit user A's signal and have <WelcomeAfterOnboarding /> fire
+  // listAgents / createIssue against a workspace user B doesn't even
+  // belong to. The store's own docstring promises this reset; this
+  // is where it gets wired.
+  useWelcomeStore.getState().reset();
+  clearLoggedInCookie();
+  try {
+    getApi().setToken(null);
+    getApi().setTokenProvider(null);
+  } catch {
+    // CoreProvider has not created the client yet.
+  }
+}
+
 export function WebProviders({
   children,
   locale,
@@ -65,26 +85,91 @@ export function WebProviders({
     [],
   );
   const localeAdapter = useMemo(() => createBrowserCookieLocaleAdapter(), []);
+  const resolvedWsUrl = wsUrl || deriveWsUrl();
+
+  return (
+    <ClerkAuthGate apiBaseUrl={apiBaseUrl}>
+      {(clerkKey) =>
+        clerkKey ? (
+          <ClerkReadyProviders
+            apiBaseUrl={apiBaseUrl}
+            wsUrl={resolvedWsUrl}
+            cookieAuth={cookieAuth}
+            identity={identity}
+            locale={locale}
+            resources={resources}
+            localeAdapter={localeAdapter}
+          >
+            {children}
+          </ClerkReadyProviders>
+        ) : (
+          <NativeProviders
+            apiBaseUrl={apiBaseUrl}
+            wsUrl={resolvedWsUrl}
+            cookieAuth={cookieAuth}
+            identity={identity}
+            locale={locale}
+            resources={resources}
+            localeAdapter={localeAdapter}
+          >
+            {children}
+          </NativeProviders>
+        )
+      }
+    </ClerkAuthGate>
+  );
+}
+
+function NativeProviders({
+  children,
+  ...props
+}: {
+  children: ReactNode;
+  apiBaseUrl?: string;
+  wsUrl?: string;
+  cookieAuth: boolean;
+  identity: { platform: string; version: string; os: ReturnType<typeof detectWebOS> };
+  locale: SupportedLocale;
+  resources: Record<string, LocaleResources>;
+  localeAdapter: ReturnType<typeof createBrowserCookieLocaleAdapter>;
+}) {
   return (
     <CoreProvider
-      apiBaseUrl={apiBaseUrl}
-      wsUrl={wsUrl || deriveWsUrl()}
-      cookieAuth={cookieAuth}
+      {...props}
+      onLogin={setLoggedInCookie}
+      onLogout={resetLocalSession}
+    >
+      <WebNavigationProvider>
+        <WebScrollRestorationProvider>{children}</WebScrollRestorationProvider>
+      </WebNavigationProvider>
+    </CoreProvider>
+  );
+}
+
+function ClerkReadyProviders({
+  children,
+  ...props
+}: {
+  children: ReactNode;
+  apiBaseUrl?: string;
+  wsUrl?: string;
+  cookieAuth: boolean;
+  identity: { platform: string; version: string; os: ReturnType<typeof detectWebOS> };
+  locale: SupportedLocale;
+  resources: Record<string, LocaleResources>;
+  localeAdapter: ReturnType<typeof createBrowserCookieLocaleAdapter>;
+}) {
+  const clerk = useClerkSessionBridge();
+  if (!clerk.loaded) return null;
+  return (
+    <CoreProvider
+      {...props}
+      resolveAccessToken={clerk.resolveAccessToken}
       onLogin={setLoggedInCookie}
       onLogout={() => {
-        // welcome-store holds the transient post-onboarding signal. Must
-        // clear on logout so user B logging into the same browser doesn't
-        // inherit user A's signal and have <WelcomeAfterOnboarding /> fire
-        // listAgents / createIssue against a workspace user B doesn't even
-        // belong to. The store's own docstring promises this reset; this
-        // is where it gets wired.
-        useWelcomeStore.getState().reset();
-        clearLoggedInCookie();
+        resetLocalSession();
+        void clerk.signOut();
       }}
-      identity={identity}
-      locale={locale}
-      resources={resources}
-      localeAdapter={localeAdapter}
     >
       <WebNavigationProvider>
         <WebScrollRestorationProvider>{children}</WebScrollRestorationProvider>

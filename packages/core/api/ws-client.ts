@@ -89,7 +89,11 @@ export class WSClient {
     this.ws = new WebSocket(url.toString());
 
     this.ws.onopen = () => {
-      if (!this.cookieAuth && this.token) {
+      // Cookie-only sessions leave token unset and ride the HttpOnly cookie
+      // on the upgrade request. A bearer (Clerk session or legacy token)
+      // must be sent as the first frame even when cookieAuth is also on —
+      // Clerk JWTs are not in `multica_auth`.
+      if (this.token) {
         this.ws!.send(
           JSON.stringify({ type: "auth", payload: { token: this.token } }),
         );
