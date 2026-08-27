@@ -25,7 +25,8 @@
     "progress": "進捗",
     "lead": "リード",
     "created": "作成日",
-    "issues": "タスク数"
+    "issues": "タスク数",
+    "initiative": "イニシアチブ"
   },
   "status": {
     "planned": "計画中",
@@ -161,6 +162,12 @@
     "section_status": "ステータス",
     "section_priority": "優先度",
     "section_lead": "リード",
+    "section_initiative": "イニシアチブ",
+    "no_initiative": "イニシアチブなし",
+    "unknown_initiative": "不明なイニシアチブ",
+    "group_by": "グループ",
+    "group_none": "グループなし",
+    "group_initiative": "イニシアチブ",
     "display": "表示",
     "sort_by": "並び替え",
     "direction_asc": "昇順",
