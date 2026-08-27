@@ -3234,10 +3234,11 @@ func (s *TaskService) RebroadcastCancelledTask(ctx context.Context, taskID pgtyp
 	s.broadcastTaskEvent(ctx, protocol.EventTaskCancelled, task)
 }
 
-func (s *TaskService) FinalizeDeferredCancelledChat(ctx context.Context, taskID pgtype.UUID) {
+func (s *TaskService) FinalizeDeferredCancelledChat(ctx context.Context, taskID pgtype.UUID) bool {
 	var (
 		task    db.AgentTaskQueue
 		payload protocol.ChatCancelFinalizedPayload
+		changed bool
 		settled bool
 	)
 	if err := s.runInTx(ctx, func(qtx *db.Queries) error {
@@ -3270,6 +3271,7 @@ func (s *TaskService) FinalizeDeferredCancelledChat(ctx context.Context, taskID 
 		if err != nil {
 			return fmt.Errorf("claim deferred chat finalize: %w", err)
 		}
+		changed = true
 		task = claimed
 		if sessionGone {
 			// The session cascaded away (its FK NULLs the column below anyway):
@@ -3367,12 +3369,13 @@ func (s *TaskService) FinalizeDeferredCancelledChat(ctx context.Context, taskID 
 			"task_id", util.UUIDToString(taskID),
 			"error", err,
 		)
-		return
+		return false
 	}
 	if !settled || payload.Outcome == "" {
-		return
+		return changed
 	}
 	s.broadcastChatCancelFinalized(ctx, task, payload)
+	return changed
 }
 
 func (s *TaskService) broadcastChatCancelFinalized(ctx context.Context, task db.AgentTaskQueue, payload protocol.ChatCancelFinalizedPayload) {
@@ -5794,6 +5797,7 @@ const (
 // replays from terminally exhausted outbox entries so operators never mistake
 // a bounded stop for a successful replay.
 type DelegatedFailureRecoverySweepResult struct {
+	Scanned   int
 	Replayed  int
 	Exhausted int
 }
@@ -6276,6 +6280,7 @@ func (s *TaskService) RecoverPendingDelegatedFailures(ctx context.Context, maxPe
 	if err != nil {
 		return result, fmt.Errorf("list pending delegated failure recoveries: %w", err)
 	}
+	result.Scanned = len(pending)
 
 	errs := make([]error, 0)
 	for _, comment := range pending {

@@ -294,6 +294,8 @@ var concurrentIndexCleanups = map[string]string{
 	"481_budget_waiver_pkey_index":                              "budget_waiver_pkey_uidx",
 	"483_budget_waiver_workspace_index":                         "budget_waiver_workspace_idx",
 	"484_budget_waiver_owner_index":                             "budget_waiver_owner_idx",
+	"486_agent_runtime_online_last_seen_index":                  "idx_agent_runtime_online_last_seen",
+	"487_agent_runtime_offline_last_seen_index":                 "idx_agent_runtime_offline_last_seen",
 }
 
 // concurrentDownIndexCleanups covers every migration whose down direction
