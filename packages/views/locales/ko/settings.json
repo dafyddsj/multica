@@ -708,6 +708,8 @@
     "forget": "잊기",
     "empty": "이 뱅크에는 아직 노트가 없습니다.",
     "loading": "노트를 불러오는 중…",
+    "load_failed": "노트를 불러오지 못했습니다.",
+    "showing_count": "{{shown}} / {{total}}",
     "kind_label": "종류",
     "kind_fact": "사실",
     "kind_preference": "선호",

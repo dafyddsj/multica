@@ -708,6 +708,8 @@
     "forget": "忘れる",
     "empty": "このバンクにはまだノートがありません。",
     "loading": "ノートを読み込み中…",
+    "load_failed": "ノートを読み込めませんでした。",
+    "showing_count": "{{shown}} / {{total}}",
     "kind_label": "種類",
     "kind_fact": "事実",
     "kind_preference": "好み",

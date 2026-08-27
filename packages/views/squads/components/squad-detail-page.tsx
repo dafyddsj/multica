@@ -115,6 +115,10 @@ export function SquadDetailPage() {
   // instead of controls that 403 (MUL-4223).
   const canManage =
     isWorkspaceAdmin || (!!currentUser && squad?.creator_id === currentUser.id);
+  const leader = agents.find((agent) => agent.id === squad?.leader_id);
+  const canWriteSquadMemory =
+    isWorkspaceAdmin ||
+    (!!currentUser && !!leader && leader.owner_id === currentUser.id);
 
   const [showAddMember, setShowAddMember] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(false);
@@ -1043,7 +1047,7 @@ function SquadOverviewPane({
               onDirtyChange={setActiveDirty}
             />
             <div className="mt-8">
-              <MemoryPanel scope="squad" ownerId={squad.id} canWrite={canManage} />
+              <MemoryPanel scope="squad" ownerId={squad.id} canWrite={canWriteSquadMemory} />
             </div>
           </div>
         )}

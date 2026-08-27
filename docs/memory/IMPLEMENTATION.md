@@ -126,6 +126,14 @@ Hits are copied onto `AgentTaskResponse.MemoryHits` and the daemon's
 `Task.MemoryHits`. `buildMemoryBlock` appends `## Memory` to the **per-turn**
 prompt, not the cached brief (MUL-5377).
 
+CLI / HTTP `recall` is not claim recall. `multica memory recall --issue-id`
+adds that issue bank on top of workspace + the caller's user bank. It does
+not infer agent, project, initiative, or squad. Pass those flags explicitly.
+
+User-scope notes on claim are the **runtime owner's** bank — the same person
+as `## Requesting User`. Anyone whose task runs on that runtime sees those
+notes. That is the v1 rule; a later provider run can revisit it.
+
 When the gates are off, `MemoryEnabled` stays false and existing briefs stay
 byte-identical.
 

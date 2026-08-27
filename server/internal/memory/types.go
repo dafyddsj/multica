@@ -1,9 +1,13 @@
 package memory
 
 import (
+	"errors"
 	"strings"
 	"unicode/utf8"
 )
+
+// ErrProvenanceTooLarge is returned when a provenance object exceeds MaxProvenanceBytes.
+var ErrProvenanceTooLarge = errors.New("provenance is too large")
 
 const (
 	ScopeWorkspace  = "workspace"
@@ -19,12 +23,13 @@ const (
 	KindProcedure   = "procedure"
 	KindObservation = "observation"
 
-	MaxBodyRunes     = 4000
-	MaxBankEntries   = 200
-	DefaultListLimit = 50
-	MaxListLimit     = 100
-	MaxRecallHits    = 8
-	MaxRecallRunes   = 400
+	MaxBodyRunes       = 4000
+	MaxBankEntries     = 200
+	DefaultListLimit   = 50
+	MaxListLimit       = 100
+	MaxRecallHits      = 8
+	MaxRecallRunes     = 400
+	MaxProvenanceBytes = 4096
 
 	// WorkspaceSettingsKey is the Labs toggle in workspace.settings.
 	WorkspaceSettingsKey = "memory_enabled"

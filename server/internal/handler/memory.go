@@ -200,6 +200,10 @@ func (h *Handler) CreateMemory(w http.ResponseWriter, r *http.Request) {
 	actorType, actorID := h.resolveActor(r, userID, uuidToString(ws.ID))
 	prov, err := marshalProvenance(req.Provenance)
 	if err != nil {
+		if errors.Is(err, memory.ErrProvenanceTooLarge) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		writeError(w, http.StatusBadRequest, "provenance must be a JSON object")
 		return
 	}
@@ -294,6 +298,10 @@ func (h *Handler) UpdateMemory(w http.ResponseWriter, r *http.Request) {
 	if req.Provenance != nil {
 		prov, err := marshalProvenance(req.Provenance)
 		if err != nil {
+			if errors.Is(err, memory.ErrProvenanceTooLarge) {
+				writeError(w, http.StatusBadRequest, err.Error())
+				return
+			}
 			writeError(w, http.StatusBadRequest, "provenance must be a JSON object")
 			return
 		}
@@ -557,7 +565,14 @@ func marshalProvenance(v map[string]any) ([]byte, error) {
 	if v == nil {
 		return []byte("{}"), nil
 	}
-	return json.Marshal(v)
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > memory.MaxProvenanceBytes {
+		return nil, memory.ErrProvenanceTooLarge
+	}
+	return raw, nil
 }
 
 func deleteOwnerMemory(ctx context.Context, q *db.Queries, scope string, ownerID, workspaceID pgtype.UUID) error {

@@ -48,6 +48,16 @@ vi.mock("./tabs/integrations-tab", () => ({
 vi.mock("../../common/actor-issues-panel", () => ({
   ActorIssuesPanel: () => <div>actor-issues-panel</div>,
 }));
+vi.mock("../../memory", () => ({
+  MemoryPanel: () => null,
+}));
+vi.mock("@multica/core/permissions", () => ({
+  useAgentPermissions: () => ({
+    canAssign: { allowed: false },
+    canEdit: { allowed: false },
+    isLoading: false,
+  }),
+}));
 
 // The pane now reads workspace context to decide whether the Integrations
 // tab is worth showing (it queries Lark installations to learn whether the

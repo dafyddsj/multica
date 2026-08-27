@@ -2388,9 +2388,6 @@ func (h *Handler) ArchiveAgent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userID := requestUserID(r)
-	if err := deleteOwnerMemory(r.Context(), h.Queries, memory.ScopeAgent, agent.ID, agent.WorkspaceID); err != nil {
-		slog.Warn("delete agent memory failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
-	}
 	archived, err := h.Queries.ArchiveAgent(r.Context(), db.ArchiveAgentParams{
 		ID:         agent.ID,
 		ArchivedBy: parseUUID(userID),
@@ -2399,6 +2396,12 @@ func (h *Handler) ArchiveAgent(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("archive agent failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 		writeError(w, http.StatusInternalServerError, "failed to archive agent")
 		return
+	}
+	// Archive is the terminal product event for the bank. Restore does not
+	// bring notes back. Delete after the archive succeeds so a failed UPDATE
+	// cannot empty a still-live agent.
+	if err := deleteOwnerMemory(r.Context(), h.Queries, memory.ScopeAgent, agent.ID, agent.WorkspaceID); err != nil {
+		slog.Warn("delete agent memory failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 	}
 
 	// Cancel all pending/active tasks for this agent. Discard the returned

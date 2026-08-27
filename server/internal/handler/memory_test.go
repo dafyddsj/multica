@@ -172,6 +172,14 @@ func TestCreateMemory_MalformedBody(t *testing.T) {
 		"owner_id": testWorkspaceID,
 		"body":     tooLong,
 	})).Want(http.StatusBadRequest)
+
+	huge := strings.Repeat("x", memory.MaxProvenanceBytes+1)
+	testutil.Call(t, testHandler.CreateMemory, newRequest(http.MethodPost, "/api/memory", map[string]any{
+		"scope":      memory.ScopeWorkspace,
+		"owner_id":   testWorkspaceID,
+		"body":       "ok",
+		"provenance": map[string]any{"blob": huge},
+	})).Want(http.StatusBadRequest)
 }
 
 func TestRecallMemory_ReturnsHits(t *testing.T) {

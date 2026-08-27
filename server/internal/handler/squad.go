@@ -526,16 +526,17 @@ func (h *Handler) DeleteSquad(w http.ResponseWriter, r *http.Request) {
 	userID := requestUserID(r)
 	userUUID, _ := parseUUIDOrBadRequest(w, userID, "user_id")
 
-	if err := deleteOwnerMemory(r.Context(), h.Queries, memory.ScopeSquad, squad.ID, squad.WorkspaceID); err != nil {
-		slog.Warn("delete squad memory failed", "squad_id", uuidToString(squad.ID), "error", err)
-	}
-
 	if _, err := h.Queries.ArchiveSquad(r.Context(), db.ArchiveSquadParams{
 		ID:         squad.ID,
 		ArchivedBy: userUUID,
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to archive squad")
 		return
+	}
+	// Same as agent archive: the bank dies with the archive, and only after
+	// the archive row update succeeds.
+	if err := deleteOwnerMemory(r.Context(), h.Queries, memory.ScopeSquad, squad.ID, squad.WorkspaceID); err != nil {
+		slog.Warn("delete squad memory failed", "squad_id", uuidToString(squad.ID), "error", err)
 	}
 
 	h.publish(protocol.EventSquadDeleted, workspaceID, "member", userID, map[string]any{

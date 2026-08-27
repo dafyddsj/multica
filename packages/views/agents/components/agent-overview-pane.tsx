@@ -11,6 +11,7 @@ import { providerSupportsMcpConfig } from "@multica/core/agents";
 import { useFeatureEnabled } from "@multica/core/config";
 import { COMPOSIO_MCP_APPS_FLAG } from "@multica/core/feature-flags";
 import { useWorkspaceId } from "@multica/core/hooks";
+import { useAgentPermissions } from "@multica/core/permissions";
 import { larkInstallationsOptions } from "@multica/core/lark";
 import { slackInstallationsOptions } from "@multica/core/slack";
 import { dingtalkInstallationsOptions } from "@multica/core/dingtalk";
@@ -154,6 +155,8 @@ export function AgentOverviewPane({
 }: AgentOverviewPaneProps) {
   const { t } = useT("agents");
   const wsId = useWorkspaceId();
+  const { canAssign } = useAgentPermissions(agent, wsId);
+  const canWriteMemory = canEdit || canAssign.allowed;
   const navigation = useNavigation();
   const urlView = navigation.searchParams.get("view");
   const composioMCPAppsEnabled = useFeatureEnabled(
@@ -494,7 +497,7 @@ export function AgentOverviewPane({
                     />
                   )}
                   <div className="mt-8">
-                    <MemoryPanel scope="agent" ownerId={agent.id} canWrite={canEdit} />
+                    <MemoryPanel scope="agent" ownerId={agent.id} canWrite={canWriteMemory} />
                   </div>
                 </div>
               </div>

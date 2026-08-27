@@ -6,6 +6,10 @@ import { Textarea } from "@multica/ui/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuthStore } from "@multica/core/auth";
 import { api } from "@multica/core/api";
+import { useFeatureEnabled } from "@multica/core/config";
+import { MEMORY_V1_FLAG } from "@multica/core/feature-flags";
+import { isWorkspaceMemoryEnabled } from "@multica/core/memory";
+import { useCurrentWorkspace } from "@multica/core/paths";
 import { AvatarUploadControl } from "../../common/avatar-upload-control";
 import { useT } from "../../i18n";
 import {
@@ -37,6 +41,9 @@ export function AccountTab() {
   const { t } = useT("settings");
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  const workspace = useCurrentWorkspace();
+  const memoryFlagEnabled = useFeatureEnabled(MEMORY_V1_FLAG, false);
+  const memoryLabsEnabled = isWorkspaceMemoryEnabled(workspace?.settings);
 
   const [profileName, setProfileName] = useState(user?.name ?? "");
   const [profileDescription, setProfileDescription] = useState(
@@ -191,11 +198,11 @@ export function AccountTab() {
           </SettingsRow>
         </SettingsCard>
       </SettingsSection>
-      {user ? (
+      {user && memoryFlagEnabled && memoryLabsEnabled ? (
         <SettingsSection title={t(($) => $.memory.title)}>
           <SettingsCard>
             <div className="px-4 py-3.5">
-              <MemoryPanel scope="user" ownerId={user.id} />
+              <MemoryPanel scope="user" ownerId={user.id} hideHeading />
             </div>
           </SettingsCard>
         </SettingsSection>

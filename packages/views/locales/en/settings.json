@@ -710,6 +710,8 @@
     "forget": "Forget",
     "empty": "No notes in this bank yet.",
     "loading": "Loading notes…",
+    "load_failed": "Could not load notes.",
+    "showing_count": "{{shown}} of {{total}}",
     "kind_label": "Kind",
     "kind_fact": "Fact",
     "kind_preference": "Preference",

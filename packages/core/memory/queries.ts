@@ -16,7 +16,7 @@ export function memoryListOptions(
 ) {
   return queryOptions({
     queryKey: memoryKeys.list(wsId, scope, ownerId, q),
-    queryFn: () => api.listMemory({ scope, owner_id: ownerId, q }),
+    queryFn: () => api.listMemory({ scope, owner_id: ownerId, q, limit: 100 }),
     enabled: Boolean(wsId && ownerId),
   });
 }

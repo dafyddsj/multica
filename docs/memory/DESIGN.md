@@ -35,7 +35,7 @@ POST   /api/memory
 GET    /api/memory/{id}
 PATCH  /api/memory/{id}
 DELETE /api/memory/{id}
-GET    /api/memory/recall?issue_id=&project_id=&squad_id=
+GET    /api/memory/recall?q=&issue_id=&project_id=&initiative_id=&squad_id=&agent_id=
 ```
 
 CLI mirrors those verbs. `forget` is DELETE.
@@ -64,9 +64,12 @@ Hits go in the per-turn prompt, not the cached brief.
 
 Bank dies with its owner. No promotion up the tree.
 
-- Issue / project / initiative / squad / agent delete: `DELETE` live rows for that `(scope, owner_id)`
+- Issue / project / initiative delete: `DELETE` live rows for that `(scope, owner_id)`
+- Squad / agent **archive**: same hard delete, after the archive update succeeds. Restore does not bring the bank back.
 - Workspace delete: all rows with that `workspace_id`
 - User rows survive workspace delete
+
+Manual `GET /api/memory/recall` always includes the current workspace bank and the caller's user bank. Optional banks are included only when their query param is set. Claim-time recall is different: it auto-resolves ancestry (workspace, this agent, issue/project/initiative when known, squad when relevant, runtime-owner user).
 
 ## Engine seam
 

@@ -51,7 +51,9 @@ multica memory recall --issue-id <issue-id> --q rebase
 multica memory forget <id>
 ```
 
-`forget` is DELETE. The HTTP surface is `/api/memory`.
+Manual `recall` only includes banks you pass (`--issue-id`, `--agent-id`, and so on), plus the current workspace and your user bank. Claim-time recall auto-resolves the run's ancestry.
+
+`forget` is DELETE. The HTTP surface is `/api/memory`. There is also `PATCH /api/memory/{id}` for body/kind/provenance; the CLI does not wrap it yet.
 
 ## Providers later
 

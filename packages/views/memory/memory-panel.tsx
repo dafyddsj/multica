@@ -44,12 +44,15 @@ export function MemoryPanel({
   const [query, setQuery] = useState("");
   const [body, setBody] = useState("");
   const [kind, setKind] = useState<MemoryKind>("fact");
-  const { data, isLoading } = useQuery(
-    memoryListOptions(wsId, scope, ownerId, query.trim() || undefined),
-  );
+  const gatesOn = flagEnabled && labsEnabled;
+  const { data, isLoading, isError } = useQuery({
+    ...memoryListOptions(wsId, scope, ownerId, query.trim() || undefined),
+    enabled: Boolean(wsId && ownerId && gatesOn),
+  });
   const createMemory = useCreateMemory();
   const forgetMemory = useForgetMemory();
   const entries = data?.entries ?? [];
+  const truncated = (data?.total ?? 0) > entries.length;
   const kindLabels = useMemo(
     () => ({
       fact: t(($) => $.memory.kind_fact),
@@ -60,7 +63,7 @@ export function MemoryPanel({
     [t],
   );
 
-  if (!flagEnabled || !labsEnabled || !ownerId) {
+  if (!gatesOn || !ownerId) {
     return null;
   }
 
@@ -68,8 +71,13 @@ export function MemoryPanel({
     const next = body.trim();
     if (!next) return;
     try {
-      await createMemory.mutateAsync({ scope, owner_id: ownerId, body: next, kind });
-      setBody("");
+      await createMemory.mutateAsync({
+        scope,
+        owner_id: ownerId,
+        body: next,
+        kind,
+      });
+      setBody((current) => (current.trim() === next ? "" : current));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t(($) => $.memory.toast_failed));
     }
@@ -90,7 +98,14 @@ export function MemoryPanel({
           <Brain className="h-3.5 w-3.5 text-muted-foreground" />
           <h3 className="text-caption font-medium">{t(($) => $.memory.title)}</h3>
           {data?.total ? (
-            <span className="text-caption text-muted-foreground">{data.total}</span>
+            <span className="text-caption text-muted-foreground">
+              {truncated
+                ? t(($) => $.memory.showing_count, {
+                    shown: entries.length,
+                    total: data.total,
+                  })
+                : data.total}
+            </span>
           ) : null}
         </div>
       )}
@@ -103,6 +118,8 @@ export function MemoryPanel({
       />
       {isLoading ? (
         <p className="px-2 text-caption text-muted-foreground">{t(($) => $.memory.loading)}</p>
+      ) : isError ? (
+        <p className="px-2 text-caption text-muted-foreground">{t(($) => $.memory.load_failed)}</p>
       ) : entries.length === 0 ? (
         <p className="px-2 text-caption text-muted-foreground">{t(($) => $.memory.empty)}</p>
       ) : (

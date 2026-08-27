@@ -51,7 +51,9 @@ multica memory recall --issue-id <issue-id> --q rebase
 multica memory forget <id>
 ```
 
-`forget` 就是 DELETE。HTTP 接口是 `/api/memory`。
+手动 `recall` 只会带上你传入的库（`--issue-id`、`--agent-id` 等），再加上当前工作区和你自己的用户库。领取任务时的回忆会自动解析这次运行的祖先链。
+
+`forget` 就是 DELETE。HTTP 接口是 `/api/memory`。还有 `PATCH /api/memory/{id}` 用来改正文、类型和 provenance；CLI 还没有包这一层。
 
 ## 以后的 provider
 

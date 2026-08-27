@@ -708,6 +708,8 @@
     "forget": "忘记",
     "empty": "这个库里还没有笔记。",
     "loading": "正在加载笔记…",
+    "load_failed": "无法加载笔记。",
+    "showing_count": "{{shown}} / {{total}}",
     "kind_label": "类型",
     "kind_fact": "事实",
     "kind_preference": "偏好",

@@ -61,11 +61,14 @@ func optionalText(s string) pgtype.Text {
 }
 
 func truncateRunes(s string, max int) string {
-	if utf8.RuneCountInString(s) <= max {
+	if max <= 0 || utf8.RuneCountInString(s) <= max {
 		return s
 	}
 	runes := []rune(s)
-	return string(runes[:max]) + "…"
+	if max == 1 {
+		return "…"
+	}
+	return string(runes[:max-1]) + "…"
 }
 
 func parseOptionalUUID(s string) pgtype.UUID {
