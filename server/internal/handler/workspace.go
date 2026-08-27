@@ -162,14 +162,6 @@ func (h *Handler) ListWorkspaces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user, err := h.Queries.GetUser(r.Context(), parseUUID(userID)); err == nil {
-		if err := h.syncClerkOrgs(r.Context(), user); err != nil {
-			slog.Error("clerk org sync failed", append(logger.RequestAttrs(r), "error", err, "user_id", userID)...)
-			writeError(w, http.StatusBadGateway, "failed to sync organizations")
-			return
-		}
-	}
-
 	workspaces, err := h.Queries.ListWorkspaces(r.Context(), parseUUID(userID))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list workspaces")
@@ -265,6 +257,15 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "failed to create organization")
 		return
 	}
+	committed := false
+	defer func() {
+		if committed || clerkOrgID == "" || h.Clerk == nil || h.Clerk.Orgs == nil {
+			return
+		}
+		if delErr := h.Clerk.Orgs.Delete(r.Context(), clerkOrgID); delErr != nil {
+			slog.Warn("clerk org compensating delete failed", append(logger.RequestAttrs(r), "error", delErr, "clerk_org_id", clerkOrgID)...)
+		}
+	}()
 
 	tx, err := h.TxStarter.Begin(r.Context())
 	if err != nil {
@@ -330,6 +331,7 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create workspace")
 		return
 	}
+	committed = true
 
 	wsID := uuidToString(ws.ID)
 
