@@ -422,10 +422,12 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <ProjectDueDatePicker dueDate={project.due_date} onUpdate={handleUpdateField} />
           </PropRow>
           <PropRow label={t(($) => $.detail.prop_initiative)}>
-            <InitiativePicker
-              initiativeId={project.initiative_id}
-              onUpdate={handleUpdateField}
-            />
+            <div className="min-w-0 flex-1">
+              <InitiativePicker
+                initiativeId={project.initiative_id}
+                onUpdate={handleUpdateField}
+              />
+            </div>
             {project.initiative_id ? (
               <Tooltip>
                 <TooltipTrigger

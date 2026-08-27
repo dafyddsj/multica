@@ -2341,11 +2341,13 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
           </PropRow>
           {breadcrumbProject?.initiative_id ? (
             <PropRow label={t(($) => $.detail.prop_initiative)} interactive={false}>
-              <InitiativePicker
-                initiativeId={breadcrumbProject.initiative_id}
-                onUpdate={() => {}}
-                disabled
-              />
+              <div className="min-w-0 flex-1">
+                <InitiativePicker
+                  initiativeId={breadcrumbProject.initiative_id}
+                  onUpdate={() => {}}
+                  disabled
+                />
+              </div>
               <Tooltip>
                 <TooltipTrigger
                   render={
