@@ -365,6 +365,136 @@ func TestDashboardEndpoints(t *testing.T) {
 	}
 }
 
+// TestDashboardInitiativeFilter scopes the same rollups by initiative_id.
+// Usage daily reads task_usage_hourly.project_id; agent-runtime joins issue
+// → project. Both must include every project under the initiative and exclude
+// projects on a different initiative (and projects with none).
+func TestDashboardInitiativeFilter(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+
+	var runtimeID, agentID string
+	dbfx.QueryRow(t, `
+		SELECT id FROM agent_runtime WHERE workspace_id = $1 LIMIT 1
+	`, testWorkspaceID).Scan(&runtimeID)
+	dbfx.QueryRow(t, `
+		SELECT id FROM agent WHERE workspace_id = $1 LIMIT 1
+	`, testWorkspaceID).Scan(&agentID)
+
+	initiativeA := dbfx.Initiative(t, "dashboard initiative A")
+	initiativeB := dbfx.Initiative(t, "dashboard initiative B")
+	projectA := dbfx.Project(t, "dashboard project A", testutil.Cols{"initiative_id": initiativeA})
+	projectB := dbfx.Project(t, "dashboard project B", testutil.Cols{"initiative_id": initiativeB})
+	projectNone := dbfx.Project(t, "dashboard project none")
+
+	issueA := dbfx.Issue(t, "dashboard issue A", testutil.Cols{"project_id": projectA})
+	issueB := dbfx.Issue(t, "dashboard issue B", testutil.Cols{"project_id": projectB})
+	issueNone := dbfx.Issue(t, "dashboard issue none", testutil.Cols{"project_id": projectNone})
+
+	started, completed := runFinishedToday(pinDayWindowClock(t, time.Now()), dashboardFixtureLoc(t))
+	mkTaskWithUsage := func(issueID string, tokens int64) {
+		taskID := dbfx.Task(t, agentID, testutil.Cols{
+			"issue_id":     issueID,
+			"runtime_id":   runtimeID,
+			"status":       "completed",
+			"started_at":   started,
+			"completed_at": completed,
+			"created_at":   testutil.Raw("now()"),
+		})
+		dbfx.Exec(t, `
+			INSERT INTO task_usage (task_id, provider, model, input_tokens, output_tokens, created_at)
+			VALUES ($1, 'claude', 'claude-3-5-sonnet', $2, 0, now())
+		`, taskID, tokens)
+	}
+	mkTaskWithUsage(issueA, 1000)
+	mkTaskWithUsage(issueB, 400)
+	mkTaskWithUsage(issueNone, 200)
+
+	dbfx.Exec(t, `
+		SELECT rollup_task_usage_hourly_window('1970-01-01'::timestamptz, now() + interval '1 hour')
+	`)
+
+	type dailyRow struct {
+		Model       string `json:"model"`
+		InputTokens int64  `json:"input_tokens"`
+	}
+	type runtimeRow struct {
+		AgentID   string `json:"agent_id"`
+		TaskCount int32  `json:"task_count"`
+	}
+
+	sumDaily := func(query string) int64 {
+		t.Helper()
+		var rows []dailyRow
+		testutil.Call(t, testHandler.GetDashboardUsageDaily, newRequest(
+			"GET",
+			"/api/dashboard/usage/daily?days=1&"+dashboardFixtureTZParam+query,
+			nil,
+		)).Want(http.StatusOK).JSON(&rows)
+		var total int64
+		for _, row := range rows {
+			if row.Model == "claude-3-5-sonnet" {
+				total += row.InputTokens
+			}
+		}
+		return total
+	}
+	countRuntimeTasks := func(query string) int32 {
+		t.Helper()
+		var rows []runtimeRow
+		testutil.Call(t, testHandler.GetDashboardAgentRunTime, newRequest(
+			"GET",
+			"/api/dashboard/agent-runtime?days=1&"+dashboardFixtureTZParam+query,
+			nil,
+		)).Want(http.StatusOK).JSON(&rows)
+		var tasks int32
+		for _, row := range rows {
+			if row.AgentID == agentID {
+				tasks += row.TaskCount
+			}
+		}
+		return tasks
+	}
+
+	aDaily := sumDaily("&initiative_id=" + initiativeA)
+	if aDaily < 1000 {
+		t.Errorf("daily initiative A: expected >=1000 tokens, got %d", aDaily)
+	}
+	if aDaily >= 1400 {
+		t.Errorf("daily initiative A: filter leaked — expected <1400 tokens, got %d", aDaily)
+	}
+
+	bDaily := sumDaily("&initiative_id=" + initiativeB)
+	if bDaily < 400 {
+		t.Errorf("daily initiative B: expected >=400 tokens, got %d", bDaily)
+	}
+	if bDaily >= 1000 {
+		t.Errorf("daily initiative B: filter leaked — expected <1000 tokens, got %d", bDaily)
+	}
+
+	// A project on a different initiative must not satisfy both filters.
+	crossed := sumDaily("&project_id=" + projectA + "&initiative_id=" + initiativeB)
+	if crossed != 0 {
+		t.Errorf("daily project A + initiative B: expected 0, got %d", crossed)
+	}
+
+	aTasks := countRuntimeTasks("&initiative_id=" + initiativeA)
+	if aTasks < 1 {
+		t.Errorf("agent-runtime initiative A: expected >=1 task, got %d", aTasks)
+	}
+	bTasks := countRuntimeTasks("&initiative_id=" + initiativeB)
+	if bTasks < 1 {
+		t.Errorf("agent-runtime initiative B: expected >=1 task, got %d", bTasks)
+	}
+
+	testutil.Call(t, testHandler.GetDashboardAgentRunTime, newRequest(
+		"GET",
+		"/api/dashboard/agent-runtime?initiative_id=not-a-uuid",
+		nil,
+	)).Want(http.StatusBadRequest)
+}
+
 // TestDashboardUsageDailyBucketsByViewerTimezone proves the `?tz=` query
 // param drives the calendar-day boundary: the same UTC instant lands under
 // a different `date` for a UTC viewer vs an America/Los_Angeles viewer.

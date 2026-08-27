@@ -15,6 +15,7 @@ import { useWorkspaceId } from "@multica/core/hooks";
 import type { Agent } from "@multica/core/types";
 import { agentListOptions } from "@multica/core/workspace/queries";
 import { projectListOptions } from "@multica/core/projects/queries";
+import { initiativeListOptions } from "@multica/core/initiatives/queries";
 import {
   dashboardKeys,
   dashboardUsageDailyOptions,
@@ -58,12 +59,13 @@ import {
   mergeAgentDashboardRows,
 } from "../utils";
 import {
+  ALL_INITIATIVES,
   ALL_PROJECTS,
   DurationNumberFlow,
   dimsForDays,
   type TimeRange,
 } from "./dashboard-shared";
-import { ProjectFilter, TimeRangeFilter } from "./dashboard-filters";
+import { InitiativeFilter, ProjectFilter, TimeRangeFilter } from "./dashboard-filters";
 import { UsageTrendCard } from "./usage-trend-card";
 import { Leaderboard } from "./leaderboard";
 import { ErrorsTab } from "./errors-tab";
@@ -138,7 +140,7 @@ function useDataFreshness(
  * thirty rows, and the only way to chart failures was to hide spend.
  *
  * Scope is expressed by where a control lives: the toolbar under the header
- * carries the tabs and the two page-scoped filters (time range, project),
+ * carries the tabs and the page-scoped filters (time range, initiative, project),
  * every card carries its own view switches. All six rollups are fetched for
  * both tabs — they are small, and prefetching is what makes switching tabs
  * instant — but the loading and empty states are per tab, so Usage does not
@@ -154,6 +156,7 @@ export function DashboardPage() {
   const navigation = useNavigation();
   const locales = i18n.resolvedLanguage ?? i18n.language;
   const [days, setDays] = useState<TimeRange>(30);
+  const [initiativeValue, setInitiativeValue] = useState<string>(ALL_INITIATIVES);
   const [projectValue, setProjectValue] = useState<string>(ALL_PROJECTS);
 
   // The tab lives in the URL because the Errors view is the half of this page
@@ -176,8 +179,27 @@ export function DashboardPage() {
   useCustomPricingStore((s) => s.pricings);
 
   const { data: projects = [] } = useQuery(projectListOptions(wsId));
+  const { data: initiatives = [] } = useQuery(initiativeListOptions(wsId));
   const agentsQuery = useQuery(agentListOptions(wsId));
   const agents = agentsQuery.data ?? EMPTY_AGENTS;
+
+  // Validate the picked initiative against the current workspace's list. A
+  // stale UUID would silently empty every rollup while the chip still read
+  // "All initiatives".
+  const initiativeId = useMemo(() => {
+    if (initiativeValue === ALL_INITIATIVES) return null;
+    return initiatives.some((initiative) => initiative.id === initiativeValue)
+      ? initiativeValue
+      : null;
+  }, [initiativeValue, initiatives]);
+
+  // When an initiative is selected, the project menu only offers that
+  // initiative's projects. A leftover project from another initiative then
+  // fails this check and drops out of the query the same way a deleted id does.
+  const scopedProjects = useMemo(() => {
+    if (!initiativeId) return projects;
+    return projects.filter((project) => project.initiative_id === initiativeId);
+  }, [projects, initiativeId]);
 
   // Validate the picked project against the current workspace's list. A
   // stale UUID — left over from a project that's been deleted, or from the
@@ -186,8 +208,8 @@ export function DashboardPage() {
   // effective filter so the API call matches the user-visible selection.
   const projectId = useMemo(() => {
     if (projectValue === ALL_PROJECTS) return null;
-    return projects.some((p) => p.id === projectValue) ? projectValue : null;
-  }, [projectValue, projects]);
+    return scopedProjects.some((p) => p.id === projectValue) ? projectValue : null;
+  }, [projectValue, scopedProjects]);
 
   // The weekly charts paint `ceil(days / 7)` trailing calendar weeks anchored
   // at today-in-UTC. In the worst case (today = Sunday) the leftmost Monday
@@ -206,7 +228,7 @@ export function DashboardPage() {
   const chartFetchDays = weekCount * 7;
 
   const dailyQuery = useQuery(
-    dashboardUsageDailyOptions(wsId, chartFetchDays, projectId, viewTZ),
+    dashboardUsageDailyOptions(wsId, chartFetchDays, projectId, initiativeId, viewTZ),
   );
   // The three per-agent rollups carry no date, so `dailyCutoffIso` below
   // cannot trim them — their window is closed server-side at exactly `days`
@@ -216,19 +238,19 @@ export function DashboardPage() {
   // and the Run time / Tasks KPIs silently widen by one day while the chart
   // and the Cost / Tokens KPIs beside them do not (MUL-5551).
   const byAgentQuery = useQuery(
-    dashboardUsageByAgentOptions(wsId, days, projectId, viewTZ),
+    dashboardUsageByAgentOptions(wsId, days, projectId, initiativeId, viewTZ),
   );
   const runTimeQuery = useQuery(
-    dashboardAgentRunTimeOptions(wsId, days, projectId, viewTZ),
+    dashboardAgentRunTimeOptions(wsId, days, projectId, initiativeId, viewTZ),
   );
   const runTimeDailyQuery = useQuery(
-    dashboardRunTimeDailyOptions(wsId, chartFetchDays, projectId, viewTZ),
+    dashboardRunTimeDailyOptions(wsId, chartFetchDays, projectId, initiativeId, viewTZ),
   );
   const failuresDailyQuery = useQuery(
-    dashboardFailuresDailyOptions(wsId, chartFetchDays, projectId, viewTZ),
+    dashboardFailuresDailyOptions(wsId, chartFetchDays, projectId, initiativeId, viewTZ),
   );
   const failuresByAgentQuery = useQuery(
-    dashboardFailuresByAgentOptions(wsId, days, projectId, viewTZ),
+    dashboardFailuresByAgentOptions(wsId, days, projectId, initiativeId, viewTZ),
   );
 
   const dailyUsage = dailyQuery.data ?? EMPTY_DAILY;
@@ -495,8 +517,8 @@ export function DashboardPage() {
 
       {/* View toolbar, same grammar as the issues surface header: view
           switching on the left, page-scoped filters on the right. Both tabs
-          share the range and project filter, which is why the filters live
-          here and not inside a tab. */}
+          share the range, initiative, and project filters, which is why the
+          filters live here and not inside a tab. */}
       <div className={cn("h-12 shrink-0 overflow-x-auto border-b [-webkit-overflow-scrolling:touch]", PAGE_GUTTER)}>
         <div className="flex h-full w-max min-w-full items-center justify-between gap-2">
           <TabsList variant="line" className="gap-0 p-0 group-data-horizontal/tabs:h-full">
@@ -515,8 +537,13 @@ export function DashboardPage() {
           </TabsList>
           <div className="flex shrink-0 items-center gap-2">
             <TimeRangeFilter days={days} onChange={setDays} />
+            <InitiativeFilter
+              initiatives={initiatives}
+              initiativeValue={initiativeValue}
+              onInitiativeChange={setInitiativeValue}
+            />
             <ProjectFilter
-              projects={projects}
+              projects={scopedProjects}
               projectValue={projectValue}
               onProjectChange={setProjectValue}
             />

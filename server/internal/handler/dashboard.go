@@ -21,9 +21,11 @@ import (
 //   GET /api/dashboard/failures/daily     per-(date, failure_reason) counts
 //   GET /api/dashboard/failures/by-agent  per-(agent, failure_reason) counts
 //
-// All of them accept ?days=N (defaults to 30, capped at 365) and an optional
-// ?project_id=<uuid> to scope the rollup to a single project. With no
-// project_id the data spans the whole workspace.
+// All of them accept ?days=N (defaults to 30, capped at 365) and optional
+// ?project_id=<uuid> / ?initiative_id=<uuid> scope filters. The two combine
+// with AND: a project filter wins when it belongs to the initiative, and an
+// initiative filter includes every project under that initiative. With neither
+// param the data spans the whole workspace.
 //
 // Cutoff convention: the three date-bucketed series use parseSinceParamInTZ
 // (N+1 calendar days, the surplus day trimmed client-side with `-(days-1)`),
@@ -135,16 +137,34 @@ func (h *Handler) dashboardRestrictedAgents(
 // project filter". On a malformed UUID it writes a 400 and returns
 // ok=false; callers must return immediately.
 func parseProjectIDParam(w http.ResponseWriter, r *http.Request) (pgtype.UUID, bool) {
-	raw := r.URL.Query().Get("project_id")
+	return parseOptionalUUIDParam(w, r, "project_id")
+}
+
+// parseInitiativeIDParam is the initiative twin of parseProjectIDParam.
+func parseInitiativeIDParam(w http.ResponseWriter, r *http.Request) (pgtype.UUID, bool) {
+	return parseOptionalUUIDParam(w, r, "initiative_id")
+}
+
+func parseOptionalUUIDParam(w http.ResponseWriter, r *http.Request, name string) (pgtype.UUID, bool) {
+	raw := r.URL.Query().Get(name)
 	if raw == "" {
 		return pgtype.UUID{}, true
 	}
 	u, err := util.ParseUUID(raw)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid project_id")
+		writeError(w, http.StatusBadRequest, "invalid "+name)
 		return pgtype.UUID{}, false
 	}
 	return u, true
+}
+
+func parseDashboardScope(w http.ResponseWriter, r *http.Request) (projectID, initiativeID pgtype.UUID, ok bool) {
+	projectID, ok = parseProjectIDParam(w, r)
+	if !ok {
+		return projectID, initiativeID, false
+	}
+	initiativeID, ok = parseInitiativeIDParam(w, r)
+	return projectID, initiativeID, ok
 }
 
 // DashboardUsageDailyResponse is one (date, provider, model) bucket. Cost-side
@@ -180,14 +200,14 @@ func (h *Handler) GetDashboardUsageDaily(w http.ResponseWriter, r *http.Request)
 	if _, ok := h.workspaceMember(w, r, workspaceID); !ok {
 		return
 	}
-	projectID, ok := parseProjectIDParam(w, r)
+	projectID, initiativeID, ok := parseDashboardScope(w, r)
 	if !ok {
 		return
 	}
 	tz := h.resolveViewingTZ(r)
 	since := parseSinceParamInTZ(r, 30, tz)
 
-	resp, err := h.listDashboardUsageDaily(r.Context(), parseUUID(workspaceID), tz, since, projectID)
+	resp, err := h.listDashboardUsageDaily(r.Context(), parseUUID(workspaceID), tz, since, projectID, initiativeID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list usage")
 		return
@@ -201,12 +221,14 @@ func (h *Handler) listDashboardUsageDaily(
 	tz string,
 	since pgtype.Timestamptz,
 	projectID pgtype.UUID,
+	initiativeID pgtype.UUID,
 ) ([]DashboardUsageDailyResponse, error) {
 	rows, err := h.Queries.ListDashboardUsageDaily(ctx, db.ListDashboardUsageDailyParams{
-		WorkspaceID: workspaceID,
-		Tz:          tz,
-		Since:       since,
-		ProjectID:   projectID,
+		WorkspaceID:  workspaceID,
+		Tz:           tz,
+		Since:        since,
+		ProjectID:    projectID,
+		InitiativeID: initiativeID,
 	})
 	if err != nil {
 		return nil, err
@@ -265,7 +287,7 @@ func (h *Handler) GetDashboardUsageByAgent(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	projectID, ok := parseProjectIDParam(w, r)
+	projectID, initiativeID, ok := parseDashboardScope(w, r)
 	if !ok {
 		return
 	}
@@ -284,7 +306,7 @@ func (h *Handler) GetDashboardUsageByAgent(w http.ResponseWriter, r *http.Reques
 	tz := h.resolveViewingTZ(r)
 	since := parseExactSinceParamInTZ(r, 30, tz)
 
-	resp, err := h.listDashboardUsageByAgent(r.Context(), parseUUID(workspaceID), since, projectID)
+	resp, err := h.listDashboardUsageByAgent(r.Context(), parseUUID(workspaceID), since, projectID, initiativeID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list usage by agent")
 		return
@@ -332,11 +354,13 @@ func (h *Handler) listDashboardUsageByAgent(
 	workspaceID pgtype.UUID,
 	since pgtype.Timestamptz,
 	projectID pgtype.UUID,
+	initiativeID pgtype.UUID,
 ) ([]DashboardUsageByAgentResponse, error) {
 	rows, err := h.Queries.ListDashboardUsageByAgent(ctx, db.ListDashboardUsageByAgentParams{
-		WorkspaceID: workspaceID,
-		Since:       since,
-		ProjectID:   projectID,
+		WorkspaceID:  workspaceID,
+		Since:        since,
+		ProjectID:    projectID,
+		InitiativeID: initiativeID,
 	})
 	if err != nil {
 		return nil, err
@@ -386,7 +410,7 @@ func (h *Handler) GetDashboardAgentRunTime(w http.ResponseWriter, r *http.Reques
 	if !ok {
 		return
 	}
-	projectID, ok := parseProjectIDParam(w, r)
+	projectID, initiativeID, ok := parseDashboardScope(w, r)
 	if !ok {
 		return
 	}
@@ -405,9 +429,10 @@ func (h *Handler) GetDashboardAgentRunTime(w http.ResponseWriter, r *http.Reques
 	since := parseExactSinceParamInTZ(r, 30, tz)
 
 	rows, err := h.Queries.ListDashboardAgentRunTime(r.Context(), db.ListDashboardAgentRunTimeParams{
-		WorkspaceID: parseUUID(workspaceID),
-		Since:       since,
-		ProjectID:   projectID,
+		WorkspaceID:  parseUUID(workspaceID),
+		Since:        since,
+		ProjectID:    projectID,
+		InitiativeID: initiativeID,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list agent runtime")
@@ -473,7 +498,7 @@ func (h *Handler) GetDashboardRunTimeDaily(w http.ResponseWriter, r *http.Reques
 	if _, ok := h.workspaceMember(w, r, workspaceID); !ok {
 		return
 	}
-	projectID, ok := parseProjectIDParam(w, r)
+	projectID, initiativeID, ok := parseDashboardScope(w, r)
 	if !ok {
 		return
 	}
@@ -483,10 +508,11 @@ func (h *Handler) GetDashboardRunTimeDaily(w http.ResponseWriter, r *http.Reques
 	since := parseSinceParamInTZ(r, 30, tz)
 
 	rows, err := h.Queries.ListDashboardRunTimeDaily(r.Context(), db.ListDashboardRunTimeDailyParams{
-		WorkspaceID: parseUUID(workspaceID),
-		Tz:          tz,
-		Since:       since,
-		ProjectID:   projectID,
+		WorkspaceID:  parseUUID(workspaceID),
+		Tz:           tz,
+		Since:        since,
+		ProjectID:    projectID,
+		InitiativeID: initiativeID,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list daily runtime")
@@ -540,7 +566,7 @@ func (h *Handler) GetDashboardFailuresDaily(w http.ResponseWriter, r *http.Reque
 	if _, ok := h.workspaceMember(w, r, workspaceID); !ok {
 		return
 	}
-	projectID, ok := parseProjectIDParam(w, r)
+	projectID, initiativeID, ok := parseDashboardScope(w, r)
 	if !ok {
 		return
 	}
@@ -550,10 +576,11 @@ func (h *Handler) GetDashboardFailuresDaily(w http.ResponseWriter, r *http.Reque
 	since := parseSinceParamInTZ(r, 30, tz)
 
 	rows, err := h.Queries.ListDashboardFailuresDaily(r.Context(), db.ListDashboardFailuresDailyParams{
-		WorkspaceID: parseUUID(workspaceID),
-		Tz:          tz,
-		Since:       since,
-		ProjectID:   projectID,
+		WorkspaceID:  parseUUID(workspaceID),
+		Tz:           tz,
+		Since:        since,
+		ProjectID:    projectID,
+		InitiativeID: initiativeID,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list daily failures")
@@ -588,7 +615,7 @@ func (h *Handler) GetDashboardFailuresByAgent(w http.ResponseWriter, r *http.Req
 	if !ok {
 		return
 	}
-	projectID, ok := parseProjectIDParam(w, r)
+	projectID, initiativeID, ok := parseDashboardScope(w, r)
 	if !ok {
 		return
 	}
@@ -606,9 +633,10 @@ func (h *Handler) GetDashboardFailuresByAgent(w http.ResponseWriter, r *http.Req
 	since := parseExactSinceParamInTZ(r, 30, tz)
 
 	rows, err := h.Queries.ListDashboardFailuresByAgent(r.Context(), db.ListDashboardFailuresByAgentParams{
-		WorkspaceID: parseUUID(workspaceID),
-		Since:       since,
-		ProjectID:   projectID,
+		WorkspaceID:  parseUUID(workspaceID),
+		Since:        since,
+		ProjectID:    projectID,
+		InitiativeID: initiativeID,
 	})
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to list failures by agent")
