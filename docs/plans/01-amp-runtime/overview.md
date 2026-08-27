@@ -16,7 +16,7 @@ Included:
 - Runtime brief in `{workDir}/AGENTS.md` through `runtimeConfigPath`.
 - `--mcp-config` forwarding and `providerSupportsMcpConfig("amp")`.
 - ExtraArgs so `MULTICA_AMP_ARGS` is not plumbed then dropped.
-- Frontend family list, logo, install docs, providers table, env docs, and the creating-agents skill source map.
+- Frontend family list, logo, metrics allow-list, install docs, providers table, env docs, README / CLI_AND_DAEMON / SELF_HOSTING, and the creating-agents skill source map when Amp has create-time argv rules.
 
 Excluded:
 

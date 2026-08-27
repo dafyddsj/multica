@@ -15,7 +15,9 @@ This phase is one invariant, so it touches more than two files on purpose.
 - New migration pair after the current head (main has `458` from the clerk series; rebase and take the next free number) widening `runtime_profile_protocol_family_check` with `NOT VALID`. Follow the body of `server/migrations/403_runtime_profile_add_zeroclaw.up.sql`.
 - `packages/core/types/agent.ts`: add `"amp"` to `RUNTIME_PROFILE_PROTOCOL_FAMILIES`.
 
-`ListModels` may return an empty catalog in this phase. Amp's product default is a mode dial, not a Multica model enum. Manual entry is enough until a discovery command is captured.
+`ListModels` needs an `"amp"` case. The switch `default` errors. Return an empty catalog. Amp's product default is a mode dial, not a Multica model enum. Set `ModelSelectionSupported("amp")` to false if `--model` is not part of v1 argv.
+
+`TestLaunchHeaderCoversAllSupportedBackends` fails if `launchHeaders` omits `amp`.
 
 ## Data structures
 

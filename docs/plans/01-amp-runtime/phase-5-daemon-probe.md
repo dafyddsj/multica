@@ -13,7 +13,8 @@ A machine with `amp` on PATH, or `MULTICA_AMP_PATH` set, registers an Amp runtim
 - `scripts/agent-cli-command-names.txt`: add `amp` in sorted position.
 - `server/pkg/agent/version.go`: add a `MinVersions["amp"]` only after a real `--version` string and a known floor. If the floor is unknown, omit the entry and register any parseable version.
 - ExtraArgs wiring test on `ampBackend`, same assertion as `TestQwenpawExtraArgsReachTheCommandLine`.
-- Confirm `config.go` already forwards `MULTICA_<PROVIDER>_ARGS` generically. If Amp needs an allow-list case, add it here. Do not add a dead env var.
+- `MULTICA_*_ARGS` is not generic. Add a `shellArgsFromEnv("MULTICA_AMP_ARGS")` case next to `MULTICA_QWEN_ARGS` in `config.go`, and the daemon forward into `ExecOptions.ExtraArgs`. Do not add the env var without both sides.
+- `server/internal/metrics/labels.go` `knownRuntimeProviders`: add `"amp"`. A missing key collapses to `"other"`. `qwenpaw` already has that hole. Do not copy it.
 
 ## Data structures
 

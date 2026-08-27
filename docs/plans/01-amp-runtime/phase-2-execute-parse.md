@@ -8,11 +8,14 @@ Back to [overview](overview.md).
 
 ## Changes
 
-- Fill `Execute` on `ampBackend` in `server/pkg/agent/amp.go`. Reuse `newAgentStreamScanner`, `runContext`, `startOwnedProcessTree`, `hasManagedMcpConfig`, and the shared stream-json result helpers already used by Claude and Qwen.
-- Add a captured Amp JSONL fixture under `server/pkg/agent/testdata/` copied from the Amp appendix example (system init, assistant text, success result, `session_id` like `T-…`).
-- Extend `amp_test.go` with a fake executable, the same pattern as `qwen_test.go` / `claude_test.go`.
+- Fill `Execute` on `ampBackend` in `server/pkg/agent/amp.go`. Reuse `newAgentStreamScanner`, `finalizeStreamResult`, `runContext`, `startOwnedProcessTree`, and `hasManagedMcpConfig`.
+- Add a captured Amp JSONL fixture under `server/pkg/agent/testdata/` from the Amp appendix (system init, assistant text, success result, `session_id` like `T-…`).
+- Extend `amp_test.go` with a fake executable, the same pattern as `qwen_test.go`.
+- If that fixture unmarshals with Claude's event envelope, add Amp to `TestStreamJSONBackendsFinalOutputBoundaries`. If thinking lives in a `thinking` field instead of `text`, fork the parser the way Qwen did. Do not assume `handleAssistant` is shared.
+- Write the prompt on stdin, then close stdin. That is Amp's documented pipe path (`echo prompt | amp --execute --stream-json`). Do not keep stdin open for Claude `control_request`. Do not enable `--stream-json-input` in v1.
+- Pass `--stream-json-thinking` only when the transcript should include thinking blocks. That flag is not Claude-compatible.
 
-Do not teach Claude to launch Amp. Do not share `buildClaudeArgs`.
+Do not teach Claude to launch Amp. Do not share `buildClaudeArgs`, `handleControlRequest`, `claudeRootSudoPreflight`, or the `CLAUDECODE*` env denylist.
 
 ## Data structures
 
