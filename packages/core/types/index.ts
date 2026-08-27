@@ -7,6 +7,14 @@ export type {
   UpdateIssueStatusRequest,
 } from "./issue-status";
 export type {
+  EntityStatusResourceType,
+  EntityStatusCategory,
+  EntityStatusEntry,
+  ListEntityStatusesResponse,
+  CreateEntityStatusRequest,
+  UpdateEntityStatusRequest,
+} from "./entity-status";
+export type {
   Agent,
   AgentConversationStarter,
   AgentStatus,

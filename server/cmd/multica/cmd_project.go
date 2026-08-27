@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -95,16 +96,16 @@ var validProjectStatuses = []string{
 	"planned", "in_progress", "paused", "completed", "cancelled",
 }
 
-// validateProjectStatus rejects unknown statuses client-side so a typo fails
-// fast with the valid list instead of a server round-trip and a 400. Shared by
-// `project create`, `project update`, and `project status`.
+var projectStatusKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_]{0,31}$`)
+
+// validateProjectStatus accepts the 5 built-ins and any custom catalog key
+// that matches the storage format. The server is the source of truth for
+// whether a custom key exists in this workspace.
 func validateProjectStatus(status string) error {
-	for _, s := range validProjectStatuses {
-		if s == status {
-			return nil
-		}
+	if projectStatusKeyPattern.MatchString(status) {
+		return nil
 	}
-	return fmt.Errorf("invalid status %q; valid values: %s", status, strings.Join(validProjectStatuses, ", "))
+	return fmt.Errorf("invalid status %q; valid values: %s, or a custom catalog key", status, strings.Join(validProjectStatuses, ", "))
 }
 
 func init() {

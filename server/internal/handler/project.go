@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/multica-ai/multica/server/internal/entitystatus"
 	"github.com/multica-ai/multica/server/internal/logger"
 	"github.com/multica-ai/multica/server/internal/memory"
 	"github.com/multica-ai/multica/server/internal/util"
@@ -210,12 +211,9 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// validProjectStatuses / validProjectPriorities mirror the CHECK constraints on
-// the project table (migrations 034, 035). CreateProject / UpdateProject
-// pre-validate against these so an unknown enum value returns a clean 400 with
-// the allowed list instead of surfacing the DB CHECK violation as a 500 — the
-// exact mismatch reported in #3925 (`--status active`).
-var validProjectStatuses = []string{"planned", "in_progress", "paused", "completed", "cancelled"}
+// validProjectPriorities mirrors the CHECK constraint on project.priority
+// (migration 035). Status membership moved to the entity_status catalog
+// (entitystatus.Resolve) after migration 452 opened the column.
 var validProjectPriorities = []string{"urgent", "high", "medium", "low", "none"}
 
 // validateProjectEnum writes a 400 and returns false when value is not in
@@ -264,7 +262,8 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	if status == "" {
 		status = "planned"
 	}
-	if !validateProjectEnum(w, "status", status, validProjectStatuses) {
+	status, ok = h.resolveWritableEntityStatus(w, r, workspaceID, entitystatus.Project, status)
+	if !ok {
 		return
 	}
 	priority := req.Priority
@@ -513,10 +512,11 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		params.Title = pgtype.Text{String: *req.Title, Valid: true}
 	}
 	if req.Status != nil {
-		if !validateProjectEnum(w, "status", *req.Status, validProjectStatuses) {
+		resolved, ok := h.resolveWritableEntityStatus(w, r, workspaceID, entitystatus.Project, *req.Status)
+		if !ok {
 			return
 		}
-		params.Status = pgtype.Text{String: *req.Status, Valid: true}
+		params.Status = pgtype.Text{String: resolved, Valid: true}
 	}
 	if req.Priority != nil {
 		if !validateProjectEnum(w, "priority", *req.Priority, validProjectPriorities) {

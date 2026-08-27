@@ -73,10 +73,40 @@ vi.mock("@multica/core/paths", () => ({
   useWorkspacePaths: () => ({
     projects: () => "/test-workspace/projects",
   }),
+  useCurrentWorkspace: () => ({ settings: {} }),
+}));
+
+vi.mock("../../memory", () => ({
+  MemoryPanel: () => null,
 }));
 
 vi.mock("@multica/core/workspace/hooks", () => ({
   useActorName: () => ({ getActorName: () => "User One" }),
+}));
+
+vi.mock("../../common/entity-status-picker", () => ({
+  useEntityStatusPicker: () => ({
+    options: [
+      {
+        key: "planned",
+        label: "Planned",
+        category: "planned",
+        hex: null,
+        dotClass: "bg-muted-foreground",
+        badgeBg: "bg-muted",
+        badgeText: "text-muted-foreground",
+      },
+    ],
+    current: (key: string) => ({
+      key,
+      label: key,
+      category: "planned",
+      hex: null,
+      dotClass: "bg-muted-foreground",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    }),
+  }),
 }));
 
 vi.mock("sonner", () => ({

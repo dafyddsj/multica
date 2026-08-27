@@ -125,6 +125,11 @@ const (
 	// self-describing); nothing routes on it.
 	EventIssueStatusChanged = "issue_status:changed"
 
+	// Initiative / project status catalog. Same contract as issue statuses:
+	// one event for create, edit, archive and reorder; clients re-read the
+	// catalog. resource_type in the payload names which catalog moved.
+	EventEntityStatusChanged = "entity_status:changed"
+
 	// Pin events
 	EventPinCreated   = "pin:created"
 	EventPinDeleted   = "pin:deleted"

@@ -1,4 +1,62 @@
 {
+  "statuses": {
+    "title": "ステータス",
+    "description": "イニシアチブ、プロジェクト、タスクのワークフローをカスタマイズします。",
+    "loading": "ステータスを読み込み中…",
+    "add": "ステータスを追加",
+    "show_archived": "アーカイブを表示（{{count}}）",
+    "archived_badge": "アーカイブ済み",
+    "reorder_failed": "新しい順序を保存できませんでした。",
+    "scopes": {
+      "initiative": "イニシアチブ",
+      "project": "プロジェクト",
+      "issue": "タスク"
+    },
+    "category_labels": {
+      "planned": "予定",
+      "in_progress": "進行中",
+      "paused": "一時停止",
+      "completed": "完了",
+      "cancelled": "キャンセル"
+    },
+    "categories": {
+      "planned": "まだ開始していません。",
+      "in_progress": "作業中です。",
+      "paused": "一時的に保留しています。",
+      "completed": "完了しました。",
+      "cancelled": "続行しないことにしました。"
+    },
+    "actions": {
+      "open": "{{name}} の操作",
+      "edit": "編集",
+      "archive": "アーカイブ",
+      "reorder": "{{name}} を並び替え"
+    },
+    "editor": {
+      "create_title": "新しいステータス",
+      "edit_title": "ステータスを編集",
+      "behavior_hint": "このステータスの挙動は{{category}}と同じです。",
+      "name": "名前",
+      "name_placeholder": "例: 出荷中",
+      "key_hint": "API と CLI では {{key}} と呼ばれます。",
+      "category": "カテゴリ",
+      "category_locked": "カテゴリは変更できません。既にこのステータスの項目が依存しています。",
+      "description": "説明",
+      "description_placeholder": "このステータスがチームにとって意味すること",
+      "color": "色",
+      "cancel": "キャンセル",
+      "save": "保存",
+      "saving": "保存中…",
+      "save_failed": "ステータスを保存できませんでした。"
+    },
+    "archive_dialog": {
+      "title": "このステータスをアーカイブしますか？",
+      "description": "「{{name}}」は新しい{{scope}}では使えなくなります。既存のものはそのまま残り、挙動も変わりません。",
+      "cancel": "キャンセル",
+      "confirm": "アーカイブ",
+      "failed": "ステータスをアーカイブできませんでした。"
+    }
+  },
   "issue_statuses": {
     "title": "タスクステータス",
     "description": "タスクが辿るワークフローを定義します。各ステータスの挙動は所属するカテゴリが決めます。",

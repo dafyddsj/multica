@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS entity_status_workspace_type_key_uidx;
