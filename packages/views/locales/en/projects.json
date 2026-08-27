@@ -71,6 +71,7 @@
     "prop_start_date": "Start date",
     "prop_due_date": "Due date",
     "prop_initiative": "Initiative",
+    "open_initiative": "Open initiative",
     "no_start_date": "No start date",
     "no_due_date": "No due date",
     "description_placeholder": "Add description...",

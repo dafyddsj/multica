@@ -70,6 +70,7 @@
     "prop_start_date": "開始日",
     "prop_due_date": "期限",
     "prop_initiative": "イニシアチブ",
+    "open_initiative": "イニシアチブを開く",
     "no_start_date": "開始日なし",
     "no_due_date": "期限なし",
     "description_placeholder": "説明を追加...",
