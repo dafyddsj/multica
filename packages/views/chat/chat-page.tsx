@@ -288,8 +288,8 @@ export function ChatPage() {
         <EmptyState
           agent={c.activeAgent}
           hasSessions={c.sessions.length > 0}
-          onPickPrompt={c.prefillStarterPrompt}
-          customizeHref={c.customizeStarterPromptsHref}
+          onPickPrompt={c.prefillConversationStarter}
+          customizeHref={c.customizeConversationStartersHref}
         />
       )}
 
@@ -323,8 +323,8 @@ export function ChatPage() {
       <ChatInput
         onSend={c.handleSend}
         restoreDraftRequest={c.restoreDraftRequest}
-        starterPromptRequest={c.starterPromptRequest}
-        onStarterPromptApplied={c.handleStarterPromptApplied}
+        conversationStarterRequest={c.conversationStarterRequest}
+        onConversationStarterApplied={c.handleConversationStarterApplied}
         onRestoreDraftApplied={c.handleRestoreDraftApplied}
         uploadEnabled={c.uploadEnabled && !c.isAgentAccessRevoked}
         onStop={c.handleStop}
