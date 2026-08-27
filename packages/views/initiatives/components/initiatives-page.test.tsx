@@ -38,6 +38,21 @@ vi.mock("@tanstack/react-query", () => ({
   },
 }));
 
+vi.mock("../../common/entity-status-picker", () => ({
+  useEntityStatusPicker: () => ({
+    options: [],
+    current: (key: string) => ({
+      key,
+      label: key,
+      category: "planned",
+      hex: null,
+      dotClass: "bg-muted-foreground",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    }),
+  }),
+}));
+
 vi.mock("@multica/core/initiatives", () => ({
   initiativeListOptions: () => ({ queryKey: ["initiatives"] }),
   useUpdateInitiative: () => ({ mutate: vi.fn() }),

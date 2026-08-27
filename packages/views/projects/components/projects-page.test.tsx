@@ -58,6 +58,26 @@ vi.mock("@tanstack/react-query", () => ({
   },
 }));
 
+vi.mock("../../common/entity-status-picker", () => ({
+  useEntityStatusPicker: () => ({
+    options: [],
+    current: (key: string) => ({
+      key,
+      label:
+        key === "in_progress"
+          ? "In Progress"
+          : key === "planned"
+            ? "Planned"
+            : key,
+      category: "planned",
+      hex: null,
+      dotClass: "bg-muted-foreground",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    }),
+  }),
+}));
+
 vi.mock("@multica/core/initiatives/queries", () => ({
   initiativeListOptions: () => ({ queryKey: ["initiatives"] }),
 }));
