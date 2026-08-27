@@ -20,6 +20,7 @@ import (
 
 	"github.com/multica-ai/multica/server/internal/analytics"
 	"github.com/multica-ai/multica/server/internal/auth"
+	"github.com/multica-ai/multica/server/internal/clerk"
 	"github.com/multica-ai/multica/server/internal/cloudruntime"
 	"github.com/multica-ai/multica/server/internal/daemonws"
 	"github.com/multica-ai/multica/server/internal/entitlement"
@@ -1200,6 +1201,15 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		Redis:        rdb,
 	})
 
+	// Clerk overlay: nil when CLERK_SECRET_KEY / CLERK_PUBLISHABLE_KEY are
+	// not both set, so self-host and merge-from-upstream keep native auth.
+	clerkClient := clerk.FromEnv()
+	if clerkClient == nil {
+		slog.Info("clerk auth overlay disabled: CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY are not both set")
+	} else {
+		slog.Info("clerk auth overlay enabled")
+	}
+
 	// Empty-claim cache: lets the daemon poll path skip a Postgres
 	// scan when a recent check confirmed the runtime had no queued
 	// task. Returns nil when rdb is nil — TaskService treats that
@@ -1322,9 +1332,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	authRL := middleware.RateLimit(rdb, envPositiveInt("RATE_LIMIT_AUTH", 5), time.Minute, trustedProxies)
 	authVerifyRL := middleware.RateLimit(rdb, envPositiveInt("RATE_LIMIT_AUTH_VERIFY", 20), time.Minute, trustedProxies)
 	contactSalesRL := middleware.RateLimit(rdb, envPositiveInt("RATE_LIMIT_CONTACT_SALES", 5), time.Hour, trustedProxies)
-	r.With(authRL).Post("/auth/send-code", h.SendCode)
-	r.With(authVerifyRL).Post("/auth/verify-code", h.VerifyCode)
-	r.With(authRL).Post("/auth/google", h.GoogleLogin)
+	hideNativeAuth := middleware.HideNativeAuth(clerkClient != nil)
+	r.With(authRL, hideNativeAuth).Post("/auth/send-code", h.SendCode)
+	r.With(authVerifyRL, hideNativeAuth).Post("/auth/verify-code", h.VerifyCode)
+	r.With(authRL, hideNativeAuth).Post("/auth/google", h.GoogleLogin)
 	r.Post("/auth/logout", h.Logout)
 
 	// Public API
@@ -1443,7 +1454,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	// signed-in user's session and the installation header. Keeping it outside
 	// /v1 prevents the Public API from accepting session cookies.
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.Auth(queries, patCache, cloudPATVerifier))
+		r.Use(middleware.Authenticate(queries, patCache, cloudPATVerifier, clerkClient))
 		r.Route(pluginBridgePrefix, func(r chi.Router) {
 			registerPluginActionRoutes(r, h)
 			// ui / manual only. `event` is dispatched by the host off the event
@@ -1453,7 +1464,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.Auth(queries, patCache, cloudPATVerifier))
+		r.Use(middleware.Authenticate(queries, patCache, cloudPATVerifier, clerkClient))
 		r.Use(middleware.RefreshCloudFrontCookies(cfSigner))
 
 		// Plugin Action API. Called by the HOST PAGE on the signed-in user's
