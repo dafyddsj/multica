@@ -376,6 +376,8 @@
     "prop_start_date": "Start date",
     "prop_due_date": "Due date",
     "prop_project": "Project",
+    "prop_initiative": "Initiative",
+    "open_initiative": "Open initiative",
     "prop_labels": "Labels",
     "add_property_action": "Add property",
     "prop_created_by": "Created by",

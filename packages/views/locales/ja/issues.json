@@ -372,6 +372,8 @@
     "prop_start_date": "開始日",
     "prop_due_date": "期限",
     "prop_project": "プロジェクト",
+    "prop_initiative": "イニシアチブ",
+    "open_initiative": "イニシアチブを開く",
     "prop_labels": "ラベル",
     "add_property_action": "プロパティを追加",
     "prop_created_by": "作成者",

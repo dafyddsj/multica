@@ -14,6 +14,7 @@ import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
 import { AppLink, useBackOrReplace } from "../../navigation";
 import {
   Archive,
+  ArrowUpRight,
   Calendar,
   CalendarClock,
   CalendarDays,
@@ -76,6 +77,7 @@ import { LabelChip } from "../../labels/label-chip";
 import { IssueAgentActivityIndicator } from "./issue-agent-activity-indicator";
 import { SubIssuesAgentWorkingChip } from "./sub-issues-agent-working-chip";
 import { ProjectPicker } from "../../projects/components/project-picker";
+import { InitiativePicker } from "../../initiatives/components/initiative-picker";
 import { LocalDirectoryHint } from "../../projects/components/local-directory-hint";
 import { CommentCard } from "./comment-card";
 import { SourceContextBadge } from "./source-context-viewer";
@@ -2337,6 +2339,29 @@ export function IssueDetail({ issueId, onDelete, onDone, defaultSidebarOpen = tr
               onUpdate={handleUpdateField}
             />
           </PropRow>
+          {breadcrumbProject?.initiative_id ? (
+            <PropRow label={t(($) => $.detail.prop_initiative)} interactive={false}>
+              <InitiativePicker
+                initiativeId={breadcrumbProject.initiative_id}
+                onUpdate={() => {}}
+                disabled
+              />
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <AppLink
+                      href={paths.initiativeDetail(breadcrumbProject.initiative_id)}
+                      aria-label={t(($) => $.detail.open_initiative)}
+                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <ArrowUpRight className="size-3.5" />
+                    </AppLink>
+                  }
+                />
+                <TooltipContent>{t(($) => $.detail.open_initiative)}</TooltipContent>
+              </Tooltip>
+            </PropRow>
+          ) : null}
 
           {/* Optional props — rendered only when set on the issue OR added
               via "+ Add property" in this session. Row order follows the
