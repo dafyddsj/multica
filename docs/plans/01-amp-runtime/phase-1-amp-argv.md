@@ -22,7 +22,7 @@ Filter `LaunchPrefix` as sequences, not as standalone tokens. Removing `threads`
 
 `ampThreadID` is a validated `T-<uuid>`. The only constructors are `parseAmpThreadID` and `resolveAmpResume`.
 
-`ampBlockedArgs` owns `--execute`, `-x`, `--stream-json`, `--stream-json-input`, `--stream-json-thinking`, `--dangerously-allow-all`, `--mcp-config`, `--resume`, `--continue`, the `threads` subcommand tokens, plus `--no-tui`, `--executor`, `-p`, and `--output-format` so pasted Claude or orb flags cannot change the launch.
+`ampBlockedArgs` owns `--execute`, `-x`, `--stream-json`, `--stream-json-input`, `--stream-json-thinking`, `--dangerously-allow-all`, `--no-archive-after-execute`, `--unarchive`, `--mcp-config`, `--resume`, `--continue`, the `threads` subcommand tokens, plus `--no-tui`, `--executor`, `-p`, and `--output-format` so pasted Claude or orb flags cannot change the launch.
 
 ## Verification
 

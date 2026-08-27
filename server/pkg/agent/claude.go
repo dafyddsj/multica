@@ -829,6 +829,11 @@ var resumeRejectedPhrases = []string{
 	// which is diagnosable — it does not silently mis-route the run.
 	"bound to another account",
 	"bound to a different account",
+	// Verified: Amp CLI 0.0.1787871856, from the bundled binary. After
+	// --execute without --no-archive-after-execute the thread is archived
+	// and threads continue throws "This thread is archived and cannot be
+	// continued." / "This thread is archived".
+	"this thread is archived",
 }
 
 // resumeWasRejected reports whether a failed run's --resume was itself

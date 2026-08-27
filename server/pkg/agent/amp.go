@@ -14,8 +14,14 @@ import (
 )
 
 // ampBackend drives Amp's headless execute protocol.
-// Fresh:  amp --execute --stream-json --stream-json-thinking --dangerously-allow-all
-// Resume: amp threads continue <T-uuid> --execute --stream-json …
+// Fresh:  amp --execute --stream-json --stream-json-thinking --dangerously-allow-all --no-archive-after-execute
+// Resume: amp threads archive --unarchive <T-uuid>, then
+//
+//	amp threads continue <T-uuid> --execute --stream-json …
+//
+// --execute archives the thread on exit unless --no-archive-after-execute
+// is set (Amp CLI 0.0.1787871856). Continuing an archived thread fails
+// with "This thread is archived and cannot be continued."
 // The prompt is piped on stdin so user-influenced text never rides argv
 // (same class of fix as cursor #5649 and qwen #6082).
 type ampBackend struct {
@@ -52,19 +58,21 @@ func resolveAmpResume(resumeSessionID string) (ampThreadID, error) {
 // sequence by filterAmpThreadSequences so a leftover T- id cannot become a
 // stray positional.
 var ampBlockedArgs = map[string]blockedArgMode{
-	"-x":                      blockedStandalone,
-	"--execute":               blockedStandalone,
-	"--stream-json":           blockedStandalone,
-	"--stream-json-input":     blockedStandalone,
-	"--stream-json-thinking":  blockedStandalone,
-	"--dangerously-allow-all": blockedStandalone,
-	"--mcp-config":            blockedWithValue,
-	"--resume":                blockedWithValue,
-	"--continue":              blockedStandalone,
-	"--no-tui":                blockedStandalone,
-	"--executor":              blockedWithValue,
-	"-p":                      blockedWithValue,
-	"--output-format":         blockedWithValue,
+	"-x":                         blockedStandalone,
+	"--execute":                  blockedStandalone,
+	"--stream-json":              blockedStandalone,
+	"--stream-json-input":        blockedStandalone,
+	"--stream-json-thinking":     blockedStandalone,
+	"--dangerously-allow-all":    blockedStandalone,
+	"--no-archive-after-execute": blockedStandalone,
+	"--unarchive":                blockedStandalone,
+	"--mcp-config":               blockedWithValue,
+	"--resume":                   blockedWithValue,
+	"--continue":                 blockedStandalone,
+	"--no-tui":                   blockedStandalone,
+	"--executor":                 blockedWithValue,
+	"-p":                         blockedWithValue,
+	"--output-format":            blockedWithValue,
 }
 
 func filterAmpRuntimeArgs(args []string, logger *slog.Logger) []string {
@@ -84,9 +92,12 @@ func filterAmpThreadSequences(args []string, logger *slog.Logger) []string {
 	out := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		if arg == "threads" && i+1 < len(args) && args[i+1] == "continue" {
-			logger.Warn("custom_args: blocked amp thread-continue sequence, skipping")
+		if arg == "threads" && i+1 < len(args) && (args[i+1] == "continue" || args[i+1] == "archive") {
+			logger.Warn("custom_args: blocked amp thread sequence, skipping")
 			i++
+			if i+1 < len(args) && args[i+1] == "--unarchive" {
+				i++
+			}
 			if i+1 < len(args) {
 				if _, ok := parseAmpThreadID(args[i+1]); ok {
 					i++
@@ -108,10 +119,37 @@ func buildAmpArgs(resume ampThreadID, opts ExecOptions, logger *slog.Logger) []s
 	if resume != "" {
 		args = append(args, "threads", "continue", string(resume))
 	}
-	args = append(args, "--execute", "--stream-json", "--stream-json-thinking", "--dangerously-allow-all")
+	args = append(args, "--execute", "--stream-json", "--stream-json-thinking", "--dangerously-allow-all", "--no-archive-after-execute")
 	args = append(args, filterAmpRuntimeArgs(opts.ExtraArgs, logger)...)
 	args = append(args, filterAmpRuntimeArgs(opts.CustomArgs, logger)...)
 	return args
+}
+
+const ampUnarchiveTimeout = 10 * time.Second
+
+// unarchiveAmpThread is best-effort. Amp's --execute archives the thread
+// when the process exits unless --no-archive-after-execute was set, and
+// threads continue then refuses with THREAD_ARCHIVED. A thread created
+// before that flag was on still needs this repair. Failure is logged;
+// Execute continues and ResumeRejected covers a still-archived thread.
+func unarchiveAmpThread(ctx context.Context, command Command, lookedUp string, id ampThreadID, cwd string, extraEnv map[string]string, logger *slog.Logger) {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	unCtx, cancel := context.WithTimeout(ctx, ampUnarchiveTimeout)
+	defer cancel()
+	args := []string{"threads", "archive", "--unarchive", string(id)}
+	cmd, _, _ := command.execVia(unCtx, chooseAmpInvocation, lookedUp, args, logger)
+	hideAgentWindow(cmd)
+	if cwd != "" {
+		cmd.Dir = cwd
+	}
+	cmd.Env = buildEnv(extraEnv)
+	out, err := combinedOutputOwned(cmd, logger)
+	if err != nil {
+		logger.Debug("amp thread unarchive failed; continue may still resume or reject",
+			"thread", string(id), "err", err, "output", strings.TrimSpace(string(out)))
+	}
 }
 
 func (b *ampBackend) Execute(ctx context.Context, prompt string, opts ExecOptions) (*Session, error) {
@@ -137,6 +175,9 @@ func (b *ampBackend) Execute(ctx context.Context, prompt string, opts ExecOption
 	}
 	if hasManagedMcpConfig(opts.McpConfig) {
 		b.cfg.Logger.Debug("amp ignores ExecOptions.McpConfig until --mcp-config file-path support is verified")
+	}
+	if resume != "" {
+		unarchiveAmpThread(runCtx, b.cfg.commandAt(execName), lookedUp, resume, opts.Cwd, b.cfg.Env, b.cfg.Logger)
 	}
 	args := buildAmpArgs(resume, opts, b.cfg.Logger)
 	cmd, _, _ := b.cfg.commandAt(execName).execVia(runCtx, chooseAmpInvocation, lookedUp, args, b.cfg.Logger)

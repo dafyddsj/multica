@@ -67,7 +67,7 @@ func TestBuildAmpArgsFreshAndResume(t *testing.T) {
 	if strings.Contains(joined, "threads") || strings.Contains(joined, "--resume") {
 		t.Fatalf("fresh argv must not resume: %v", fresh)
 	}
-	wantPrefix := []string{"--execute", "--stream-json", "--stream-json-thinking", "--dangerously-allow-all"}
+	wantPrefix := []string{"--execute", "--stream-json", "--stream-json-thinking", "--dangerously-allow-all", "--no-archive-after-execute"}
 	if len(fresh) < len(wantPrefix) {
 		t.Fatalf("fresh args too short: %v", fresh)
 	}
@@ -95,7 +95,8 @@ func TestBuildAmpArgsKeepsProtocolManaged(t *testing.T) {
 		ExtraArgs: []string{"--execute", "--sandbox"},
 		CustomArgs: []string{
 			"-x", "--stream-json", "--stream-json-input", "--stream-json-thinking",
-			"--dangerously-allow-all", "--mcp-config", "injected.json", "--resume", "other",
+			"--dangerously-allow-all", "--no-archive-after-execute", "--unarchive",
+			"--mcp-config", "injected.json", "--resume", "other",
 			"--continue", "--no-tui", "--executor", "orb", "-p", "prompt-text",
 			"--output-format", "text", "threads", "continue", ampFixtureThread, "--debug",
 		},
@@ -117,6 +118,9 @@ func TestBuildAmpArgsKeepsProtocolManaged(t *testing.T) {
 	if count := strings.Count(joined, "--dangerously-allow-all"); count != 1 {
 		t.Fatalf("--dangerously-allow-all count = %d in %v, want 1", count, args)
 	}
+	if count := strings.Count(joined, "--no-archive-after-execute"); count != 1 {
+		t.Fatalf("--no-archive-after-execute count = %d in %v, want 1", count, args)
+	}
 	if !strings.Contains(joined, "--sandbox") || !strings.Contains(joined, "--debug") {
 		t.Fatalf("non-managed custom args missing from %v", args)
 	}
@@ -133,10 +137,18 @@ func TestFilterAmpThreadSequencesDropsWholeRun(t *testing.T) {
 	if strings.Contains(strings.Join(got, " "), "threads") {
 		t.Fatalf("orphan threads continue left tokens: %v", got)
 	}
+	got = filterAmpThreadSequences([]string{"--foo", "threads", "archive", "--unarchive", ampFixtureThread, "--bar"}, slog.Default())
+	if !reflect.DeepEqual(got, []string{"--foo", "--bar"}) {
+		t.Fatalf("threads archive --unarchive leaked: %v", got)
+	}
 }
 
 func fakeAmpScript() string {
 	return `#!/bin/sh
+if [ "$1" = "threads" ] && [ "$2" = "archive" ]; then
+  if [ -n "$AMP_UNARCHIVE_FILE" ]; then printf '%s\n' "$@" > "$AMP_UNARCHIVE_FILE"; fi
+  exit 0
+fi
 if [ -n "$AMP_ARGS_FILE" ]; then printf '%s\n' "$@" > "$AMP_ARGS_FILE"; fi
 if [ -n "$AMP_STDIN_FILE" ]; then cat > "$AMP_STDIN_FILE"; fi
 case "$AMP_MODE" in
@@ -264,6 +276,52 @@ func TestAmpBackendResumeUsesThreadsContinue(t *testing.T) {
 		if a == "--resume" {
 			t.Fatalf("--resume leaked into argv: %v", argv)
 		}
+	}
+	hasKeepOpen := false
+	for _, a := range argv {
+		if a == "--no-archive-after-execute" {
+			hasKeepOpen = true
+		}
+	}
+	if !hasKeepOpen {
+		t.Fatalf("resume argv must keep the thread open: %v", argv)
+	}
+}
+
+func TestAmpBackendResumeUnarchivesFirst(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	argsFile := filepath.Join(dir, "args.txt")
+	unarchiveFile := filepath.Join(dir, "unarchive.txt")
+	backend := newFakeAmpBackend(t, map[string]string{
+		"AMP_ARGS_FILE":      argsFile,
+		"AMP_UNARCHIVE_FILE": unarchiveFile,
+	})
+	session, err := backend.Execute(context.Background(), "continue please", ExecOptions{
+		ResumeSessionID: ampFixtureThread,
+		Timeout:         5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	_, result := awaitAmpResult(t, session)
+	if result.Status != "completed" {
+		t.Fatalf("result = %+v", result)
+	}
+	got, err := os.ReadFile(unarchiveFile)
+	if err != nil {
+		t.Fatalf("unarchive was not invoked: %v", err)
+	}
+	want := []string{"threads", "archive", "--unarchive", ampFixtureThread}
+	if !reflect.DeepEqual(strings.Fields(string(got)), want) {
+		t.Fatalf("unarchive argv = %q, want %v", got, want)
+	}
+	executeArgs, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatalf("read execute args: %v", err)
+	}
+	if !strings.Contains(string(executeArgs), "threads") || !strings.Contains(string(executeArgs), "continue") {
+		t.Fatalf("execute argv lost continue: %q", executeArgs)
 	}
 }
 

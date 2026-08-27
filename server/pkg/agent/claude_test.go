@@ -863,6 +863,17 @@ func TestResumeWasRejected(t *testing.T) {
 			want:      true,
 		},
 		{
+			// Amp CLI 0.0.1787871856: --execute archives the thread unless
+			// --no-archive-after-execute is set. threads continue then
+			// throws this exact sentence.
+			name:      "amp archived thread cannot be continued",
+			requested: "T-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+			emitted:   "T-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+			failed:    true,
+			texts:     []string{"This thread is archived and cannot be continued."},
+			want:      true,
+		},
+		{
 			name:      "a different emitted id means the resume did not land",
 			requested: "sess-dead",
 			emitted:   "fresh-new",
