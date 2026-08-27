@@ -254,6 +254,7 @@ export function SquadDetailPage() {
           onUpdateRole={async (m, role) => { await updateRoleMut.mutateAsync({ member: m, role }); }}
           onSaveInstructions={async (next) => { await updateSquadMut.mutateAsync({ instructions: next }); toast.success("Instructions saved"); }}
           setLeaderPending={setLeaderMut.isPending}
+          canWriteSquadMemory={canWriteSquadMemory}
         />
       </div>
 
@@ -958,6 +959,7 @@ function SquadOverviewPane({
   onUpdateRole,
   onSaveInstructions,
   setLeaderPending,
+  canWriteSquadMemory,
 }: {
   squad: Squad;
   members: SquadMember[];
@@ -966,6 +968,7 @@ function SquadOverviewPane({
   // false the tabs render read-only (no add/remove/leader/role edits, no
   // Save). See canManageSquad in server/internal/handler/squad.go.
   canManage: boolean;
+  canWriteSquadMemory: boolean;
   isLeader: (m: SquadMember) => boolean;
   isArchived: (m: SquadMember) => boolean;
   getEntityName: (type: string, id: string) => string;
