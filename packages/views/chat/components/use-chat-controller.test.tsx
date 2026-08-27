@@ -123,6 +123,9 @@ vi.mock("@multica/core/api", () => ({
   dispatchReasonCode: () => undefined,
 }));
 vi.mock("@multica/core/agents", () => ({
+  agentAcceptsNewWork: (agent: { archived_at?: string | null; paused_at?: string | null }) =>
+    !agent.archived_at && !agent.paused_at,
+  agentIsPaused: (agent: { paused_at?: string | null }) => !!agent.paused_at,
   isAgentRuntimeBound: (agent: { runtime_id: string; runtime_bound?: boolean }) =>
     agent.runtime_bound !== false && agent.runtime_id.length > 0,
   useAgentPresenceDetail: () => ({ availability: "online" }),

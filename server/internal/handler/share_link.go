@@ -300,6 +300,14 @@ func (h *Handler) JoinByShareLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if ws, err := h.Queries.GetWorkspace(r.Context(), linkPreview.WorkspaceID); err == nil {
+		if err := h.addClerkOrgMember(r.Context(), ws, user, linkPreview.Role); err != nil {
+			slog.Error("clerk org share-link join failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", uuidToString(linkPreview.WorkspaceID))...)
+			writeError(w, http.StatusBadGateway, "failed to join organization")
+			return
+		}
+	}
+
 	var capacityToken uuid.UUID
 	if h.seatCapacityEnabled() {
 		capacityToken, err = h.beginShareJoinCapacity(r.Context(), uuid.UUID(linkPreview.WorkspaceID.Bytes), uuid.UUID(linkPreview.ID.Bytes), uuid.UUID(user.ID.Bytes))

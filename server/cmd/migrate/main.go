@@ -280,6 +280,8 @@ var concurrentIndexCleanups = map[string]string{
 	"448_entity_status_pkey_index":                              "entity_status_pkey_uidx",
 	"450_entity_status_workspace_type_key_index":                "entity_status_workspace_type_key_uidx",
 	"451_entity_status_workspace_type_name_index":               "entity_status_workspace_type_name_uidx",
+	"455_user_clerk_user_id_index":                              "idx_user_clerk_user_id",
+	"457_workspace_clerk_org_id_index":                          "idx_workspace_clerk_org_id",
 }
 
 // concurrentDownIndexCleanups covers every migration whose down direction

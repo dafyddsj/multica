@@ -267,6 +267,22 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		issuePrefix = defaultIssuePrefixFromSlug(req.Slug)
 	}
 
+	clerkOrgID, err := h.createClerkOrg(r.Context(), req.Name, req.Slug, userID)
+	if err != nil {
+		slog.Error("clerk org create failed", append(logger.RequestAttrs(r), "error", err, "slug", req.Slug)...)
+		writeError(w, http.StatusBadGateway, "failed to create organization")
+		return
+	}
+	committed := false
+	defer func() {
+		if committed || clerkOrgID == "" || h.Clerk == nil || h.Clerk.Orgs == nil {
+			return
+		}
+		if delErr := h.Clerk.Orgs.Delete(r.Context(), clerkOrgID); delErr != nil {
+			slog.Warn("clerk org compensating delete failed", append(logger.RequestAttrs(r), "error", delErr, "clerk_org_id", clerkOrgID)...)
+		}
+	}()
+
 	tx, err := h.TxStarter.Begin(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to create workspace")
@@ -313,6 +329,16 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if clerkOrgID != "" {
+		if _, err := qtx.BindWorkspaceClerkOrgID(r.Context(), db.BindWorkspaceClerkOrgIDParams{
+			ID:         ws.ID,
+			ClerkOrgID: ptrToText(&clerkOrgID),
+		}); err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to bind organization")
+			return
+		}
+	}
+
 	// NOTE: CreateWorkspace deliberately does NOT mark the user as
 	// onboarded. The `onboarded_at` flag is owned by CompleteOnboarding
 	// (Step 3 of the flow) and by AcceptInvitation (invitee joining an
@@ -325,6 +351,7 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "failed to create workspace")
 		return
 	}
+	committed = true
 
 	wsID := uuidToString(ws.ID)
 
@@ -629,6 +656,14 @@ func (h *Handler) UpdateMember(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if ws, err := h.Queries.GetWorkspace(r.Context(), target.WorkspaceID); err == nil {
+		if err := h.updateClerkOrgRole(r.Context(), ws, uuidToString(target.UserID), role); err != nil {
+			slog.Error("clerk org role update failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+			writeError(w, http.StatusBadGateway, "failed to update organization role")
+			return
+		}
+	}
+
 	updatedMember, err := h.Queries.UpdateMemberRole(r.Context(), db.UpdateMemberRoleParams{
 		ID:   target.ID,
 		Role: role,
@@ -689,6 +724,14 @@ func (h *Handler) DeleteMember(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if ws, err := h.Queries.GetWorkspace(r.Context(), target.WorkspaceID); err == nil {
+		if err := h.removeClerkOrgMember(r.Context(), ws, uuidToString(target.UserID)); err != nil {
+			slog.Error("clerk org member delete failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+			writeError(w, http.StatusBadGateway, "failed to remove organization member")
+			return
+		}
+	}
+
 	requesterUserID := requestUserID(r)
 	result, err := h.revokeAndRemoveMember(r.Context(), target.WorkspaceID, target.UserID, target.ID, parseUUID(requesterUserID))
 	if err != nil {
@@ -730,6 +773,14 @@ func (h *Handler) LeaveWorkspace(w http.ResponseWriter, r *http.Request) {
 		}
 		if countOwners(members) <= 1 {
 			writeError(w, http.StatusBadRequest, "workspace must have at least one owner")
+			return
+		}
+	}
+
+	if ws, err := h.Queries.GetWorkspace(r.Context(), member.WorkspaceID); err == nil {
+		if err := h.removeClerkOrgMember(r.Context(), ws, uuidToString(member.UserID)); err != nil {
+			slog.Error("clerk org leave failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+			writeError(w, http.StatusBadGateway, "failed to leave organization")
 			return
 		}
 	}
@@ -1082,6 +1133,14 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 	if requester.Role != "owner" {
 		writeError(w, http.StatusForbidden, "insufficient permissions")
 		return
+	}
+
+	if ws, err := h.Queries.GetWorkspace(r.Context(), requester.WorkspaceID); err == nil {
+		if err := h.deleteClerkOrg(r.Context(), ws); err != nil {
+			slog.Error("clerk org delete failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", workspaceID)...)
+			writeError(w, http.StatusBadGateway, "failed to delete organization")
+			return
+		}
 	}
 
 	// Invalidate membership cache for all workspace members before deletion.

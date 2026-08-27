@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@multica/core/auth";
 import {
   paths,
@@ -26,6 +27,7 @@ import { CliInstallInstructions, OnboardingFlow } from "@multica/views/onboardin
  */
 export default function OnboardingPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const isLoading = useAuthStore((s) => s.isLoading);
   const hasOnboarded = useHasOnboarded();
@@ -46,6 +48,7 @@ export default function OnboardingPage() {
       if (!isLoading && !user) router.replace(paths.login());
       return;
     }
+    if (pathname !== paths.onboarding()) return;
     if (!workspacesReady) return;
     if (completingRef.current) return;
     // Bounce out only when onboarding genuinely doesn't apply: the user is
@@ -58,9 +61,23 @@ export default function OnboardingPage() {
     if (hasOnboarded) {
       router.replace(resolvePostAuthDestination(workspaces, hasOnboarded));
     }
-  }, [isLoading, user, hasOnboarded, workspacesReady, workspaces, router]);
+  }, [isLoading, user, hasOnboarded, workspacesReady, workspaces, router, pathname]);
 
-  if (isLoading || !user || hasOnboarded) return null;
+  if (isLoading || !user) return null;
+  // Keep a spinner on screen while the guard (or onComplete) navigates.
+  // Returning null after skip-existing looked like a hung blank page
+  // when the workspace layout bounced an onboarded user back here.
+  if (hasOnboarded) {
+    return (
+      <div className="flex h-full items-center justify-center bg-background">
+        <Loader2
+          role="status"
+          aria-label="Loading"
+          className="h-6 w-6 animate-spin text-muted-foreground"
+        />
+      </div>
+    );
+  }
 
   // Layout: page owns its own scroll (root layout sets `body {
   // overflow: hidden }` for the app-shell convention). OnboardingFlow
@@ -70,20 +87,30 @@ export default function OnboardingPage() {
     <div className="h-full overflow-y-auto bg-background">
       <OnboardingFlow
         onComplete={(ws, destination) => {
-          completingRef.current = true;
+          // Latch only for specialized landings. The default issues
+          // exit must keep the hasOnboarded guard live: skip-existing
+          // can bounce back here if the workspace layout briefly sees
+          // a stale un-onboarded user, and a latched guard then leaves
+          // a blank /onboarding forever.
           if (ws && destination?.kind === "chat") {
+            completingRef.current = true;
             router.push(
               paths.workspace(ws.slug).chatSession(destination.sessionId),
             );
-          } else if (ws && destination?.kind === "issue") {
+            return;
+          }
+          if (ws && destination?.kind === "issue") {
+            completingRef.current = true;
             router.push(
               paths.workspace(ws.slug).issueDetail(destination.issueId),
             );
-          } else if (ws) {
-            router.push(paths.workspace(ws.slug).issues());
-          } else {
-            router.push(paths.root());
+            return;
           }
+          if (ws) {
+            router.push(paths.workspace(ws.slug).issues());
+            return;
+          }
+          router.push(paths.root());
         }}
         runtimeInstructions={<CliInstallInstructions />}
       />

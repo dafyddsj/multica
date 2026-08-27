@@ -29,6 +29,7 @@ import { setLoggedInCookie } from "@/features/auth/auth-cookie";
 import Link from "next/link";
 import { LoginPage, validateCliCallback } from "@multica/views/auth";
 import { useT } from "@multica/views/i18n";
+import { ClerkLogin } from "@/features/auth/clerk-login";
 
 /**
  * Pick where a logged-in user with no explicit `?next=` should land.
@@ -61,6 +62,7 @@ function LoginPageContent() {
   const qc = useQueryClient();
   const { t } = useT("auth");
   const googleClientId = useConfigStore((state) => state.googleClientId);
+  const clerkPublishableKey = useConfigStore((state) => state.clerkPublishableKey);
   const user = useAuthStore((s) => s.user);
   const isLoading = useAuthStore((s) => s.isLoading);
   const searchParams = useSearchParams();
@@ -215,6 +217,15 @@ function LoginPageContent() {
     );
   }
 
+  const cliCallback =
+    cliCallbackRaw && validateCliCallback(cliCallbackRaw)
+      ? { url: cliCallbackRaw, state: cliState }
+      : undefined;
+
+  if (clerkPublishableKey) {
+    return <ClerkLogin onSuccess={handleSuccess} cliCallback={cliCallback} />;
+  }
+
   return (
     <LoginPage
       onSuccess={handleSuccess}
@@ -227,11 +238,7 @@ function LoginPageContent() {
             }
           : undefined
       }
-      cliCallback={
-        cliCallbackRaw && validateCliCallback(cliCallbackRaw)
-          ? { url: cliCallbackRaw, state: cliState }
-          : undefined
-      }
+      cliCallback={cliCallback}
       onTokenObtained={setLoggedInCookie}
       extra={
         <span className="text-caption text-muted-foreground">

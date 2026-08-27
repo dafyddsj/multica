@@ -1,14 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
-import { proxy } from "../proxy";
+import { syncProxy } from "../lib/sync-proxy";
 import manifest, { PWA_START_URL } from "./manifest";
+
+beforeEach(() => {
+  delete process.env.CLERK_SECRET_KEY;
+  delete process.env.CLERK_PUBLISHABLE_KEY;
+  delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+});
 
 function launch(cookies: Record<string, string>, host = "www.multica.ai") {
   const cookieHeader = Object.entries(cookies)
     .map(([key, value]) => `${key}=${value}`)
     .join("; ");
 
-  return proxy(
+  return syncProxy(
     new NextRequest(`https://${host}${PWA_START_URL}`, {
       headers: cookieHeader ? { cookie: cookieHeader } : undefined,
     }),
@@ -76,7 +82,7 @@ describe("web app manifest", () => {
     expect(shortcuts.length).toBeGreaterThan(0);
     for (const shortcut of shortcuts) {
       const resolve = (cookie: string) =>
-        proxy(
+        syncProxy(
           new NextRequest(`https://www.multica.ai${shortcut.url}`, {
             headers: { cookie },
           }),

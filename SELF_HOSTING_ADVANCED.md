@@ -62,6 +62,15 @@ STARTTLS is used automatically when advertised by the server. Port 465 (SMTPS / 
 
 Changes take effect after restarting the backend / compose stack. The web UI reads `GOOGLE_CLIENT_ID` from `/api/config` at runtime, so no web rebuild is needed.
 
+### Clerk hosted auth (Optional)
+
+| Variable | Description |
+|----------|-------------|
+| `CLERK_SECRET_KEY` | Clerk secret key (`sk_…`). Required together with the publishable key. |
+| `CLERK_PUBLISHABLE_KEY` | Clerk publishable key (`pk_…`). Advertised on `/api/config` when both keys are set. |
+
+When both are set, the API verifies Clerk session JWTs for human requests and hides native `/auth/send-code`, `/auth/verify-code`, and `/auth/google`. The Next app mounts `@clerk/nextjs` `ClerkProvider` from the same pair. Clerk Organizations map onto Multica workspaces through `workspace.clerk_org_id` and refresh on `GET /api/me` and `GET /api/workspaces`. Routing still uses the workspace slug, not Clerk Active Organization. Machine tokens stay native. Either key empty keeps native email OTP / Google. Paste values into `.env` from `.env.example`. Do not commit real keys. Restart the API and the web app after changing them.
+
 ### Signup Controls (Optional)
 
 | Variable | Description |

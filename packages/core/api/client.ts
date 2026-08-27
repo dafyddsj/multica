@@ -662,6 +662,7 @@ function dingTalkGroupSearch(params: ListDingTalkGroupsParams): string {
 export class ApiClient {
   private baseUrl: string;
   private token: string | null = null;
+  private tokenProvider: (() => Promise<string | null>) | null = null;
   private logger: Logger;
   private options: ApiClientOptions;
 
@@ -677,6 +678,27 @@ export class ApiClient {
 
   setToken(token: string | null) {
     this.token = token;
+  }
+
+  setTokenProvider(provider: (() => Promise<string | null>) | null) {
+    this.tokenProvider = provider;
+  }
+
+  getToken(): string | null {
+    return this.token;
+  }
+
+  async resolveToken(): Promise<string | null> {
+    if (this.tokenProvider) {
+      try {
+        const token = await this.tokenProvider();
+        if (token) this.token = token;
+        return this.token;
+      } catch {
+        return this.token;
+      }
+    }
+    return this.token;
   }
 
   private readCsrfToken(): string | null {
@@ -746,6 +768,7 @@ export class ApiClient {
     const start = Date.now();
     const method = init?.method ?? "GET";
 
+    await this.resolveToken();
     const headers: Record<string, string> = {
       "X-Request-ID": rid,
       ...this.authHeaders(),
@@ -2752,6 +2775,7 @@ export class ApiClient {
     const formData = new FormData();
     formData.append("bundle", bundle);
 
+    await this.resolveToken();
     const res = await fetch(`${this.baseUrl}/api/workspaces/${workspaceId}/plugins/packages`, {
       method: "POST",
       headers: this.authHeaders(),
@@ -3190,6 +3214,7 @@ export class ApiClient {
     const start = Date.now();
     this.logger.info("→ POST /api/upload-file", { rid });
 
+    await this.resolveToken();
     const res = await fetch(`${this.baseUrl}/api/upload-file`, {
       method: "POST",
       headers: this.authHeaders(),

@@ -6,6 +6,20 @@ WHERE id = $1;
 SELECT * FROM "user"
 WHERE email = $1;
 
+-- name: GetUserByClerkID :one
+SELECT * FROM "user"
+WHERE clerk_user_id = $1;
+
+-- name: BindUserClerkID :one
+-- Attaches a Clerk user id to an existing Multica user. Refuses to overwrite
+-- a different bound id so two Clerk accounts cannot steal the same row.
+UPDATE "user" SET
+    clerk_user_id = $2,
+    updated_at = now()
+WHERE id = $1
+  AND (clerk_user_id IS NULL OR clerk_user_id = $2)
+RETURNING *;
+
 -- name: GetUsersByIDs :many
 -- Batch lookup from the GLOBAL user table (not gated on membership, so departed
 -- members still render). Used to enrich attribution initiator / originator refs on

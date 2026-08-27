@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/multica-ai/multica/server/internal/analytics"
+	"github.com/multica-ai/multica/server/internal/clerk"
 	"github.com/multica-ai/multica/server/internal/featureflags"
 )
 
@@ -25,6 +26,10 @@ type AppConfig struct {
 	// toggle signup or wire Google OAuth.
 	AllowSignup    bool   `json:"allow_signup"`
 	GoogleClientID string `json:"google_client_id,omitempty"`
+	// ClerkPublishableKey is emitted only when both Clerk env keys are set,
+	// so the web app can switch to hosted sign-in without a rebuild. Omitted
+	// when Clerk is off to keep the self-host / merge-from-upstream shape.
+	ClerkPublishableKey string `json:"clerk_publishable_key,omitempty"`
 	// WorkspaceCreationDisabled mirrors the server-side
 	// DISABLE_WORKSPACE_CREATION env var so the UI can hide every
 	// "Create workspace" affordance on self-hosted instances. Omitted
@@ -101,6 +106,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		AgentConversationStartersSupported: true,
 		AllowSignup:                        os.Getenv("ALLOW_SIGNUP") != "false",
 		GoogleClientID:                     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClerkPublishableKey:                clerk.PublishableKeyFromEnv(),
 		WorkspaceCreationDisabled:          os.Getenv("DISABLE_WORKSPACE_CREATION") == "true",
 	}
 	if h.Storage != nil {
