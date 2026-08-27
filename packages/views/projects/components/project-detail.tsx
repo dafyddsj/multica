@@ -426,7 +426,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
                     <AppLink
                       href={wsPaths.initiativeDetail(project.initiative_id)}
                       aria-label={t(($) => $.detail.open_initiative)}
-                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                     >
                       <ArrowUpRight className="size-3.5" />
                     </AppLink>
