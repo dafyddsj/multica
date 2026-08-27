@@ -61,7 +61,7 @@ func TestExtractIdentifiers(t *testing.T) {
 			in:   []string{"reply@user-1 v1.2-3 here", "", ""},
 			// Word-boundary regex still matches "user-1"; identifier prefix is
 			// any 2..10 letters/digits, so this is intentional. The downstream
-			// workspace prefix check in lookupIssueByIdentifier filters it.
+			// known-prefix check in lookupIssueByIdentifier filters it.
 			want: []string{"USER-1"},
 		},
 		{

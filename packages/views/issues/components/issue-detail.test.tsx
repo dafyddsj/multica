@@ -321,6 +321,8 @@ const mockApiObj = vi.hoisted(() => ({
   listAgents: vi.fn().mockResolvedValue([]),
   getProject: vi.fn(),
   listProjects: vi.fn().mockResolvedValue({ projects: [] }),
+  getInitiative: vi.fn(),
+  listInitiatives: vi.fn().mockResolvedValue({ initiatives: [], total: 0 }),
 }));
 
 vi.mock("@multica/core/api", () => ({
@@ -1024,6 +1026,80 @@ describe("IssueDetail (shared)", () => {
     // The whole project segment is a single AppLink pointing at the project
     // detail route under the active workspace slug.
     expect(projectLink.closest("a")).toHaveAttribute("href", "/test/projects/p-1");
+  });
+
+  it("does not offer an open-initiative control when the project has none", async () => {
+    mockApiObj.getIssue.mockResolvedValue({ ...mockIssue, project_id: "p-1" });
+    mockApiObj.getProject.mockResolvedValue({
+      id: "p-1",
+      workspace_id: "ws-1",
+      title: "Marketing site refresh",
+      description: null,
+      icon: "🚀",
+      status: "in_progress",
+      priority: "none",
+      lead_type: null,
+      lead_id: null,
+      initiative_id: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      issue_count: 0,
+      done_count: 0,
+      resource_count: 0,
+    });
+
+    renderIssueDetail();
+
+    await screen.findByText("TES-1 Implement authentication");
+    expect(
+      screen.queryByRole("link", { name: "Open initiative" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links to the parent initiative from the properties sidebar", async () => {
+    mockApiObj.getIssue.mockResolvedValue({ ...mockIssue, project_id: "p-1" });
+    mockApiObj.getProject.mockResolvedValue({
+      id: "p-1",
+      workspace_id: "ws-1",
+      title: "Marketing site refresh",
+      description: null,
+      icon: "🚀",
+      status: "in_progress",
+      priority: "none",
+      lead_type: null,
+      lead_id: null,
+      initiative_id: "initiative-9",
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      issue_count: 0,
+      done_count: 0,
+      resource_count: 0,
+    });
+    mockApiObj.getInitiative.mockResolvedValue({
+      id: "initiative-9",
+      workspace_id: "ws-1",
+      title: "Growth loop",
+      description: null,
+      icon: null,
+      status: "planned",
+      priority: "none",
+      lead_type: null,
+      lead_id: null,
+      start_date: null,
+      due_date: null,
+      issue_prefix: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      project_count: 1,
+      issue_count: 0,
+      done_count: 0,
+    });
+
+    renderIssueDetail();
+
+    const link = await screen.findByRole("link", { name: "Open initiative" });
+    expect(link).toHaveAttribute("href", "/test/initiatives/initiative-9");
+    expect(await screen.findByText("Growth loop")).toBeInTheDocument();
   });
 
   it("renders properties sidebar with all core rows plus set optional rows", async () => {

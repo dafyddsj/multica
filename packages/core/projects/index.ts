@@ -9,6 +9,7 @@ export {
   type ProjectViewMode,
   type ProjectSortField,
   type ProjectSortDirection,
+  type ProjectGroupBy,
   type ProjectColumnKey,
   type ProjectListFilters,
 } from "./stores/view-store";

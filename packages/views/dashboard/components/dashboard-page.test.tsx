@@ -15,6 +15,17 @@ import type { NavigationAdapter } from "../../navigation";
 // dashboard options builders runs for real, so the key is the production key.
 const queryKeys = vi.hoisted(() => [] as unknown[][]);
 const dashboardDataRef = vi.hoisted(() => ({ current: false }));
+const scopeFixturesRef = vi.hoisted(() => ({
+  current: {
+    initiatives: [] as { id: string; title: string; icon: string | null }[],
+    projects: [] as {
+      id: string;
+      title: string;
+      icon: string | null;
+      initiative_id: string | null;
+    }[],
+  },
+}));
 // Swaps the per-agent fixtures for ones with enough agents to exercise the
 // top-offenders and leaderboard caps. Kept off by default so the other tests
 // keep their exact 4-of-10 arithmetic.
@@ -69,6 +80,20 @@ vi.mock("@tanstack/react-query", async () => {
     useQueryClient: () => ({ invalidateQueries: vi.fn() }),
     useQuery: (opts: { queryKey: unknown[] }) => {
       queryKeys.push(opts.queryKey);
+      if (opts.queryKey[0] === "initiatives") {
+        return {
+          data: scopeFixturesRef.current.initiatives,
+          isLoading: false,
+          isSuccess: true,
+        };
+      }
+      if (opts.queryKey[0] === "projects") {
+        return {
+          data: scopeFixturesRef.current.projects,
+          isLoading: false,
+          isSuccess: true,
+        };
+      }
       if (dashboardDataRef.current) {
         // ["workspaces", wsId, "agents"] — needed so the Errors breakdown can
         // resolve agent-1 to a name and render its drill-down link.
@@ -315,6 +340,7 @@ describe("DashboardPage — viewing timezone drives the query key", () => {
   beforeEach(() => {
     queryKeys.length = 0;
     dashboardDataRef.current = false;
+    scopeFixturesRef.current = { initiatives: [], projects: [] };
     cleanup();
   });
 
@@ -761,5 +787,49 @@ describe("DashboardPage — leaderboard density", () => {
     expect(
       screen.queryByRole("button", { name: "Show all" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("DashboardPage — initiative filter", () => {
+  beforeEach(() => {
+    queryKeys.length = 0;
+    dashboardDataRef.current = true;
+    tzRef.current = "UTC";
+    scopeFixturesRef.current = {
+      initiatives: [
+        { id: "init-1", title: "Launch", icon: "🚀" },
+        { id: "init-2", title: "Platform", icon: null },
+      ],
+      projects: [
+        { id: "proj-1", title: "App", icon: null, initiative_id: "init-1" },
+        { id: "proj-2", title: "Infra", icon: null, initiative_id: "init-2" },
+      ],
+    };
+    cleanup();
+  });
+
+  afterEach(() => {
+    scopeFixturesRef.current = { initiatives: [], projects: [] };
+  });
+
+  function initiativeSegments(): unknown[] {
+    return queryKeys
+      .filter((k) => k[0] === "dashboard")
+      .map((k) => k[5]);
+  }
+
+  it("shows the initiative filter and keys every rollup as unscoped by default", () => {
+    renderDashboard();
+
+    expect(screen.getByRole("button", { name: "Initiative" })).toHaveTextContent(
+      "All initiatives",
+    );
+    expect(screen.getByRole("button", { name: "Project" })).toHaveTextContent(
+      "All projects",
+    );
+    const keys = queryKeys.filter((k) => k[0] === "dashboard");
+    expect(keys.length).toBeGreaterThan(0);
+    expect(initiativeSegments().every((id) => id === null)).toBe(true);
+    expect(keys.every((k) => k[4] === null)).toBe(true);
   });
 });

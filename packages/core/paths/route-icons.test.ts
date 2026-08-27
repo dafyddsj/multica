@@ -13,6 +13,14 @@ import {
 // visually diverges from the rest of the UI. Every parameterless workspace
 // route that shows up in the sidebar/tab bar must map to a WORKSPACE_PAGES
 // entry.
+describe("workspace page order", () => {
+  it("lists Initiatives, then Projects, then Issues — palette Pages follows this", () => {
+    const keys = Object.keys(WORKSPACE_PAGES);
+    expect(keys.indexOf("initiatives")).toBeLessThan(keys.indexOf("projects"));
+    expect(keys.indexOf("projects")).toBeLessThan(keys.indexOf("issues"));
+  });
+});
+
 describe("workspace page coverage", () => {
   // `root` aliases `issues` (same segment) and is never rendered as its own
   // nav item; the parameterized detail routes are resources, not pages.

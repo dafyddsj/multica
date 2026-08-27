@@ -8,6 +8,8 @@
   "filter": {
     "project_label": "프로젝트",
     "all_projects": "모든 프로젝트",
+    "initiative_label": "이니셔티브",
+    "all_initiatives": "모든 이니셔티브",
     "period_label": "기간"
   },
   "kpi": {

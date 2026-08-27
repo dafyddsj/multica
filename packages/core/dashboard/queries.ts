@@ -7,39 +7,50 @@ export const dashboardKeys = {
     wsId: string,
     days: number,
     projectId: string | null,
+    initiativeId: string | null,
     tz: string,
-  ) => [...dashboardKeys.all(wsId), "daily", days, projectId, tz] as const,
+  ) =>
+    [...dashboardKeys.all(wsId), "daily", days, projectId, initiativeId, tz] as const,
   byAgent: (
     wsId: string,
     days: number,
     projectId: string | null,
+    initiativeId: string | null,
     tz: string,
-  ) => [...dashboardKeys.all(wsId), "by-agent", days, projectId, tz] as const,
+  ) =>
+    [...dashboardKeys.all(wsId), "by-agent", days, projectId, initiativeId, tz] as const,
   agentRuntime: (
     wsId: string,
     days: number,
     projectId: string | null,
+    initiativeId: string | null,
     tz: string,
-  ) => [...dashboardKeys.all(wsId), "agent-runtime", days, projectId, tz] as const,
+  ) =>
+    [...dashboardKeys.all(wsId), "agent-runtime", days, projectId, initiativeId, tz] as const,
   runTimeDaily: (
     wsId: string,
     days: number,
     projectId: string | null,
+    initiativeId: string | null,
     tz: string,
-  ) => [...dashboardKeys.all(wsId), "runtime-daily", days, projectId, tz] as const,
+  ) =>
+    [...dashboardKeys.all(wsId), "runtime-daily", days, projectId, initiativeId, tz] as const,
   failuresDaily: (
     wsId: string,
     days: number,
     projectId: string | null,
+    initiativeId: string | null,
     tz: string,
-  ) => [...dashboardKeys.all(wsId), "failures-daily", days, projectId, tz] as const,
+  ) =>
+    [...dashboardKeys.all(wsId), "failures-daily", days, projectId, initiativeId, tz] as const,
   failuresByAgent: (
     wsId: string,
     days: number,
     projectId: string | null,
+    initiativeId: string | null,
     tz: string,
   ) =>
-    [...dashboardKeys.all(wsId), "failures-by-agent", days, projectId, tz] as const,
+    [...dashboardKeys.all(wsId), "failures-by-agent", days, projectId, initiativeId, tz] as const,
 };
 
 // The server materializes these rollups on a 5-minute cadence, so a mounted
@@ -53,7 +64,8 @@ const REFETCH_INTERVAL = 5 * 60 * 1000;
 // Range changes should keep the previous result mounted so KPI cards and
 // charts transition in place instead of falling back to a full-page skeleton.
 // Scope changes are deliberately excluded: carrying data across workspaces,
-// projects, report kinds, or timezones would briefly display the wrong data.
+// projects, initiatives, report kinds, or timezones would briefly display the
+// wrong data.
 function isSameDashboardScope(
   previousKey: readonly unknown[] | undefined,
   nextKey: readonly unknown[],
@@ -68,21 +80,31 @@ function isSameDashboardScope(
 // repoints the cache. Every series — token rollups and the
 // atq.completed_at-based run-time / failure series — slices its day boundary
 // in the viewer's tz, so all the dashboard tabs always agree.
+function dashboardQueryParams(
+  days: number,
+  projectId: string | null,
+  initiativeId: string | null,
+  tz: string,
+) {
+  return {
+    days,
+    project_id: projectId ?? undefined,
+    initiative_id: initiativeId ?? undefined,
+    tz,
+  };
+}
+
 export function dashboardUsageDailyOptions(
   wsId: string,
   days: number,
   projectId: string | null,
+  initiativeId: string | null,
   tz: string,
 ) {
-  const queryKey = dashboardKeys.daily(wsId, days, projectId, tz);
+  const queryKey = dashboardKeys.daily(wsId, days, projectId, initiativeId, tz);
   return queryOptions({
     queryKey,
-    queryFn: () =>
-      api.getDashboardUsageDaily({
-        days,
-        project_id: projectId ?? undefined,
-        tz,
-      }),
+    queryFn: () => api.getDashboardUsageDaily(dashboardQueryParams(days, projectId, initiativeId, tz)),
     enabled: !!wsId,
     staleTime: STALE_TIME,
     refetchInterval: REFETCH_INTERVAL,
@@ -97,17 +119,14 @@ export function dashboardUsageByAgentOptions(
   wsId: string,
   days: number,
   projectId: string | null,
+  initiativeId: string | null,
   tz: string,
 ) {
-  const queryKey = dashboardKeys.byAgent(wsId, days, projectId, tz);
+  const queryKey = dashboardKeys.byAgent(wsId, days, projectId, initiativeId, tz);
   return queryOptions({
     queryKey,
     queryFn: () =>
-      api.getDashboardUsageByAgent({
-        days,
-        project_id: projectId ?? undefined,
-        tz,
-      }),
+      api.getDashboardUsageByAgent(dashboardQueryParams(days, projectId, initiativeId, tz)),
     enabled: !!wsId,
     staleTime: STALE_TIME,
     refetchInterval: REFETCH_INTERVAL,
@@ -122,17 +141,14 @@ export function dashboardAgentRunTimeOptions(
   wsId: string,
   days: number,
   projectId: string | null,
+  initiativeId: string | null,
   tz: string,
 ) {
-  const queryKey = dashboardKeys.agentRuntime(wsId, days, projectId, tz);
+  const queryKey = dashboardKeys.agentRuntime(wsId, days, projectId, initiativeId, tz);
   return queryOptions({
     queryKey,
     queryFn: () =>
-      api.getDashboardAgentRunTime({
-        days,
-        project_id: projectId ?? undefined,
-        tz,
-      }),
+      api.getDashboardAgentRunTime(dashboardQueryParams(days, projectId, initiativeId, tz)),
     enabled: !!wsId,
     staleTime: STALE_TIME,
     refetchInterval: REFETCH_INTERVAL,
@@ -147,17 +163,14 @@ export function dashboardRunTimeDailyOptions(
   wsId: string,
   days: number,
   projectId: string | null,
+  initiativeId: string | null,
   tz: string,
 ) {
-  const queryKey = dashboardKeys.runTimeDaily(wsId, days, projectId, tz);
+  const queryKey = dashboardKeys.runTimeDaily(wsId, days, projectId, initiativeId, tz);
   return queryOptions({
     queryKey,
     queryFn: () =>
-      api.getDashboardRunTimeDaily({
-        days,
-        project_id: projectId ?? undefined,
-        tz,
-      }),
+      api.getDashboardRunTimeDaily(dashboardQueryParams(days, projectId, initiativeId, tz)),
     enabled: !!wsId,
     staleTime: STALE_TIME,
     refetchInterval: REFETCH_INTERVAL,
@@ -172,17 +185,14 @@ export function dashboardFailuresDailyOptions(
   wsId: string,
   days: number,
   projectId: string | null,
+  initiativeId: string | null,
   tz: string,
 ) {
-  const queryKey = dashboardKeys.failuresDaily(wsId, days, projectId, tz);
+  const queryKey = dashboardKeys.failuresDaily(wsId, days, projectId, initiativeId, tz);
   return queryOptions({
     queryKey,
     queryFn: () =>
-      api.getDashboardFailuresDaily({
-        days,
-        project_id: projectId ?? undefined,
-        tz,
-      }),
+      api.getDashboardFailuresDaily(dashboardQueryParams(days, projectId, initiativeId, tz)),
     enabled: !!wsId,
     staleTime: STALE_TIME,
     refetchInterval: REFETCH_INTERVAL,
@@ -197,17 +207,14 @@ export function dashboardFailuresByAgentOptions(
   wsId: string,
   days: number,
   projectId: string | null,
+  initiativeId: string | null,
   tz: string,
 ) {
-  const queryKey = dashboardKeys.failuresByAgent(wsId, days, projectId, tz);
+  const queryKey = dashboardKeys.failuresByAgent(wsId, days, projectId, initiativeId, tz);
   return queryOptions({
     queryKey,
     queryFn: () =>
-      api.getDashboardFailuresByAgent({
-        days,
-        project_id: projectId ?? undefined,
-        tz,
-      }),
+      api.getDashboardFailuresByAgent(dashboardQueryParams(days, projectId, initiativeId, tz)),
     enabled: !!wsId,
     staleTime: STALE_TIME,
     refetchInterval: REFETCH_INTERVAL,

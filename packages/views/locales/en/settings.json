@@ -1,4 +1,62 @@
 {
+  "statuses": {
+    "title": "Statuses",
+    "description": "Customise the workflow for initiatives, projects, and issues.",
+    "loading": "Loading statuses…",
+    "add": "Add status",
+    "show_archived": "Show archived ({{count}})",
+    "archived_badge": "Archived",
+    "reorder_failed": "Could not save the new order.",
+    "scopes": {
+      "initiative": "Initiatives",
+      "project": "Projects",
+      "issue": "Issues"
+    },
+    "category_labels": {
+      "planned": "Planned",
+      "in_progress": "In Progress",
+      "paused": "Paused",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "categories": {
+      "planned": "Not started yet.",
+      "in_progress": "Actively being worked on.",
+      "paused": "Temporarily on hold.",
+      "completed": "Finished.",
+      "cancelled": "Decided not to continue."
+    },
+    "actions": {
+      "open": "Actions for {{name}}",
+      "edit": "Edit",
+      "archive": "Archive",
+      "reorder": "Reorder {{name}}"
+    },
+    "editor": {
+      "create_title": "New status",
+      "edit_title": "Edit status",
+      "behavior_hint": "This status behaves exactly like {{category}}.",
+      "name": "Name",
+      "name_placeholder": "e.g. Shipping",
+      "key_hint": "Referred to as {{key}} by the API and the CLI.",
+      "category": "Category",
+      "category_locked": "Category cannot be changed — existing items on this status depend on it.",
+      "description": "Description",
+      "description_placeholder": "What this status means for your team",
+      "color": "Color",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…",
+      "save_failed": "Could not save the status."
+    },
+    "archive_dialog": {
+      "title": "Archive this status?",
+      "description": "\"{{name}}\" stops being available for new {{scope}}. Existing ones keep it and keep behaving as they do now.",
+      "cancel": "Cancel",
+      "confirm": "Archive",
+      "failed": "Could not archive the status."
+    }
+  },
   "issue_statuses": {
     "title": "Issue Statuses",
     "description": "Define the workflow your issues move through. Each status inherits its behavior from its category.",
@@ -324,7 +382,7 @@
       "labs": "Labs",
       "members": "Members",
       "labels": "Labels",
-      "issue_statuses": "Issue Statuses",
+      "issue_statuses": "Statuses",
       "properties": "Properties",
       "quick_actions": "Quick Actions",
       "plugins": "Plugins",

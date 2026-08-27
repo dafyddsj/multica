@@ -9,6 +9,7 @@ import { ProjectsPage } from "./projects-page";
 
 const mocks = vi.hoisted(() => ({
   projects: [] as Project[],
+  initiatives: [] as Array<{ id: string; title: string; icon: string | null }>,
   members: [] as Array<{ user_id: string; name: string; role: string }>,
   agents: [] as Array<{ id: string; name: string; archived_at: string | null }>,
   pins: [] as Array<{ item_type: string; item_id: string }>,
@@ -22,7 +23,8 @@ const mocks = vi.hoisted(() => ({
     sortField: "name",
     sortDirection: "asc",
     hiddenColumns: [] as string[],
-    filters: { statuses: [], priorities: [], leads: [] },
+    filters: { statuses: [], priorities: [], leads: [], initiatives: [] },
+    groupBy: "none",
     setViewMode: vi.fn(),
     toggleSort: vi.fn(),
     setSortField: vi.fn(),
@@ -30,6 +32,7 @@ const mocks = vi.hoisted(() => ({
     toggleColumn: vi.fn(),
     toggleFilter: vi.fn(),
     clearFilters: vi.fn(),
+    setGroupBy: vi.fn(),
   },
 }));
 
@@ -38,6 +41,9 @@ vi.mock("@tanstack/react-query", () => ({
     const key = options.queryKey?.[0];
     if (key === "projects") {
       return { data: mocks.projects, isLoading: false };
+    }
+    if (key === "initiatives") {
+      return { data: mocks.initiatives, isLoading: false };
     }
     if (key === "members") {
       return { data: mocks.members, isLoading: false };
@@ -50,6 +56,30 @@ vi.mock("@tanstack/react-query", () => ({
     }
     return { data: [], isLoading: false };
   },
+}));
+
+vi.mock("../../common/entity-status-picker", () => ({
+  useEntityStatusPicker: () => ({
+    options: [],
+    current: (key: string) => ({
+      key,
+      label:
+        key === "in_progress"
+          ? "In Progress"
+          : key === "planned"
+            ? "Planned"
+            : key,
+      category: "planned",
+      hex: null,
+      dotClass: "bg-muted-foreground",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    }),
+  }),
+}));
+
+vi.mock("@multica/core/initiatives/queries", () => ({
+  initiativeListOptions: () => ({ queryKey: ["initiatives"] }),
 }));
 
 vi.mock("@multica/core/projects", () => ({
@@ -233,6 +263,7 @@ function projectRow() {
 
 beforeEach(() => {
   mocks.projects = [PROJECT];
+  mocks.initiatives = [];
   mocks.members = [
     { user_id: "user-1", name: "User One", role: "admin" },
   ];
@@ -247,7 +278,49 @@ beforeEach(() => {
   mocks.projectViewState.sortField = "name";
   mocks.projectViewState.sortDirection = "asc";
   mocks.projectViewState.hiddenColumns = [];
-  mocks.projectViewState.filters = { statuses: [], priorities: [], leads: [] };
+  mocks.projectViewState.filters = { statuses: [], priorities: [], leads: [], initiatives: [] };
+  mocks.projectViewState.groupBy = "none";
+  PROJECT.initiative_id = null;
+});
+
+describe("ProjectsPage initiative display", () => {
+  // Filter / sort / group matrices live in project-list.test.ts.
+  it("shows the parent initiative on a compact row", () => {
+    PROJECT.initiative_id = "init-1";
+    mocks.initiatives = [{ id: "init-1", title: "Atlas", icon: "🎯" }];
+    renderProjects();
+    expect(within(projectRow()).getByText("Atlas")).toBeInTheDocument();
+  });
+
+  it("groups compact rows under the initiative name", () => {
+    PROJECT.initiative_id = "init-1";
+    mocks.initiatives = [{ id: "init-1", title: "Atlas", icon: "🎯" }];
+    mocks.projectViewState.groupBy = "initiative";
+    renderProjects();
+    expect(screen.getAllByText("Atlas").length).toBeGreaterThan(1);
+    expect(screen.getByRole("rowheader", { name: /Atlas/ })).toBeInTheDocument();
+  });
+
+  it("shows the parent initiative on a card", () => {
+    PROJECT.initiative_id = "init-1";
+    mocks.initiatives = [{ id: "init-1", title: "Atlas", icon: "🎯" }];
+    mocks.projectViewState.viewMode = "comfortable";
+    renderProjects();
+    const card = screen
+      .getByRole("heading", { name: PROJECT.title })
+      .closest(".group\\/card");
+    expect(card).not.toBeNull();
+    expect(within(card as HTMLElement).getByText("Atlas")).toBeInTheDocument();
+  });
+
+  it("labels an unresolved initiative as unknown, not unassigned", () => {
+    PROJECT.initiative_id = "missing";
+    mocks.initiatives = [];
+    mocks.projectViewState.groupBy = "initiative";
+    renderProjects();
+    expect(screen.getByText("Unknown initiative")).toBeInTheDocument();
+    expect(screen.queryByText("No initiative")).not.toBeInTheDocument();
+  });
 });
 
 describe("ProjectsPage compact row navigation", () => {

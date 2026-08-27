@@ -132,6 +132,12 @@ import type {
   IssueStatusEntry,
   CreateIssueStatusRequest,
   UpdateIssueStatusRequest,
+  ListEntityStatusesResponse,
+  EntityStatusEntry,
+  EntityStatusResourceType,
+  EntityStatusCategory,
+  CreateEntityStatusRequest,
+  UpdateEntityStatusRequest,
   IssueLabelsResponse,
   LabelResourceType,
   ResourceLabelsResponse,
@@ -418,6 +424,10 @@ import {
   EMPTY_LIST_LABELS_RESPONSE,
   EMPTY_LIST_ISSUE_STATUSES_RESPONSE,
   EMPTY_ISSUE_STATUS_ENTRY,
+  ListEntityStatusesResponseSchema,
+  EntityStatusEntrySchema,
+  EMPTY_LIST_ENTITY_STATUSES_RESPONSE,
+  EMPTY_ENTITY_STATUS_ENTRY,
   EMPTY_RESOURCE_LABELS_RESPONSE,
   GitHubConnectResponseSchema,
   ListGitHubInstallationsResponseSchema,
@@ -2153,17 +2163,23 @@ export class ApiClient {
 
   // ---------------------------------------------------------------------------
   // Workspace dashboard — three independent rollups for `/{slug}/dashboard`.
-  // Each accepts an optional `project_id` to narrow the scope to one project.
+  // Each accepts optional `project_id` / `initiative_id` to narrow the scope.
   // Cost is computed client-side from the model pricing table (same contract
   // as the per-runtime endpoints above).
   // ---------------------------------------------------------------------------
 
   async getDashboardUsageDaily(
-    params: { days?: number; project_id?: string | null; tz?: string },
+    params: {
+      days?: number;
+      project_id?: string | null;
+      initiative_id?: string | null;
+      tz?: string;
+    },
   ): Promise<DashboardUsageDaily[]> {
     const search = new URLSearchParams();
     if (params.days) search.set("days", String(params.days));
     if (params.project_id) search.set("project_id", params.project_id);
+    if (params.initiative_id) search.set("initiative_id", params.initiative_id);
     if (params.tz) search.set("tz", params.tz);
     const raw = await this.fetch<unknown>(`/api/dashboard/usage/daily?${search}`);
     return parseWithFallback<DashboardUsageDaily[]>(
@@ -2175,11 +2191,17 @@ export class ApiClient {
   }
 
   async getDashboardUsageByAgent(
-    params: { days?: number; project_id?: string | null; tz?: string },
+    params: {
+      days?: number;
+      project_id?: string | null;
+      initiative_id?: string | null;
+      tz?: string;
+    },
   ): Promise<DashboardUsageByAgent[]> {
     const search = new URLSearchParams();
     if (params.days) search.set("days", String(params.days));
     if (params.project_id) search.set("project_id", params.project_id);
+    if (params.initiative_id) search.set("initiative_id", params.initiative_id);
     if (params.tz) search.set("tz", params.tz);
     const raw = await this.fetch<unknown>(`/api/dashboard/usage/by-agent?${search}`);
     return parseWithFallback<DashboardUsageByAgent[]>(
@@ -2191,11 +2213,17 @@ export class ApiClient {
   }
 
   async getDashboardAgentRunTime(
-    params: { days?: number; project_id?: string | null; tz?: string },
+    params: {
+      days?: number;
+      project_id?: string | null;
+      initiative_id?: string | null;
+      tz?: string;
+    },
   ): Promise<DashboardAgentRunTime[]> {
     const search = new URLSearchParams();
     if (params.days) search.set("days", String(params.days));
     if (params.project_id) search.set("project_id", params.project_id);
+    if (params.initiative_id) search.set("initiative_id", params.initiative_id);
     // `tz` aligns the "last N days" cutoff with the viewer's calendar,
     // matching the per-agent token card.
     if (params.tz) search.set("tz", params.tz);
@@ -2209,11 +2237,17 @@ export class ApiClient {
   }
 
   async getDashboardRunTimeDaily(
-    params: { days?: number; project_id?: string | null; tz?: string },
+    params: {
+      days?: number;
+      project_id?: string | null;
+      initiative_id?: string | null;
+      tz?: string;
+    },
   ): Promise<DashboardRunTimeDaily[]> {
     const search = new URLSearchParams();
     if (params.days) search.set("days", String(params.days));
     if (params.project_id) search.set("project_id", params.project_id);
+    if (params.initiative_id) search.set("initiative_id", params.initiative_id);
     // `tz` cuts the day buckets in the viewer's calendar so Time / Tasks
     // align with the Cost / Tokens charts.
     if (params.tz) search.set("tz", params.tz);
@@ -2227,11 +2261,17 @@ export class ApiClient {
   }
 
   async getDashboardFailuresDaily(
-    params: { days?: number; project_id?: string | null; tz?: string },
+    params: {
+      days?: number;
+      project_id?: string | null;
+      initiative_id?: string | null;
+      tz?: string;
+    },
   ): Promise<DashboardFailureDaily[]> {
     const search = new URLSearchParams();
     if (params.days) search.set("days", String(params.days));
     if (params.project_id) search.set("project_id", params.project_id);
+    if (params.initiative_id) search.set("initiative_id", params.initiative_id);
     // `tz` cuts the day buckets in the viewer's calendar so the Errors chart
     // shares an x-axis with the other four metrics.
     if (params.tz) search.set("tz", params.tz);
@@ -2245,11 +2285,17 @@ export class ApiClient {
   }
 
   async getDashboardFailuresByAgent(
-    params: { days?: number; project_id?: string | null; tz?: string },
+    params: {
+      days?: number;
+      project_id?: string | null;
+      initiative_id?: string | null;
+      tz?: string;
+    },
   ): Promise<DashboardFailureByAgent[]> {
     const search = new URLSearchParams();
     if (params.days) search.set("days", String(params.days));
     if (params.project_id) search.set("project_id", params.project_id);
+    if (params.initiative_id) search.set("initiative_id", params.initiative_id);
     if (params.tz) search.set("tz", params.tz);
     const raw = await this.fetch<unknown>(`/api/dashboard/failures/by-agent?${search}`);
     return parseWithFallback<DashboardFailureByAgent[]>(
@@ -3744,6 +3790,59 @@ export class ApiClient {
     const raw = await this.fetch<unknown>(`/api/issue-statuses/${id}`, { method: "DELETE" });
     return parseWithFallback(raw, IssueStatusEntrySchema, EMPTY_ISSUE_STATUS_ENTRY, {
       endpoint: "DELETE /api/issue-statuses/{id}",
+    });
+  }
+
+  async listEntityStatuses(
+    resourceType: EntityStatusResourceType,
+    includeArchived = false,
+  ): Promise<ListEntityStatusesResponse> {
+    const params = new URLSearchParams({ resource_type: resourceType });
+    if (includeArchived) params.set("include_archived", "true");
+    const raw = await this.fetch<unknown>(`/api/entity-statuses?${params.toString()}`);
+    return parseWithFallback(raw, ListEntityStatusesResponseSchema, EMPTY_LIST_ENTITY_STATUSES_RESPONSE, {
+      endpoint: "GET /api/entity-statuses",
+    });
+  }
+
+  async createEntityStatus(data: CreateEntityStatusRequest): Promise<EntityStatusEntry> {
+    const raw = await this.fetch<unknown>(`/api/entity-statuses`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, EntityStatusEntrySchema, EMPTY_ENTITY_STATUS_ENTRY, {
+      endpoint: "POST /api/entity-statuses",
+    });
+  }
+
+  async updateEntityStatus(id: string, data: UpdateEntityStatusRequest): Promise<EntityStatusEntry> {
+    const raw = await this.fetch<unknown>(`/api/entity-statuses/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, EntityStatusEntrySchema, EMPTY_ENTITY_STATUS_ENTRY, {
+      endpoint: "PATCH /api/entity-statuses/{id}",
+    });
+  }
+
+  async reorderEntityStatuses(
+    resourceType: EntityStatusResourceType,
+    category: EntityStatusCategory,
+    ids: string[],
+  ): Promise<ListEntityStatusesResponse> {
+    const raw = await this.fetch<unknown>(`/api/entity-statuses/reorder`, {
+      method: "PATCH",
+      body: JSON.stringify({ resource_type: resourceType, category, ids }),
+    });
+    return parseWithFallback(raw, ListEntityStatusesResponseSchema, EMPTY_LIST_ENTITY_STATUSES_RESPONSE, {
+      endpoint: "PATCH /api/entity-statuses/reorder",
+    });
+  }
+
+  async archiveEntityStatus(id: string): Promise<EntityStatusEntry> {
+    const raw = await this.fetch<unknown>(`/api/entity-statuses/${id}`, { method: "DELETE" });
+    return parseWithFallback(raw, EntityStatusEntrySchema, EMPTY_ENTITY_STATUS_ENTRY, {
+      endpoint: "DELETE /api/entity-statuses/{id}",
     });
   }
 

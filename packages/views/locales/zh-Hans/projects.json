@@ -25,7 +25,8 @@
     "progress": "进度",
     "lead": "负责人",
     "created": "创建时间",
-    "issues": "任务数"
+    "issues": "任务数",
+    "initiative": "专项"
   },
   "status": {
     "planned": "计划中",
@@ -70,6 +71,7 @@
     "prop_start_date": "开始日期",
     "prop_due_date": "截止日期",
     "prop_initiative": "专项",
+    "open_initiative": "打开专项",
     "no_start_date": "无开始日期",
     "no_due_date": "无截止日期",
     "description_placeholder": "添加描述...",
@@ -161,6 +163,12 @@
     "section_status": "状态",
     "section_priority": "优先级",
     "section_lead": "负责人",
+    "section_initiative": "专项",
+    "no_initiative": "无专项",
+    "unknown_initiative": "未知专项",
+    "group_by": "分组",
+    "group_none": "不分组",
+    "group_initiative": "专项",
     "display": "显示",
     "sort_by": "排序",
     "direction_asc": "升序",

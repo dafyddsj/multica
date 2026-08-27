@@ -152,6 +152,8 @@
     "no_lead": "리드 없음",
     "set_start_date": "시작일 설정...",
     "set_due_date": "마감일 설정...",
+    "issue_prefix": "이슈 접두사",
+    "issue_prefix_placeholder": "워크스페이스 기본값",
     "more_options_aria": "추가 옵션",
     "lead_placeholder": "리드 지정...",
     "members_group": "멤버",

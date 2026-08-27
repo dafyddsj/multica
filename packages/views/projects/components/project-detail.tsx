@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
-import { Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Link2, MoreHorizontal, PanelRight, Pin, PinOff, Trash2, UserMinus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@multica/ui/lib/utils";
 import { copyText } from "@multica/ui/lib/clipboard";
@@ -19,10 +19,10 @@ import { useIssuesScope } from "@multica/core/issues/stores";
 import { useRecentContextStore } from "@multica/core/chat";
 import { useWorkspacePaths } from "@multica/core/paths";
 import { useActorName } from "@multica/core/workspace/hooks";
-import { PROJECT_STATUS_ORDER, PROJECT_STATUS_CONFIG, PROJECT_PRIORITY_ORDER } from "@multica/core/projects/config";
+import { PROJECT_PRIORITY_ORDER } from "@multica/core/projects/config";
 import { getProjectIssueMetrics } from "./project-issue-metrics";
 import { ActorAvatar } from "../../common/actor-avatar";
-import { useNavigation } from "../../navigation";
+import { AppLink, useNavigation } from "../../navigation";
 import { TitleEditor, ContentEditor, type ContentEditorRef } from "../../editor";
 import { PriorityIcon } from "../../issues/components/priority-icon";
 import { ProjectResourcesSection } from "./project-resources-section";
@@ -73,7 +73,8 @@ import {
   AlertDialogTitle,
 } from "@multica/ui/components/ui/alert-dialog";
 import { useT } from "../../i18n";
-import { useProjectStatusLabels, useProjectPriorityLabels } from "./labels";
+import { useProjectPriorityLabels } from "./labels";
+import { useEntityStatusPicker } from "../../common/entity-status-picker";
 import { matchesPinyin } from "../../editor/extensions/pinyin-match";
 
 // ---------------------------------------------------------------------------
@@ -103,7 +104,7 @@ function PropRow({
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
   const { t } = useT("projects");
-  const statusLabels = useProjectStatusLabels();
+  const { options: statusOptions, current: currentStatus } = useEntityStatusPicker("project");
   const priorityLabels = useProjectPriorityLabels();
   const wsId = useWorkspaceId();
   const wsPaths = useWorkspacePaths();
@@ -242,7 +243,7 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   }
 
   const issueMetrics = getProjectIssueMetrics(project);
-  const statusCfg = PROJECT_STATUS_CONFIG[project.status];
+  const statusCfg = currentStatus(project.status);
 
   const sidebarContent = (
     <div className="space-y-5">
@@ -297,17 +298,23 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               <DropdownMenuTrigger
                 render={
                   <button type="button" className="inline-flex items-center gap-1.5 text-caption hover:text-foreground transition-colors">
-                    <span className={cn("size-2 rounded-full", statusCfg.dotColor)} />
-                    <span>{statusLabels[project.status]}</span>
+                    <span
+                      className={cn("size-2 rounded-full", !statusCfg.hex && statusCfg.dotClass)}
+                      style={statusCfg.hex ? { backgroundColor: statusCfg.hex } : undefined}
+                    />
+                    <span>{statusCfg.label}</span>
                   </button>
                 }
               />
               <DropdownMenuContent align="start" className="w-44">
-                {PROJECT_STATUS_ORDER.map((s) => (
-                  <DropdownMenuItem key={s} onClick={() => handleUpdateField({ status: s as ProjectStatus })}>
-                    <span className={cn("size-2 rounded-full", PROJECT_STATUS_CONFIG[s].dotColor)} />
-                    <span>{statusLabels[s]}</span>
-                    {s === project.status && <Check className="ml-auto h-3.5 w-3.5" />}
+                {statusOptions.map((s) => (
+                  <DropdownMenuItem key={s.key} onClick={() => handleUpdateField({ status: s.key as ProjectStatus })}>
+                    <span
+                      className={cn("size-2 rounded-full", !s.hex && s.dotClass)}
+                      style={s.hex ? { backgroundColor: s.hex } : undefined}
+                    />
+                    <span>{s.label}</span>
+                    {s.key === project.status && <Check className="ml-auto h-3.5 w-3.5" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -415,10 +422,28 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             <ProjectDueDatePicker dueDate={project.due_date} onUpdate={handleUpdateField} />
           </PropRow>
           <PropRow label={t(($) => $.detail.prop_initiative)}>
-            <InitiativePicker
-              initiativeId={project.initiative_id}
-              onUpdate={handleUpdateField}
-            />
+            <div className="min-w-0 flex-1">
+              <InitiativePicker
+                initiativeId={project.initiative_id}
+                onUpdate={handleUpdateField}
+              />
+            </div>
+            {project.initiative_id ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <AppLink
+                      href={wsPaths.initiativeDetail(project.initiative_id)}
+                      aria-label={t(($) => $.detail.open_initiative)}
+                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                    >
+                      <ArrowUpRight className="size-3.5" />
+                    </AppLink>
+                  }
+                />
+                <TooltipContent>{t(($) => $.detail.open_initiative)}</TooltipContent>
+              </Tooltip>
+            ) : null}
           </PropRow>
         </div>}
       </div>

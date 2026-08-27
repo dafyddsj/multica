@@ -64,11 +64,16 @@ vi.mock("@multica/core/auth", () => ({
     selector({ user: { id: "user-1" } }),
 }));
 
+vi.mock("../../memory", () => ({
+  MemoryPanel: () => null,
+}));
+
 vi.mock("@multica/core/paths", () => ({
   useWorkspacePaths: () => ({
     initiatives: () => "/test-workspace/initiatives",
     projectDetail: (id: string) => `/test-workspace/projects/${id}`,
   }),
+  useCurrentWorkspace: () => ({ id: "workspace-1", settings: {} }),
 }));
 
 vi.mock("@multica/core/workspace/hooks", () => ({
@@ -173,6 +178,31 @@ vi.mock("../../editor", () => ({
   ContentEditor: () => null,
 }));
 
+vi.mock("../../common/entity-status-picker", () => ({
+  useEntityStatusPicker: () => ({
+    options: [
+      {
+        key: "planned",
+        label: "Planned",
+        category: "planned",
+        hex: null,
+        dotClass: "bg-muted-foreground",
+        badgeBg: "bg-muted",
+        badgeText: "text-muted-foreground",
+      },
+    ],
+    current: (key: string) => ({
+      key,
+      label: key,
+      category: "planned",
+      hex: null,
+      dotClass: "bg-muted-foreground",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    }),
+  }),
+}));
+
 vi.mock("../../common/actor-avatar", () => ({
   ActorAvatar: () => null,
 }));
@@ -207,6 +237,7 @@ const INITIATIVE: Initiative = {
   lead_id: null,
   start_date: null,
   due_date: null,
+  issue_prefix: null,
   created_at: "2026-06-01T00:00:00Z",
   updated_at: "2026-06-01T00:00:00Z",
   project_count: 1,

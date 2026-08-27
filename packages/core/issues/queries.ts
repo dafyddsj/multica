@@ -435,7 +435,7 @@ export function issueDetailOptions(wsId: string, id: string) {
  *
  * Backs the Linear-style autolink. This is an EXACT lookup, so it goes to
  * `GET /api/issues/{identifier}` — the server parses `PREFIX-NUMBER`, checks
- * the prefix against the workspace's own `issue_prefix`, and reads the issue
+ * the prefix against the workspace prefix or any initiative override, and reads the issue
  * through the unique `(workspace_id, number)` index. A non-existent or
  * wrong-prefix identifier 404s, which maps to `null` here and renders as
  * plain text — the same contract the previous implementation had.

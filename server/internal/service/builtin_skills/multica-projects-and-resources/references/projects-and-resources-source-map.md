@@ -1,6 +1,7 @@
 # Projects and resources source map
 
 - `server/cmd/multica/cmd_project.go` registers project `list`, `get`, `create`, `update`, `delete`, and `status`.
+- Project status keys live in the `entity_status` catalog (`/api/entity-statuses`, resource_type `project`) rather than a fixed enum. Built-ins match the five lifecycle keys; custom keys are accepted by `multica project status` when they match `^[a-z0-9][a-z0-9_]{0,31}$`.
 - The same file registers `project resource list/add/update/remove`.
 - `project create --repo` attaches `github_repo` resources during project creation.
 - `project create` / `project update` accept `--initiative` (id or title prefix) mapping to `project.initiative_id`; an empty `--initiative ""` on update detaches the project.

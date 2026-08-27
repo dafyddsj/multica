@@ -8,6 +8,8 @@
   "filter": {
     "project_label": "Project",
     "all_projects": "All projects",
+    "initiative_label": "Initiative",
+    "all_initiatives": "All initiatives",
     "period_label": "Period"
   },
   "kpi": {

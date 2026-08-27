@@ -1,4 +1,62 @@
 {
+  "statuses": {
+    "title": "상태",
+    "description": "이니셔티브, 프로젝트, 이슈의 워크플로를 맞춤 설정합니다.",
+    "loading": "상태를 불러오는 중…",
+    "add": "상태 추가",
+    "show_archived": "보관됨 표시 ({{count}})",
+    "archived_badge": "보관됨",
+    "reorder_failed": "새 순서를 저장하지 못했습니다.",
+    "scopes": {
+      "initiative": "이니셔티브",
+      "project": "프로젝트",
+      "issue": "이슈"
+    },
+    "category_labels": {
+      "planned": "계획됨",
+      "in_progress": "진행 중",
+      "paused": "일시 중지",
+      "completed": "완료",
+      "cancelled": "취소됨"
+    },
+    "categories": {
+      "planned": "아직 시작하지 않았습니다.",
+      "in_progress": "활발히 진행 중입니다.",
+      "paused": "일시적으로 보류했습니다.",
+      "completed": "끝났습니다.",
+      "cancelled": "더 이상 진행하지 않기로 했습니다."
+    },
+    "actions": {
+      "open": "{{name}} 작업",
+      "edit": "편집",
+      "archive": "보관",
+      "reorder": "{{name}} 순서 변경"
+    },
+    "editor": {
+      "create_title": "새 상태",
+      "edit_title": "상태 편집",
+      "behavior_hint": "이 상태는 {{category}}와 동일하게 동작합니다.",
+      "name": "이름",
+      "name_placeholder": "예: 배송 중",
+      "key_hint": "API와 CLI에서는 {{key}}로 부릅니다.",
+      "category": "카테고리",
+      "category_locked": "카테고리는 변경할 수 없습니다. 이미 이 상태를 쓰는 항목이 의존합니다.",
+      "description": "설명",
+      "description_placeholder": "이 상태가 팀에 의미하는 것",
+      "color": "색",
+      "cancel": "취소",
+      "save": "저장",
+      "saving": "저장 중…",
+      "save_failed": "상태를 저장하지 못했습니다."
+    },
+    "archive_dialog": {
+      "title": "이 상태를 보관할까요?",
+      "description": "\"{{name}}\"은 새 {{scope}}에 더 이상 사용할 수 없습니다. 이미 있는 항목은 그대로 유지되고 동작도 변하지 않습니다.",
+      "cancel": "취소",
+      "confirm": "보관",
+      "failed": "상태를 보관하지 못했습니다."
+    }
+  },
   "issue_statuses": {
     "title": "태스크 상태",
     "description": "태스크가 거치는 워크플로를 정의합니다. 각 상태의 동작은 속한 카테고리가 결정합니다.",
@@ -324,7 +382,7 @@
       "labs": "실험실",
       "members": "멤버",
       "labels": "레이블",
-      "issue_statuses": "이슈 상태",
+      "issue_statuses": "상태",
       "properties": "속성",
       "quick_actions": "퀵 액션",
       "plugins": "Plugins",

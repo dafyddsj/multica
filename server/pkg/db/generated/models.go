@@ -644,6 +644,22 @@ type DingtalkGroupRoute struct {
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
+type EntityStatus struct {
+	ID           pgtype.UUID        `json:"id"`
+	WorkspaceID  pgtype.UUID        `json:"workspace_id"`
+	ResourceType string             `json:"resource_type"`
+	Key          string             `json:"key"`
+	Name         string             `json:"name"`
+	Description  string             `json:"description"`
+	Category     string             `json:"category"`
+	Color        string             `json:"color"`
+	IsSystem     bool               `json:"is_system"`
+	Position     float64            `json:"position"`
+	ArchivedAt   pgtype.Timestamptz `json:"archived_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Feedback struct {
 	ID          pgtype.UUID        `json:"id"`
 	UserID      pgtype.UUID        `json:"user_id"`
@@ -773,6 +789,7 @@ type Initiative struct {
 	DueDate     pgtype.Date        `json:"due_date"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	IssuePrefix pgtype.Text        `json:"issue_prefix"`
 }
 
 type Issue struct {

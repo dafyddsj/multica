@@ -69,14 +69,52 @@ vi.mock("@multica/core/chat", () => ({
   ) => selector({ recordVisit: mocks.recordVisit }),
 }));
 
-vi.mock("@multica/core/paths", () => ({
+vi.mock("@multica/core/paths", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@multica/core/paths")>()),
+  useCurrentWorkspace: () => ({
+    id: "workspace-1",
+    name: "Test",
+    slug: "test-workspace",
+    settings: {},
+  }),
   useWorkspacePaths: () => ({
     projects: () => "/test-workspace/projects",
+    initiativeDetail: (id: string) => `/test-workspace/initiatives/${id}`,
   }),
+  useCurrentWorkspace: () => ({ settings: {} }),
+}));
+
+vi.mock("../../memory", () => ({
+  MemoryPanel: () => null,
 }));
 
 vi.mock("@multica/core/workspace/hooks", () => ({
   useActorName: () => ({ getActorName: () => "User One" }),
+}));
+
+vi.mock("../../common/entity-status-picker", () => ({
+  useEntityStatusPicker: () => ({
+    options: [
+      {
+        key: "planned",
+        label: "Planned",
+        category: "planned",
+        hex: null,
+        dotClass: "bg-muted-foreground",
+        badgeBg: "bg-muted",
+        badgeText: "text-muted-foreground",
+      },
+    ],
+    current: (key: string) => ({
+      key,
+      label: key,
+      category: "planned",
+      hex: null,
+      dotClass: "bg-muted-foreground",
+      badgeBg: "bg-muted",
+      badgeText: "text-muted-foreground",
+    }),
+  }),
 }));
 
 vi.mock("sonner", () => ({
@@ -228,6 +266,10 @@ vi.mock("../../issues/surface/issue-surface", () => ({
   IssueSurface: () => null,
 }));
 
+vi.mock("../../memory", () => ({
+  MemoryPanel: () => null,
+}));
+
 vi.mock("../../layout/breadcrumb-header", () => ({
   BreadcrumbHeader: ({ actions }: { actions: React.ReactNode }) => (
     <header>{actions}</header>
@@ -297,6 +339,7 @@ beforeEach(() => {
   mocks.push.mockReset();
   mocks.recordVisit.mockReset();
   mocks.toastSuccess.mockReset();
+  PROJECT.initiative_id = null;
 });
 
 describe("ProjectDetail project deletion", () => {
@@ -334,5 +377,23 @@ describe("ProjectDetail project deletion", () => {
     expect(
       screen.queryByRole("button", { name: "Delete project" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ProjectDetail initiative link", () => {
+  it("does not offer an open-initiative control when the project has none", () => {
+    renderProjectDetail();
+
+    expect(
+      screen.queryByRole("link", { name: "Open initiative" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links to the parent initiative from the properties sidebar", () => {
+    PROJECT.initiative_id = "initiative-9";
+    renderProjectDetail();
+
+    const link = screen.getByRole("link", { name: "Open initiative" });
+    expect(link).toHaveAttribute("href", "/test-workspace/initiatives/initiative-9");
   });
 });
