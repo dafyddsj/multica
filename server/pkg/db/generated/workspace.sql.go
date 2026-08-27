@@ -50,6 +50,18 @@ func (q *Queries) BindWorkspaceClerkOrgID(ctx context.Context, arg BindWorkspace
 	return i, err
 }
 
+const countWorkspaceOwners = `-- name: CountWorkspaceOwners :one
+SELECT count(*)::int FROM member
+WHERE workspace_id = $1 AND role = 'owner'
+`
+
+func (q *Queries) CountWorkspaceOwners(ctx context.Context, workspaceID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countWorkspaceOwners, workspaceID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createWorkspace = `-- name: CreateWorkspace :one
 INSERT INTO workspace (name, slug, description, context, issue_prefix)
 VALUES ($1, $2, $3, $4, $5)
@@ -375,7 +387,7 @@ func (q *Queries) IncrementIssueCounter(ctx context.Context, id pgtype.UUID) (in
 }
 
 const listClerkMappedWorkspacesForUser = `-- name: ListClerkMappedWorkspacesForUser :many
-SELECT w.id, w.clerk_org_id, m.id AS member_id
+SELECT w.id, w.clerk_org_id, m.id AS member_id, m.role
 FROM member m
 JOIN workspace w ON w.id = m.workspace_id
 WHERE m.user_id = $1
@@ -386,6 +398,7 @@ type ListClerkMappedWorkspacesForUserRow struct {
 	ID         pgtype.UUID `json:"id"`
 	ClerkOrgID pgtype.Text `json:"clerk_org_id"`
 	MemberID   pgtype.UUID `json:"member_id"`
+	Role       string      `json:"role"`
 }
 
 func (q *Queries) ListClerkMappedWorkspacesForUser(ctx context.Context, userID pgtype.UUID) ([]ListClerkMappedWorkspacesForUserRow, error) {
@@ -397,7 +410,12 @@ func (q *Queries) ListClerkMappedWorkspacesForUser(ctx context.Context, userID p
 	items := []ListClerkMappedWorkspacesForUserRow{}
 	for rows.Next() {
 		var i ListClerkMappedWorkspacesForUserRow
-		if err := rows.Scan(&i.ID, &i.ClerkOrgID, &i.MemberID); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClerkOrgID,
+			&i.MemberID,
+			&i.Role,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

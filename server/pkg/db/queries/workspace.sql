@@ -50,11 +50,15 @@ WHERE id = $1
 RETURNING *;
 
 -- name: ListClerkMappedWorkspacesForUser :many
-SELECT w.id, w.clerk_org_id, m.id AS member_id
+SELECT w.id, w.clerk_org_id, m.id AS member_id, m.role
 FROM member m
 JOIN workspace w ON w.id = m.workspace_id
 WHERE m.user_id = $1
   AND w.clerk_org_id IS NOT NULL;
+
+-- name: CountWorkspaceOwners :one
+SELECT count(*)::int FROM member
+WHERE workspace_id = $1 AND role = 'owner';
 
 -- name: GetWorkspaceAttributionFailClosed :one
 -- Lean read of the fail-closed attribution policy for the enqueue hot path

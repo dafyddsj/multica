@@ -23,6 +23,7 @@ type OrgStore interface {
 	UpdateMemberRole(ctx context.Context, arg db.UpdateMemberRoleParams) (db.Member, error)
 	DeleteMember(ctx context.Context, id pgtype.UUID) error
 	ListClerkMappedWorkspacesForUser(ctx context.Context, userID pgtype.UUID) ([]db.ListClerkMappedWorkspacesForUserRow, error)
+	CountWorkspaceOwners(ctx context.Context, workspaceID pgtype.UUID) (int32, error)
 	SeedIssueStatusEntries(ctx context.Context, workspaceID pgtype.UUID) error
 }
 
@@ -68,6 +69,15 @@ func (c *Client) SyncOrgs(ctx context.Context, clerkUserID string, userID pgtype
 		}
 		if _, ok := seen[row.ClerkOrgID.String]; ok {
 			continue
+		}
+		if row.Role == "owner" {
+			owners, err := store.CountWorkspaceOwners(ctx, row.ID)
+			if err != nil {
+				return err
+			}
+			if owners <= 1 {
+				continue
+			}
 		}
 		if err := store.DeleteMember(ctx, row.MemberID); err != nil {
 			return err

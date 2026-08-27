@@ -140,11 +140,22 @@ func (s *memoryOrgStore) ListClerkMappedWorkspacesForUser(_ context.Context, use
 					ID:         ws.ID,
 					ClerkOrgID: ws.ClerkOrgID,
 					MemberID:   m.ID,
+					Role:       m.Role,
 				})
 			}
 		}
 	}
 	return out, nil
+}
+
+func (s *memoryOrgStore) CountWorkspaceOwners(_ context.Context, workspaceID pgtype.UUID) (int32, error) {
+	var n int32
+	for _, m := range s.members {
+		if util.UUIDToString(m.WorkspaceID) == util.UUIDToString(workspaceID) && m.Role == "owner" {
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (s *memoryOrgStore) SeedIssueStatusEntries(_ context.Context, workspaceID pgtype.UUID) error {
@@ -216,6 +227,7 @@ func TestSyncOrgsUpdatesRoleAndRemovesLeftOrg(t *testing.T) {
 		members: []db.Member{
 			{ID: util.MustParseUUID("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"), WorkspaceID: native.ID, UserID: userID, Role: "owner"},
 			{ID: util.MustParseUUID("ffffffff-ffff-ffff-ffff-ffffffffffff"), WorkspaceID: mapped.ID, UserID: userID, Role: "owner"},
+			{ID: util.MustParseUUID("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), WorkspaceID: mapped.ID, UserID: util.MustParseUUID("22222222-2222-2222-2222-222222222222"), Role: "owner"},
 		},
 	}
 	c := &Client{Orgs: stubOrgs{memberships: []OrgMembership{{
@@ -233,14 +245,43 @@ func TestSyncOrgsUpdatesRoleAndRemovesLeftOrg(t *testing.T) {
 	if err := c.SyncOrgs(context.Background(), "user_clerk", userID, store, nil); err != nil {
 		t.Fatal(err)
 	}
-	if len(store.members) != 1 {
+	if len(store.members) != 2 {
 		t.Fatalf("mapped membership should be gone, got %+v", store.members)
 	}
-	if util.UUIDToString(store.members[0].WorkspaceID) != util.UUIDToString(native.ID) {
-		t.Fatalf("native membership was removed")
+	for _, m := range store.members {
+		if util.UUIDToString(m.UserID) == util.UUIDToString(userID) &&
+			util.UUIDToString(m.WorkspaceID) == util.UUIDToString(mapped.ID) {
+			t.Fatalf("leaver still on mapped workspace: %+v", m)
+		}
 	}
 	if len(store.workspaces) != 2 {
 		t.Fatalf("workspaces should stay, got %d", len(store.workspaces))
+	}
+}
+
+func TestSyncOrgsKeepsLastMappedOwner(t *testing.T) {
+	userID := testUserID()
+	mapped := db.Workspace{
+		ID:         util.MustParseUUID("dddddddd-dddd-dddd-dddd-dddddddddddd"),
+		Name:       "Old Org",
+		Slug:       "old-org",
+		ClerkOrgID: util.StrToText("org_old"),
+	}
+	store := &memoryOrgStore{
+		workspaces: []db.Workspace{mapped},
+		members: []db.Member{{
+			ID:          util.MustParseUUID("ffffffff-ffff-ffff-ffff-ffffffffffff"),
+			WorkspaceID: mapped.ID,
+			UserID:      userID,
+			Role:        "owner",
+		}},
+	}
+	c := &Client{Orgs: stubOrgs{memberships: nil}}
+	if err := c.SyncOrgs(context.Background(), "user_clerk", userID, store, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.members) != 1 || store.members[0].Role != "owner" {
+		t.Fatalf("last owner was removed: %+v", store.members)
 	}
 }
 
