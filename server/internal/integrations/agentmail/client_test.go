@@ -65,23 +65,31 @@ func TestLiveClientEnsurePodConflictBody(t *testing.T) {
 
 func TestLiveClientEnsureInboxUsesPodPath(t *testing.T) {
 	var path string
+	var body map[string]string
 	client := newTestLive(t, func(w http.ResponseWriter, r *http.Request) {
 		path = r.URL.Path
+		readJSON(t, r, &body)
 		writeJSON(t, w, http.StatusOK, map[string]string{
 			"inbox_id": "inb_1",
-			"email":    "ada@agentmail.to",
+			"email":    "ada@acme.test",
 		})
 	})
 
-	inbox, err := client.ensureInbox(context.Background(), clientCred{apiKey: "am_org", podID: "pod_1"}, "agent-1", "Ada")
+	inbox, err := client.ensureInbox(context.Background(), clientCred{apiKey: "am_org", podID: "pod_1"}, "agent-1", "Ada", InboxAddress{
+		Username: "ada",
+		Domain:   "acme.test",
+	})
 	if err != nil {
 		t.Fatalf("ensureInbox: %v", err)
 	}
-	if inbox.id != "inb_1" || inbox.address != "ada@agentmail.to" {
+	if inbox.id != "inb_1" || inbox.address != "ada@acme.test" {
 		t.Fatalf("inbox = %+v", inbox)
 	}
 	if path != "/pods/pod_1/inboxes" {
 		t.Fatalf("path = %q", path)
+	}
+	if body["username"] != "ada" || body["domain"] != "acme.test" {
+		t.Fatalf("body = %+v", body)
 	}
 }
 
@@ -95,7 +103,7 @@ func TestLiveClientEnsureInboxOrgPath(t *testing.T) {
 		})
 	})
 
-	inbox, err := client.ensureInbox(context.Background(), clientCred{apiKey: "am_byo"}, "agent-1", "Ada")
+	inbox, err := client.ensureInbox(context.Background(), clientCred{apiKey: "am_byo"}, "agent-1", "Ada", InboxAddress{})
 	if err != nil {
 		t.Fatalf("ensureInbox: %v", err)
 	}
@@ -140,6 +148,23 @@ func TestLiveClientCreateInboxKeyPermissions(t *testing.T) {
 		if perms[name] {
 			t.Fatalf("management permission %s must stay off", name)
 		}
+	}
+}
+
+func TestLiveClientDeleteInboxUsesPodPath(t *testing.T) {
+	var path string
+	client := newTestLive(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		if r.Method != http.MethodDelete {
+			t.Fatalf("method = %s", r.Method)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	if err := client.deleteInbox(context.Background(), clientCred{apiKey: "am_org", podID: "pod_1"}, "ada@agentmail.to"); err != nil {
+		t.Fatalf("deleteInbox: %v", err)
+	}
+	if path != "/pods/pod_1/inboxes/ada@agentmail.to" && path != "/pods/pod_1/inboxes/ada%40agentmail.to" {
+		t.Fatalf("path = %q", path)
 	}
 }
 
@@ -273,7 +298,7 @@ func TestLiveClientListAndGetThreads(t *testing.T) {
 		}
 	})
 
-	page, err := client.listThreads(context.Background(), "am_inbox", "inb_1", "")
+	page, err := client.listThreads(context.Background(), "am_inbox", "inb_1", threadQuery{})
 	if err != nil {
 		t.Fatalf("listThreads: %v", err)
 	}

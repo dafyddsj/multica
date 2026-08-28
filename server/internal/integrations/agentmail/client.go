@@ -52,14 +52,16 @@ type inspectedKey struct {
 
 type apiClient interface {
 	ensurePod(ctx context.Context, orgKey, clientID string) (string, error)
-	ensureInbox(ctx context.Context, cred clientCred, clientID, displayName string) (remoteInbox, error)
+	ensureInbox(ctx context.Context, cred clientCred, clientID, displayName string, addr InboxAddress) (remoteInbox, error)
 	createInboxKey(ctx context.Context, cred clientCred, inboxID string) (string, error)
 	deleteInbox(ctx context.Context, cred clientCred, inboxID string) error
 	deletePod(ctx context.Context, orgKey, podID string) error
 	validateOrgKey(ctx context.Context, orgKey string) error
 	inspectKey(ctx context.Context, orgKey string) (inspectedKey, error)
-	listThreads(ctx context.Context, inboxKey, inboxID, pageToken string) (ThreadPage, error)
+	listDomains(ctx context.Context, cred clientCred) ([]RemoteDomain, error)
+	listThreads(ctx context.Context, inboxKey, inboxID string, query threadQuery) (ThreadPage, error)
 	getThread(ctx context.Context, inboxKey, inboxID, threadID string) (ThreadDetail, error)
+	listDrafts(ctx context.Context, inboxKey, inboxID string, query draftQuery) (DraftPage, error)
 }
 
 type liveClient struct {
@@ -98,10 +100,16 @@ func (c liveClient) ensurePod(ctx context.Context, orgKey, clientID string) (str
 	return out.PodID, nil
 }
 
-func (c liveClient) ensureInbox(ctx context.Context, cred clientCred, clientID, displayName string) (remoteInbox, error) {
+func (c liveClient) ensureInbox(ctx context.Context, cred clientCred, clientID, displayName string, addr InboxAddress) (remoteInbox, error) {
 	body := map[string]string{"client_id": clientID}
 	if displayName != "" {
 		body["display_name"] = displayName
+	}
+	if addr.Username != "" {
+		body["username"] = addr.Username
+	}
+	if addr.Domain != "" {
+		body["domain"] = addr.Domain
 	}
 	path := "/inboxes"
 	if cred.podID != "" {
@@ -113,8 +121,14 @@ func (c liveClient) ensureInbox(ctx context.Context, cred clientCred, clientID, 
 		if decodeErr := c.decodeConflict(err, &out); decodeErr == nil && out.ID() != "" && out.Email != "" {
 			return remoteInbox{id: out.ID(), address: out.Email}, nil
 		}
+		if addr.Username != "" {
+			return remoteInbox{}, fmt.Errorf("%w: %s", ErrAddressTaken, remoteErrorMessage(err))
+		}
 	}
 	if err != nil {
+		if addr.Username != "" && isUnprocessable(err) {
+			return remoteInbox{}, fmt.Errorf("%w: %s", ErrBadAddress, remoteErrorMessage(err))
+		}
 		return remoteInbox{}, err
 	}
 	if out.ID() == "" || out.Email == "" {
@@ -144,6 +158,19 @@ func (c liveClient) createInboxKey(ctx context.Context, cred clientCred, inboxID
 func (c liveClient) deleteInbox(ctx context.Context, cred clientCred, inboxID string) error {
 	if inboxID == "" {
 		return errRemoteNotFound
+	}
+	// Hosted (and BYO-pod) inboxes are created under the pod. AgentMail
+	// rejects org-level DELETE /inboxes/{id} for those rows.
+	if cred.podID != "" {
+		err := c.do(ctx, http.MethodDelete, "/pods/"+url.PathEscape(cred.podID)+"/inboxes/"+url.PathEscape(inboxID), cred.apiKey, nil, nil)
+		if err == nil || errors.Is(err, errRemoteNotFound) {
+			return err
+		}
+		fallback := c.do(ctx, http.MethodDelete, "/inboxes/"+url.PathEscape(inboxID), cred.apiKey, nil, nil)
+		if fallback == nil || errors.Is(fallback, errRemoteNotFound) {
+			return fallback
+		}
+		return err
 	}
 	err := c.do(ctx, http.MethodDelete, "/inboxes/"+url.PathEscape(inboxID), cred.apiKey, nil, nil)
 	if errors.Is(err, errRemoteNotFound) {
@@ -193,14 +220,44 @@ func (c liveClient) inspectKey(ctx context.Context, orgKey string) (inspectedKey
 	}
 }
 
-func (c liveClient) listThreads(ctx context.Context, inboxKey, inboxID, pageToken string) (ThreadPage, error) {
+func (c liveClient) listDomains(ctx context.Context, cred clientCred) ([]RemoteDomain, error) {
+	var out domainListResponse
+	err := c.do(ctx, http.MethodGet, "/domains?limit=100", cred.apiKey, nil, &out)
+	if err != nil && cred.podID != "" {
+		err = c.do(ctx, http.MethodGet, "/pods/"+url.PathEscape(cred.podID)+"/domains?limit=100", cred.apiKey, nil, &out)
+	}
+	if err != nil {
+		return nil, err
+	}
+	domains := make([]RemoteDomain, 0, len(out.Domains))
+	for _, row := range out.Domains {
+		name := strings.ToLower(strings.TrimSpace(row.Domain))
+		if name == "" {
+			continue
+		}
+		domains = append(domains, RemoteDomain{Name: name, SubdomainsEnabled: row.SubdomainsEnabled})
+	}
+	return domains, nil
+}
+
+func (c liveClient) listThreads(ctx context.Context, inboxKey, inboxID string, query threadQuery) (ThreadPage, error) {
 	if inboxID == "" {
 		return ThreadPage{}, errRemoteNotFound
 	}
-	path := "/inboxes/" + url.PathEscape(inboxID) + "/threads?limit=20"
-	if pageToken != "" {
-		path += "&page_token=" + url.QueryEscape(pageToken)
+	values := url.Values{}
+	values.Set("limit", "50")
+	if query.PageToken != "" {
+		values.Set("page_token", query.PageToken)
 	}
+	for _, label := range query.Labels {
+		if label != "" {
+			values.Add("labels", label)
+		}
+	}
+	if query.IncludeTrash {
+		values.Set("include_trash", "true")
+	}
+	path := "/inboxes/" + url.PathEscape(inboxID) + "/threads?" + values.Encode()
 	var out threadListResponse
 	if err := c.do(ctx, http.MethodGet, path, inboxKey, nil, &out); err != nil {
 		return ThreadPage{}, err
@@ -208,6 +265,32 @@ func (c liveClient) listThreads(ctx context.Context, inboxKey, inboxID, pageToke
 	page := ThreadPage{NextPageToken: out.NextPageToken, Threads: make([]Thread, 0, len(out.Threads))}
 	for _, row := range out.Threads {
 		page.Threads = append(page.Threads, row.thread())
+	}
+	return page, nil
+}
+
+func (c liveClient) listDrafts(ctx context.Context, inboxKey, inboxID string, query draftQuery) (DraftPage, error) {
+	if inboxID == "" {
+		return DraftPage{}, errRemoteNotFound
+	}
+	values := url.Values{}
+	values.Set("limit", "50")
+	if query.PageToken != "" {
+		values.Set("page_token", query.PageToken)
+	}
+	for _, label := range query.Labels {
+		if label != "" {
+			values.Add("labels", label)
+		}
+	}
+	path := "/inboxes/" + url.PathEscape(inboxID) + "/drafts?" + values.Encode()
+	var out draftListResponse
+	if err := c.do(ctx, http.MethodGet, path, inboxKey, nil, &out); err != nil {
+		return DraftPage{}, err
+	}
+	page := DraftPage{NextPageToken: out.NextPageToken, Drafts: make([]Draft, 0, len(out.Drafts))}
+	for _, row := range out.Drafts {
+		page.Drafts = append(page.Drafts, row.draft())
 	}
 	return page, nil
 }
@@ -331,6 +414,19 @@ func isConflict(err error) bool {
 	return errors.As(err, &remote) && remote.Status == http.StatusConflict
 }
 
+func isUnprocessable(err error) bool {
+	var remote *remoteAPIError
+	return errors.As(err, &remote) && (remote.Status == http.StatusUnprocessableEntity || remote.Status == http.StatusBadRequest)
+}
+
+func remoteErrorMessage(err error) string {
+	var remote *remoteAPIError
+	if errors.As(err, &remote) {
+		return remote.Message
+	}
+	return err.Error()
+}
+
 func isAuthRejected(err error) bool {
 	if errors.Is(err, ErrBadOrgKey) {
 		return true
@@ -422,7 +518,8 @@ type authMeResponse struct {
 
 type domainListResponse struct {
 	Domains []struct {
-		Domain string `json:"domain"`
+		Domain            string `json:"domain"`
+		SubdomainsEnabled bool   `json:"subdomains_enabled"`
 	} `json:"domains"`
 }
 
@@ -439,6 +536,7 @@ type threadSummaryResponse struct {
 	Recipients   []string `json:"recipients"`
 	Timestamp    string   `json:"timestamp"`
 	MessageCount int      `json:"message_count"`
+	Labels       []string `json:"labels"`
 }
 
 func (r threadSummaryResponse) thread() Thread {
@@ -450,6 +548,34 @@ func (r threadSummaryResponse) thread() Thread {
 		Recipients:   r.Recipients,
 		Timestamp:    r.Timestamp,
 		MessageCount: r.MessageCount,
+		Labels:       r.Labels,
+	}
+}
+
+type draftListResponse struct {
+	Drafts        []draftSummaryResponse `json:"drafts"`
+	NextPageToken string                 `json:"next_page_token"`
+}
+
+type draftSummaryResponse struct {
+	DraftID   string   `json:"draft_id"`
+	Subject   string   `json:"subject"`
+	Preview   string   `json:"preview"`
+	To        []string `json:"to"`
+	UpdatedAt string   `json:"updated_at"`
+	SendAt    string   `json:"send_at"`
+	Labels    []string `json:"labels"`
+}
+
+func (r draftSummaryResponse) draft() Draft {
+	return Draft{
+		ID:        r.DraftID,
+		Subject:   r.Subject,
+		Preview:   r.Preview,
+		To:        r.To,
+		Timestamp: firstNonEmpty(r.SendAt, r.UpdatedAt),
+		SendAt:    r.SendAt,
+		Labels:    r.Labels,
 	}
 }
 

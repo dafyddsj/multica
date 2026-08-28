@@ -63,6 +63,33 @@ type connectAgentMailRequest struct {
 	OrgKey string `json:"org_key"`
 }
 
+type grantAgentMailRequest struct {
+	Username string `json:"username"`
+	Domain   string `json:"domain"`
+}
+
+type AgentMailDomainListResponse struct {
+	Domains []string `json:"domains"`
+}
+
+type AgentMailFolderListResponse struct {
+	Folders []string `json:"folders"`
+}
+
+type AgentMailMailboxItemResponse struct {
+	Kind         string   `json:"kind"`
+	ID           string   `json:"id"`
+	Subject      string   `json:"subject,omitempty"`
+	Preview      string   `json:"preview,omitempty"`
+	Participants []string `json:"participants"`
+	Timestamp    string   `json:"timestamp,omitempty"`
+}
+
+type AgentMailMailboxResponse struct {
+	Items         []AgentMailMailboxItemResponse `json:"items"`
+	NextPageToken string                         `json:"next_page_token,omitempty"`
+}
+
 func (h *Handler) GetAgentMail(w http.ResponseWriter, r *http.Request) {
 	workspaceID := chi.URLParam(r, "id")
 	member, ok := h.workspaceMember(w, r, workspaceID)
@@ -100,6 +127,24 @@ func (h *Handler) GetAgentMail(w http.ResponseWriter, r *http.Request) {
 		resp.Inboxes = append(resp.Inboxes, agentMailInboxResponse(inbox))
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) ListAgentMailDomains(w http.ResponseWriter, r *http.Request) {
+	workspaceID := chi.URLParam(r, "id")
+	member, ok := h.workspaceMember(w, r, workspaceID)
+	if !ok {
+		return
+	}
+	if h.AgentMail == nil || !h.AgentMail.Available() {
+		writeJSON(w, http.StatusOK, AgentMailDomainListResponse{Domains: []string{"agentmail.to"}})
+		return
+	}
+	domains, err := h.AgentMail.ListDomains(r.Context(), member.WorkspaceID)
+	if err != nil {
+		writeAgentMailError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, AgentMailDomainListResponse{Domains: nonNilStrings(domains)})
 }
 
 func (h *Handler) ConnectAgentMail(w http.ResponseWriter, r *http.Request) {
@@ -209,12 +254,69 @@ func (h *Handler) GrantAgentMailInbox(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "agentmail not configured")
 		return
 	}
-	inbox, err := h.AgentMail.GrantInbox(r.Context(), agent.WorkspaceID, agent.ID, parseUUID(requestUserID(r)), agent.Name)
+	var req grantAgentMailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	inbox, err := h.AgentMail.GrantInbox(r.Context(), agent.WorkspaceID, agent.ID, parseUUID(requestUserID(r)), agent.Name, agentmail.InboxAddress{
+		Username: req.Username,
+		Domain:   req.Domain,
+	})
 	if err != nil {
 		writeAgentMailError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, agentMailInboxResponse(inbox))
+}
+
+func (h *Handler) ListAgentMailMailbox(w http.ResponseWriter, r *http.Request) {
+	agent, ok := h.authorizeAgentMailRead(w, r)
+	if !ok {
+		return
+	}
+	if h.AgentMail == nil || !h.AgentMail.Available() {
+		writeError(w, http.StatusServiceUnavailable, "agentmail not configured")
+		return
+	}
+	q := r.URL.Query()
+	page, err := h.AgentMail.ListMailbox(r.Context(), agent.WorkspaceID, agent.ID, q.Get("section"), q.Get("label"), q.Get("page_token"))
+	if err != nil {
+		writeAgentMailError(w, err)
+		return
+	}
+	resp := AgentMailMailboxResponse{
+		Items:         make([]AgentMailMailboxItemResponse, 0, len(page.Items)),
+		NextPageToken: page.NextPageToken,
+	}
+	for _, item := range page.Items {
+		resp.Items = append(resp.Items, AgentMailMailboxItemResponse{
+			Kind:         item.Kind,
+			ID:           item.ID,
+			Subject:      item.Subject,
+			Preview:      item.Preview,
+			Participants: nonNilStrings(item.Participants),
+			Timestamp:    item.Timestamp,
+		})
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) ListAgentMailFolders(w http.ResponseWriter, r *http.Request) {
+	agent, ok := h.authorizeAgentMailRead(w, r)
+	if !ok {
+		return
+	}
+	if h.AgentMail == nil || !h.AgentMail.Available() {
+		writeError(w, http.StatusServiceUnavailable, "agentmail not configured")
+		return
+	}
+	folders, err := h.AgentMail.ListFolders(r.Context(), agent.WorkspaceID, agent.ID)
+	if err != nil {
+		writeAgentMailError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, AgentMailFolderListResponse{Folders: nonNilStrings(folders)})
 }
 
 func (h *Handler) ListAgentMailThreads(w http.ResponseWriter, r *http.Request) {
@@ -412,6 +514,12 @@ func writeAgentMailError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "inbox is not active")
 	case errors.Is(err, agentmail.ErrRemoteNotFound):
 		writeError(w, http.StatusNotFound, "mail not found")
+	case errors.Is(err, agentmail.ErrBadAddress):
+		writeError(w, http.StatusBadRequest, "choose a valid email username and domain")
+	case errors.Is(err, agentmail.ErrAddressTaken):
+		writeError(w, http.StatusConflict, "that email address is taken")
+	case errors.Is(err, agentmail.ErrBadMailbox):
+		writeError(w, http.StatusBadRequest, "unknown mailbox section")
 	default:
 		writeError(w, http.StatusInternalServerError, "agentmail request failed")
 	}

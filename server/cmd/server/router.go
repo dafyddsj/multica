@@ -1575,6 +1575,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					// disconnect are admin-gated in the group below.
 					r.Get("/vcs/connections", h.ListVCSConnections)
 					r.Get("/agentmail", h.GetAgentMail)
+					r.Get("/agentmail/domains", h.ListAgentMailDomains)
 					// Custom runtime profiles — listing/reading is member-visible
 					// (the Runtime page renders for everyone; create/edit/delete
 					// are admin-gated below).
@@ -2142,6 +2143,8 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/env", h.GetAgentEnv)
 					r.Put("/env", h.UpdateAgentEnv)
 					r.Get("/agentmail", h.GetAgentMailInbox)
+					r.Get("/agentmail/mailbox", h.ListAgentMailMailbox)
+					r.Get("/agentmail/folders", h.ListAgentMailFolders)
 					r.Get("/agentmail/threads", h.ListAgentMailThreads)
 					r.Get("/agentmail/threads/{threadId}", h.GetAgentMailThread)
 					r.With(handler.RequireHumanActor).Put("/agentmail", h.GrantAgentMailInbox)

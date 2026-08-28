@@ -107,10 +107,16 @@ func TestAgentMailConnectGrantClaimAndRevoke(t *testing.T) {
 	runtimeID := dbfx.Runtime(t, "agentmail grant runtime")
 	agentID := dbfx.Agent(t, "Ada Mail", runtimeID)
 
-	var inbox AgentMailInboxResponse
 	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{})).
+		Want(http.StatusBadRequest)
+
+	var inbox AgentMailInboxResponse
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{
+		"username": "ada",
+		"domain":   "agentmail.to",
+	})).
 		Want(http.StatusOK).JSON(&inbox)
-	if !inbox.Enabled || inbox.Address == "" || inbox.AgentID != agentID {
+	if !inbox.Enabled || inbox.Address != "ada@agentmail.to" || inbox.AgentID != agentID {
 		t.Fatalf("grant = %+v", inbox)
 	}
 
@@ -125,6 +131,29 @@ func TestAgentMailConnectGrantClaimAndRevoke(t *testing.T) {
 		Want(http.StatusOK).JSON(&listed)
 	if len(listed.Inboxes) != 1 || listed.Inboxes[0].Address != inbox.Address {
 		t.Fatalf("roster = %+v", listed.Inboxes)
+	}
+
+	var domains AgentMailDomainListResponse
+	testutil.Call(t, testHandler.ListAgentMailDomains, agentMailWorkspaceReq(http.MethodGet, nil)).
+		Want(http.StatusOK).JSON(&domains)
+	if len(domains.Domains) == 0 || domains.Domains[0] != "agentmail.to" {
+		t.Fatalf("domains = %+v", domains)
+	}
+
+	var mailbox AgentMailMailboxResponse
+	mailReq := newRequest(http.MethodGet, "/api/agents/"+agentID+"/agentmail/mailbox?section=inbox", nil)
+	mailReq = withURLParam(mailReq, "id", agentID)
+	testutil.Call(t, testHandler.ListAgentMailMailbox, mailReq).Want(http.StatusOK).JSON(&mailbox)
+	if mailbox.Items == nil {
+		t.Fatal("mailbox items must be an empty list, not null")
+	}
+
+	var folders AgentMailFolderListResponse
+	folderReq := newRequest(http.MethodGet, "/api/agents/"+agentID+"/agentmail/folders", nil)
+	folderReq = withURLParam(folderReq, "id", agentID)
+	testutil.Call(t, testHandler.ListAgentMailFolders, folderReq).Want(http.StatusOK).JSON(&folders)
+	if folders.Folders == nil {
+		t.Fatal("folders must be an empty list, not null")
 	}
 
 	testutil.Call(t, testHandler.RevokeAgentMailInbox, agentMailAgentReq(http.MethodDelete, agentID, nil)).
@@ -162,7 +191,9 @@ func TestAgentMailDeniesAgentActorAndPlainMemberInboxRead(t *testing.T) {
 
 	runtimeID := dbfx.Runtime(t, "agentmail deny runtime")
 	agentID := dbfx.Agent(t, "Denied Mail", runtimeID)
-	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{})).
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{
+		"username": "denied",
+	})).
 		Want(http.StatusOK)
 
 	req := agentMailAgentReq(http.MethodPut, agentID, map[string]any{})
@@ -222,7 +253,9 @@ func TestDeleteWorkspace_SweepsAgentMailKeepsPurge(t *testing.T) {
 		"runtime_id":     runtimeID,
 		"owner_id":       testUserID,
 	})
-	grant := newRequest(http.MethodPut, "/api/agents/"+agentID+"/agentmail", map[string]any{})
+	grant := newRequest(http.MethodPut, "/api/agents/"+agentID+"/agentmail", map[string]any{
+		"username": "ada",
+	})
 	grant.Header.Set("X-Workspace-ID", wsID)
 	grant = withURLParam(grant, "id", agentID)
 	testutil.Call(t, testHandler.GrantAgentMailInbox, grant).Want(http.StatusOK)
@@ -256,7 +289,9 @@ func TestClaimTaskByRuntime_CarriesAgentMailOverlay(t *testing.T) {
 	ctx := context.Background()
 	runtimeID := createClaimReclaimRuntime(t, ctx, "agentmail overlay runtime")
 	agentID, issueID := createClaimReclaimAgentAndIssue(t, ctx, runtimeID, "agentmail overlay")
-	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{})).
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{
+		"username": "overlay",
+	})).
 		Want(http.StatusOK)
 
 	var taskID string
@@ -300,7 +335,9 @@ func TestAgentMailThreadsRequireActiveInboxAndSecrets(t *testing.T) {
 	testutil.Call(t, testHandler.ConnectAgentMail, agentMailWorkspaceReq(http.MethodPost, map[string]string{
 		"mode": "hosted",
 	})).Want(http.StatusOK)
-	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{})).
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{
+		"username": "threads",
+	})).
 		Want(http.StatusOK)
 
 	var listed AgentMailThreadListResponse

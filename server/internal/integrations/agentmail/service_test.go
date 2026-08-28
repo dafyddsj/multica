@@ -222,7 +222,7 @@ func TestServiceLifecycle(t *testing.T) {
 		svc := newTestService(t, fake, Config{})
 		wsID, actorID, agentID := newIDs(t)
 
-		_, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada")
+		_, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"})
 		if !errors.Is(err, ErrNotConnected) {
 			t.Fatalf("got %v, want ErrNotConnected", err)
 		}
@@ -236,11 +236,11 @@ func TestServiceLifecycle(t *testing.T) {
 			t.Fatalf("connect: %v", err)
 		}
 
-		first, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada")
+		first, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"})
 		if err != nil {
 			t.Fatalf("first grant: %v", err)
 		}
-		second, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada")
+		second, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"})
 		if err != nil {
 			t.Fatalf("second grant: %v", err)
 		}
@@ -261,7 +261,7 @@ func TestServiceLifecycle(t *testing.T) {
 		}
 
 		svc.failPersistActiveOnce = true
-		_, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada")
+		_, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"})
 		if err == nil {
 			t.Fatal("expected persist failure")
 		}
@@ -273,7 +273,7 @@ func TestServiceLifecycle(t *testing.T) {
 		}
 		lost := fake.minted[0]
 
-		got, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada")
+		got, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"})
 		if err != nil {
 			t.Fatalf("retry grant: %v", err)
 		}
@@ -300,7 +300,7 @@ func TestServiceLifecycle(t *testing.T) {
 		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
 			t.Fatalf("connect: %v", err)
 		}
-		if _, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada"); err != nil {
+		if _, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"}); err != nil {
 			t.Fatalf("grant: %v", err)
 		}
 
@@ -352,7 +352,7 @@ func TestServiceLifecycle(t *testing.T) {
 		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
 			t.Fatalf("connect: %v", err)
 		}
-		if _, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada"); err != nil {
+		if _, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"}); err != nil {
 			t.Fatalf("grant: %v", err)
 		}
 		if err := svc.RevokeInbox(ctx, wsID, agentID); err != nil {
@@ -375,10 +375,10 @@ func TestServiceLifecycle(t *testing.T) {
 		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
 			t.Fatalf("connect: %v", err)
 		}
-		if _, err := svc.GrantInbox(ctx, wsID, agentA, actorID, "Ada"); err != nil {
+		if _, err := svc.GrantInbox(ctx, wsID, agentA, actorID, "Ada", InboxAddress{Username: "ada"}); err != nil {
 			t.Fatalf("first grant: %v", err)
 		}
-		_, err := svc.GrantInbox(ctx, wsID, agentB, actorID, "Bob")
+		_, err := svc.GrantInbox(ctx, wsID, agentB, actorID, "Bob", InboxAddress{Username: "bob"})
 		if !errors.Is(err, ErrInboxQuota) {
 			t.Fatalf("got %v, want ErrInboxQuota", err)
 		}
@@ -391,7 +391,7 @@ func TestServiceLifecycle(t *testing.T) {
 		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
 			t.Fatalf("connect: %v", err)
 		}
-		if _, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada"); err != nil {
+		if _, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"}); err != nil {
 			t.Fatalf("grant: %v", err)
 		}
 		if err := svc.SweepWorkspace(ctx, testQ, wsID); err != nil {
@@ -420,7 +420,7 @@ func TestServiceLifecycle(t *testing.T) {
 		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
 			t.Fatalf("connect: %v", err)
 		}
-		got, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada")
+		got, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"})
 		if err != nil {
 			t.Fatalf("grant: %v", err)
 		}
@@ -456,6 +456,98 @@ func TestServiceLifecycle(t *testing.T) {
 		_, err = svc.ListThreads(ctx, wsID, actorID, "")
 		if !errors.Is(err, ErrInboxNotActive) {
 			t.Fatalf("other agent = %v, want ErrInboxNotActive", err)
+		}
+	})
+
+	t.Run("grant uses the chosen username and domain", func(t *testing.T) {
+		fake := newFake()
+		svc := newTestService(t, fake, Config{})
+		wsID, actorID, agentID := newIDs(t)
+		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		got, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{
+			Username: "ada.mail",
+			Domain:   "acme.test",
+		})
+		if err != nil {
+			t.Fatalf("grant: %v", err)
+		}
+		if got.Address != "ada.mail@acme.test" {
+			t.Fatalf("address = %q", got.Address)
+		}
+	})
+
+	t.Run("grant rejects a bad username", func(t *testing.T) {
+		fake := newFake()
+		svc := newTestService(t, fake, Config{})
+		wsID, actorID, agentID := newIDs(t)
+		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		_, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "Ada Mail"})
+		if !errors.Is(err, ErrBadAddress) {
+			t.Fatalf("got %v, want ErrBadAddress", err)
+		}
+	})
+
+	t.Run("list domains always includes agentmail.to", func(t *testing.T) {
+		fake := newFake()
+		fake.domains = []RemoteDomain{{Name: "acme.test", SubdomainsEnabled: true}}
+		svc := newTestService(t, fake, Config{})
+		wsID, actorID, _ := newIDs(t)
+		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		got, err := svc.ListDomains(ctx, wsID)
+		if err != nil {
+			t.Fatalf("ListDomains: %v", err)
+		}
+		if len(got) != 2 || got[0] != defaultInboxDomain || got[1] != "acme.test" {
+			t.Fatalf("domains = %v", got)
+		}
+	})
+
+	t.Run("mailbox sections and custom folders", func(t *testing.T) {
+		fake := newFake()
+		svc := newTestService(t, fake, Config{})
+		wsID, actorID, agentID := newIDs(t)
+		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		if _, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"}); err != nil {
+			t.Fatalf("grant: %v", err)
+		}
+		remote := fake.inboxes[util.UUIDToString(agentID)].id
+		fake.seedThread(remote, ThreadDetail{Thread: Thread{ID: "thr_in", Subject: "In", Labels: []string{"inbox"}}})
+		fake.seedThread(remote, ThreadDetail{Thread: Thread{ID: "thr_sent", Subject: "Out", Labels: []string{"sent"}}})
+		fake.seedThread(remote, ThreadDetail{Thread: Thread{ID: "thr_sales", Subject: "Lead", Labels: []string{"sales"}}})
+		fake.seedDraft(remote, Draft{ID: "dr_1", Subject: "Draft", Labels: []string{}})
+		fake.seedDraft(remote, Draft{ID: "dr_2", Subject: "Later", Labels: []string{"scheduled"}})
+
+		inbox, err := svc.ListMailbox(ctx, wsID, agentID, "inbox", "", "")
+		if err != nil || len(inbox.Items) != 1 || inbox.Items[0].ID != "thr_in" {
+			t.Fatalf("inbox = %+v err=%v", inbox, err)
+		}
+		sent, err := svc.ListMailbox(ctx, wsID, agentID, "sent", "", "")
+		if err != nil || len(sent.Items) != 1 || sent.Items[0].ID != "thr_sent" {
+			t.Fatalf("sent = %+v err=%v", sent, err)
+		}
+		drafts, err := svc.ListMailbox(ctx, wsID, agentID, "drafts", "", "")
+		if err != nil || len(drafts.Items) != 2 {
+			t.Fatalf("drafts = %+v err=%v", drafts, err)
+		}
+		scheduled, err := svc.ListMailbox(ctx, wsID, agentID, "scheduled", "", "")
+		if err != nil || len(scheduled.Items) != 1 || scheduled.Items[0].ID != "dr_2" {
+			t.Fatalf("scheduled = %+v err=%v", scheduled, err)
+		}
+		folder, err := svc.ListMailbox(ctx, wsID, agentID, "folder", "sales", "")
+		if err != nil || len(folder.Items) != 1 || folder.Items[0].ID != "thr_sales" {
+			t.Fatalf("folder = %+v err=%v", folder, err)
+		}
+		folders, err := svc.ListFolders(ctx, wsID, agentID)
+		if err != nil || len(folders) != 1 || folders[0] != "sales" {
+			t.Fatalf("folders = %v err=%v", folders, err)
 		}
 	})
 

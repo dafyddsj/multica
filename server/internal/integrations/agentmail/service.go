@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/google/uuid"
@@ -29,8 +31,9 @@ const (
 	authorityBYOOrg    = "byo_org"
 	authorityBYOPod    = "byo_pod"
 
-	defaultInboxLimit = 5
-	defaultMCPURL     = "https://mcp.agentmail.to/mcp"
+	defaultInboxLimit  = 5
+	defaultMCPURL      = "https://mcp.agentmail.to/mcp"
+	defaultInboxDomain = "agentmail.to"
 )
 
 var (
@@ -41,6 +44,9 @@ var (
 	ErrHostedUnavailable = errors.New("agentmail: hosted mode not configured")
 	ErrBadOrgKey         = errors.New("agentmail: organization key rejected")
 	ErrInboxNotActive    = errors.New("agentmail: inbox not active")
+	ErrBadAddress        = errors.New("agentmail: invalid address")
+	ErrAddressTaken      = errors.New("agentmail: address taken")
+	ErrBadMailbox        = errors.New("agentmail: unknown mailbox section")
 )
 
 // WorkspaceCredential is a closed connect input. Hosted cannot carry a key.
@@ -91,6 +97,16 @@ type Inbox struct {
 	DisplayName string
 }
 
+type InboxAddress struct {
+	Username string
+	Domain   string
+}
+
+type RemoteDomain struct {
+	Name              string
+	SubdomainsEnabled bool
+}
+
 type Thread struct {
 	ID           string
 	Subject      string
@@ -99,6 +115,47 @@ type Thread struct {
 	Recipients   []string
 	Timestamp    string
 	MessageCount int
+	Labels       []string
+}
+
+type threadQuery struct {
+	PageToken    string
+	Labels       []string
+	IncludeTrash bool
+}
+
+type draftQuery struct {
+	PageToken string
+	Labels    []string
+}
+
+type Draft struct {
+	ID        string
+	Subject   string
+	Preview   string
+	To        []string
+	Timestamp string
+	SendAt    string
+	Labels    []string
+}
+
+type DraftPage struct {
+	Drafts        []Draft
+	NextPageToken string
+}
+
+type MailboxItem struct {
+	Kind         string
+	ID           string
+	Subject      string
+	Preview      string
+	Participants []string
+	Timestamp    string
+}
+
+type MailboxPage struct {
+	Items         []MailboxItem
+	NextPageToken string
 }
 
 type ThreadPage struct {
@@ -349,7 +406,7 @@ func (s *Service) ListInboxes(ctx context.Context, wsID pgtype.UUID) ([]Inbox, e
 	return out, nil
 }
 
-func (s *Service) GrantInbox(ctx context.Context, wsID, agentID, actorID pgtype.UUID, agentName string) (Inbox, error) {
+func (s *Service) GrantInbox(ctx context.Context, wsID, agentID, actorID pgtype.UUID, agentName string, addr InboxAddress) (Inbox, error) {
 	if !s.Available() {
 		return Inbox{}, ErrUnavailable
 	}
@@ -389,6 +446,11 @@ func (s *Service) GrantInbox(ctx context.Context, wsID, agentID, actorID pgtype.
 		clientID = existing.ClientID
 	}
 
+	normalized, err := normalizeInboxAddress(addr)
+	if err != nil {
+		return Inbox{}, err
+	}
+
 	cred, err := s.authority(conn)
 	if err != nil {
 		return Inbox{}, err
@@ -412,7 +474,7 @@ func (s *Service) GrantInbox(ctx context.Context, wsID, agentID, actorID pgtype.
 		return Inbox{}, err
 	}
 
-	remote, err := s.api.ensureInbox(ctx, cred, clientID, agentName)
+	remote, err := s.api.ensureInbox(ctx, cred, clientID, agentName, normalized)
 	if err != nil {
 		return Inbox{}, err
 	}
@@ -519,7 +581,127 @@ func (s *Service) ListThreads(ctx context.Context, wsID, agentID pgtype.UUID, pa
 	if err != nil {
 		return ThreadPage{}, err
 	}
-	return s.api.listThreads(ctx, key, inboxID, pageToken)
+	return s.api.listThreads(ctx, key, inboxID, threadQuery{PageToken: pageToken})
+}
+
+func (s *Service) ListDomains(ctx context.Context, wsID pgtype.UUID) ([]string, error) {
+	if !s.Available() {
+		return nil, ErrUnavailable
+	}
+	conn, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) || (err == nil && conn.State != stateActive) {
+		return []string{defaultInboxDomain}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	cred, err := s.authority(conn)
+	if err != nil {
+		return nil, err
+	}
+	listed, err := s.api.listDomains(ctx, cred)
+	if err != nil {
+		return nil, err
+	}
+	return mergeDomainNames(listed), nil
+}
+
+func (s *Service) ListFolders(ctx context.Context, wsID, agentID pgtype.UUID) ([]string, error) {
+	inboxID, key, err := s.activeInboxAccess(ctx, wsID, agentID)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]struct{}{}
+	threads, err := s.api.listThreads(ctx, key, inboxID, threadQuery{IncludeTrash: true})
+	if err != nil {
+		return nil, err
+	}
+	for _, thread := range threads.Threads {
+		collectCustomLabels(seen, thread.Labels)
+	}
+	drafts, err := s.api.listDrafts(ctx, key, inboxID, draftQuery{})
+	if err != nil {
+		return nil, err
+	}
+	for _, draft := range drafts.Drafts {
+		collectCustomLabels(seen, draft.Labels)
+	}
+	folders := make([]string, 0, len(seen))
+	for name := range seen {
+		folders = append(folders, name)
+	}
+	sort.Strings(folders)
+	return folders, nil
+}
+
+func (s *Service) ListMailbox(ctx context.Context, wsID, agentID pgtype.UUID, section, label, pageToken string) (MailboxPage, error) {
+	inboxID, key, err := s.activeInboxAccess(ctx, wsID, agentID)
+	if err != nil {
+		return MailboxPage{}, err
+	}
+	section = strings.ToLower(strings.TrimSpace(section))
+	if section == "" {
+		section = "inbox"
+	}
+	label = strings.TrimSpace(label)
+	switch section {
+	case "drafts", "scheduled":
+		query := draftQuery{PageToken: pageToken}
+		if section == "scheduled" {
+			query.Labels = []string{"scheduled"}
+		}
+		page, err := s.api.listDrafts(ctx, key, inboxID, query)
+		if err != nil {
+			return MailboxPage{}, err
+		}
+		items := make([]MailboxItem, 0, len(page.Drafts))
+		for _, draft := range page.Drafts {
+			items = append(items, MailboxItem{
+				Kind:         "draft",
+				ID:           draft.ID,
+				Subject:      draft.Subject,
+				Preview:      draft.Preview,
+				Participants: draft.To,
+				Timestamp:    draft.Timestamp,
+			})
+		}
+		return MailboxPage{Items: items, NextPageToken: page.NextPageToken}, nil
+	case "inbox", "sent", "trash", "all", "folder":
+		query := threadQuery{PageToken: pageToken}
+		switch section {
+		case "inbox":
+			query.Labels = []string{"inbox"}
+		case "sent":
+			query.Labels = []string{"sent"}
+		case "trash":
+			query.Labels = []string{"trash"}
+			query.IncludeTrash = true
+		case "folder":
+			if label == "" {
+				return MailboxPage{}, ErrBadMailbox
+			}
+			query.Labels = []string{label}
+			query.IncludeTrash = true
+		}
+		page, err := s.api.listThreads(ctx, key, inboxID, query)
+		if err != nil {
+			return MailboxPage{}, err
+		}
+		items := make([]MailboxItem, 0, len(page.Threads))
+		for _, thread := range page.Threads {
+			items = append(items, MailboxItem{
+				Kind:         "thread",
+				ID:           thread.ID,
+				Subject:      thread.Subject,
+				Preview:      thread.Preview,
+				Participants: firstNonEmptySlice(thread.Senders, thread.Recipients),
+				Timestamp:    thread.Timestamp,
+			})
+		}
+		return MailboxPage{Items: items, NextPageToken: page.NextPageToken}, nil
+	default:
+		return MailboxPage{}, ErrBadMailbox
+	}
 }
 
 func (s *Service) GetThread(ctx context.Context, wsID, agentID pgtype.UUID, threadID string) (ThreadDetail, error) {
@@ -741,4 +923,72 @@ func textValue(s string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: s, Valid: true}
+}
+
+var (
+	usernamePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$`)
+	domainPattern   = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$`)
+)
+
+var systemMailLabels = map[string]struct{}{
+	"inbox": {}, "sent": {}, "trash": {}, "spam": {}, "draft": {}, "drafts": {},
+	"scheduled": {}, "unread": {}, "read": {}, "unreplied": {}, "replied": {},
+	"blocked": {}, "unauthenticated": {},
+}
+
+func normalizeInboxAddress(addr InboxAddress) (InboxAddress, error) {
+	username := strings.ToLower(strings.TrimSpace(addr.Username))
+	domain := strings.ToLower(strings.TrimSpace(addr.Domain))
+	if username == "" {
+		return InboxAddress{}, ErrBadAddress
+	}
+	if !usernamePattern.MatchString(username) {
+		return InboxAddress{}, ErrBadAddress
+	}
+	if domain == "" {
+		domain = defaultInboxDomain
+	}
+	if !domainPattern.MatchString(domain) {
+		return InboxAddress{}, ErrBadAddress
+	}
+	return InboxAddress{Username: username, Domain: domain}, nil
+}
+
+func mergeDomainNames(listed []RemoteDomain) []string {
+	seen := map[string]struct{}{defaultInboxDomain: {}}
+	out := []string{defaultInboxDomain}
+	for _, domain := range listed {
+		name := strings.ToLower(strings.TrimSpace(domain.Name))
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
+	}
+	return out
+}
+
+func collectCustomLabels(seen map[string]struct{}, labels []string) {
+	for _, label := range labels {
+		name := strings.TrimSpace(label)
+		if name == "" {
+			continue
+		}
+		if _, system := systemMailLabels[strings.ToLower(name)]; system {
+			continue
+		}
+		seen[name] = struct{}{}
+	}
+}
+
+func firstNonEmptySlice(values ...[]string) []string {
+	for _, value := range values {
+		if len(value) > 0 {
+			return value
+		}
+	}
+	return []string{}
 }
