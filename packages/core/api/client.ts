@@ -284,6 +284,8 @@ import {
   DashboardFailureByAgentListSchema,
   DashboardUsageByAgentListSchema,
   DashboardUsageDailyListSchema,
+  EMPTY_AGENTMAIL_INBOX,
+  EMPTY_AGENTMAIL_WORKSPACE,
   EMPTY_APP_CONFIG,
   EMPTY_ATTACHMENT,
   EMPTY_CHAT_MESSAGE_LIST,
@@ -310,8 +312,13 @@ import {
   EMPTY_USER,
   EMPTY_LIST_WEBHOOK_DELIVERIES_RESPONSE,
   EMPTY_WEBHOOK_DELIVERY,
+  AgentMailInboxResponseSchema,
+  AgentMailWorkspaceResponseSchema,
   AppConfigSchema,
+  type AgentMailInboxResponse,
+  type AgentMailWorkspaceResponse,
   type AppConfigResponse,
+  type ConnectAgentMailRequest,
   GroupedIssuesResponseSchema,
   IssueTableFacetsResponseSchema,
   IssueTableGroupsResponseSchema,
@@ -4540,6 +4547,66 @@ export class ApiClient {
       `/api/workspaces/${workspaceId}/vcs/connections/${connectionId}/rotate-webhook`,
       { method: "POST" },
     );
+  }
+
+  async getAgentMail(workspaceId: string): Promise<AgentMailWorkspaceResponse> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/agentmail`);
+    return parseWithFallback(
+      raw,
+      AgentMailWorkspaceResponseSchema,
+      EMPTY_AGENTMAIL_WORKSPACE,
+      { endpoint: "GET /api/workspaces/:id/agentmail" },
+    );
+  }
+
+  async connectAgentMail(
+    workspaceId: string,
+    body: ConnectAgentMailRequest,
+  ): Promise<AgentMailWorkspaceResponse> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/agentmail`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return parseWithFallback(
+      raw,
+      AgentMailWorkspaceResponseSchema,
+      EMPTY_AGENTMAIL_WORKSPACE,
+      { endpoint: "POST /api/workspaces/:id/agentmail" },
+    );
+  }
+
+  async disconnectAgentMail(workspaceId: string): Promise<void> {
+    await this.fetch(`/api/workspaces/${workspaceId}/agentmail`, {
+      method: "DELETE",
+    });
+  }
+
+  async getAgentMailInbox(agentId: string): Promise<AgentMailInboxResponse> {
+    const raw = await this.fetch<unknown>(`/api/agents/${agentId}/agentmail`);
+    return parseWithFallback(
+      raw,
+      AgentMailInboxResponseSchema,
+      EMPTY_AGENTMAIL_INBOX,
+      { endpoint: "GET /api/agents/:id/agentmail" },
+    );
+  }
+
+  async grantAgentMailInbox(agentId: string): Promise<AgentMailInboxResponse> {
+    const raw = await this.fetch<unknown>(`/api/agents/${agentId}/agentmail`, {
+      method: "PUT",
+    });
+    return parseWithFallback(
+      raw,
+      AgentMailInboxResponseSchema,
+      EMPTY_AGENTMAIL_INBOX,
+      { endpoint: "PUT /api/agents/:id/agentmail" },
+    );
+  }
+
+  async revokeAgentMailInbox(agentId: string): Promise<void> {
+    await this.fetch(`/api/agents/${agentId}/agentmail`, {
+      method: "DELETE",
+    });
   }
 
   // Lark integration

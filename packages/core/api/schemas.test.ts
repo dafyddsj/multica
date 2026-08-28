@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AgentMailWorkspaceResponseSchema,
   AppConfigSchema,
   ChildIssueProgressResponseSchema,
   WecomInstallationSchema,
@@ -1191,6 +1192,34 @@ describe("AppConfigSchema agent_conversation_starters_supported drift", () => {
       AppConfigSchema.parse({ agent_conversation_starters_supported: true })
         .agent_conversation_starters_supported,
     ).toBe(true);
+  });
+});
+
+describe("AppConfigSchema agentmail availability drift", () => {
+  it("defaults missing flags to false", () => {
+    const parsed = AppConfigSchema.parse({ cdn_domain: "cdn.example.com" });
+    expect(parsed.agentmail_available).toBe(false);
+    expect(parsed.agentmail_hosted_available).toBe(false);
+  });
+
+  it("keeps explicit true", () => {
+    expect(
+      AppConfigSchema.parse({
+        agentmail_available: true,
+        agentmail_hosted_available: true,
+      }).agentmail_available,
+    ).toBe(true);
+  });
+});
+
+describe("AgentMailWorkspaceResponseSchema malformed", () => {
+  it("falls back inboxes to [] when missing", () => {
+    const parsed = AgentMailWorkspaceResponseSchema.parse({
+      available: true,
+      connected: true,
+    });
+    expect(parsed.inboxes).toEqual([]);
+    expect(parsed.can_manage).toBe(false);
   });
 });
 

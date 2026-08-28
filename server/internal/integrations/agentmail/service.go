@@ -97,6 +97,15 @@ type Service struct {
 }
 
 func New(cfg Config, q *db.Queries) (*Service, error) {
+	return newService(cfg, q, liveClient{})
+}
+
+// NewMemory builds a service backed by an in-process remote. Production uses New.
+func NewMemory(cfg Config, q *db.Queries) (*Service, error) {
+	return newService(cfg, q, newMemoryClient())
+}
+
+func newService(cfg Config, q *db.Queries, api apiClient) (*Service, error) {
 	if q == nil {
 		return nil, errors.New("agentmail: queries required")
 	}
@@ -106,7 +115,7 @@ func New(cfg Config, q *db.Queries) (*Service, error) {
 	if cfg.MCPURL == "" {
 		cfg.MCPURL = defaultMCPURL
 	}
-	return &Service{cfg: cfg, q: q, api: liveClient{}}, nil
+	return &Service{cfg: cfg, q: q, api: api}, nil
 }
 
 func (s *Service) HostedAvailable() bool {
@@ -294,6 +303,18 @@ func (s *Service) GetInbox(ctx context.Context, wsID, agentID pgtype.UUID) (*Inb
 	}
 	view := inboxView(row)
 	return &view, nil
+}
+
+func (s *Service) ListInboxes(ctx context.Context, wsID pgtype.UUID) ([]Inbox, error) {
+	rows, err := s.q.ListAgentMailInboxesByWorkspace(ctx, wsID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Inbox, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, inboxView(row))
+	}
+	return out, nil
 }
 
 func (s *Service) GrantInbox(ctx context.Context, wsID, agentID, actorID pgtype.UUID, agentName string) (Inbox, error) {
