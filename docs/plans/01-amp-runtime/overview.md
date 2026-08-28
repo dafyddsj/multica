@@ -125,7 +125,7 @@ amp threads continue <T-uuid> --execute --stream-json --stream-json-thinking --d
 
 `--execute` archives the thread on exit unless `--no-archive-after-execute` is set (Amp CLI 0.0.1787871856). A resume first runs `amp threads archive --unarchive <T-uuid>` so a thread created before that flag still continues. `--dangerously-allow-all` is unconditional and sits in `ampBlockedArgs`. Prompt is plaintext on stdin, then stdin closes. That is Amp's documented `echo prompt | amp -x` path. Do not keep stdin open for Claude `control_request`. Do not enable `--stream-json-input` in v1. `--stream-json-thinking` is on so thinking and `redacted_thinking` blocks parse. Dropping it is one argv line if a capture shows it breaks a release.
 
-`ExecOptions.Model` and `ThinkingLevel` are ignored. `ModelSelectionSupported("amp")` is false. `ListModels("amp")` returns an empty catalog. Do not probe `MULTICA_AMP_MODEL`. Amp's product dial is mode and effort, documented as SDK extras, not a verified CLI `--model`. ExtraArgs can carry those later. Do not advertise a dead knob.
+`ExecOptions.Model` is passed as `--mode`. `ListModels("amp")` returns the static catalog `low|medium|high|ultra` (medium is Amp's default). `ModelSelectionSupported("amp")` is true. `ThinkingLevel` is still ignored. Do not probe `MULTICA_AMP_MODEL`. Managed MCP is a 0600 `--mcp-config` file plus `--settings-file` with empty `amp.mcpServers` so global Amp MCP is not inherited. Account MCP and workspace `.amp/settings.json` may still load.
 
 Windows copies Qwen's `.cmd` to `.ps1` shim so npm's `amp.cmd` does not re-tokenize argv.
 

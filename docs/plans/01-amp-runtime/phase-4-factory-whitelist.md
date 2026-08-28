@@ -15,7 +15,7 @@ This phase is one invariant, so it touches more than two files on purpose.
 - New migration pair after the current head (main has `458` from the clerk series; rebase and take the next free number) widening `runtime_profile_protocol_family_check` with `NOT VALID`. Follow the body of `server/migrations/403_runtime_profile_add_zeroclaw.up.sql`.
 - `packages/core/types/agent.ts`: add `"amp"` to `RUNTIME_PROFILE_PROTOCOL_FAMILIES`.
 
-`ListModels` needs an `"amp"` case. The switch `default` errors. Return an empty catalog. `ModelSelectionSupported("amp")` is false. Amp's product default is a mode dial, documented as an SDK extra, not a verified CLI `--model`. The UI then shows "Managed by runtime" instead of a picker that drops values.
+`ListModels` needs an `"amp"` case. The switch `default` errors. Return the static mode catalog `low|medium|high|ultra` (medium default). `ModelSelectionSupported("amp")` is true so the picker sends `--mode`. Do not add `MULTICA_AMP_MODEL`.
 
 `TestLaunchHeaderCoversAllSupportedBackends` fails if `launchHeaders` omits `amp`.
 

@@ -23,6 +23,7 @@ describe("providerSupportsMcpConfig", () => {
     expect(providerSupportsMcpConfig("grok")).toBe(true);
     expect(providerSupportsMcpConfig("dim")).toBe(true);
     expect(providerSupportsMcpConfig("mcode")).toBe(true);
+    expect(providerSupportsMcpConfig("amp")).toBe(true);
   });
 
   it("rejects providers whose runtime ignores mcp_config", () => {
@@ -32,7 +33,6 @@ describe("providerSupportsMcpConfig", () => {
     // ZeroClaw's ACP server never reads `params.mcpServers` — MCP lives in
     // ZeroClaw's own config-dir, so a value saved here could not be honoured.
     expect(providerSupportsMcpConfig("zeroclaw")).toBe(false);
-    expect(providerSupportsMcpConfig("amp")).toBe(false);
     expect(providerSupportsMcpConfig(undefined)).toBe(false);
     expect(providerSupportsMcpConfig(null)).toBe(false);
   });

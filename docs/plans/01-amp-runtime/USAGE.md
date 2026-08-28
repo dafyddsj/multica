@@ -12,10 +12,11 @@ session, err := backend.Execute(ctx, prompt, agent.ExecOptions{
     ResumeSessionID: priorSessionID,  // "" or a parsed "T-<uuid>"
     ExtraArgs:       daemonAmpArgs,   // MULTICA_AMP_ARGS
     CustomArgs:      agentCustomArgs,
-    McpConfig:       mcpJSON,         // only after the file-path canary
+    Model:           "high",          // --mode; empty uses Amp's default (medium)
+    McpConfig:       mcpJSON,         // 0600 --mcp-config file plus isolate settings
 })
-// Model and ThinkingLevel are ignored. Amp picks its own model.
-// A non-empty ResumeSessionID that is not T-<uuid> fails Execute.
+// ThinkingLevel is ignored. A non-empty ResumeSessionID that is not T-<uuid>
+// fails Execute.
 ```
 
 A fixture test owns a fake `amp` on PATH:

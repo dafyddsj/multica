@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -67,6 +69,9 @@ var ampBlockedArgs = map[string]blockedArgMode{
 	"--no-archive-after-execute": blockedStandalone,
 	"--unarchive":                blockedStandalone,
 	"--mcp-config":               blockedWithValue,
+	"--settings-file":            blockedWithValue,
+	"--mode":                     blockedWithValue,
+	"-m":                         blockedWithValue,
 	"--resume":                   blockedWithValue,
 	"--continue":                 blockedStandalone,
 	"--no-tui":                   blockedStandalone,
@@ -120,9 +125,50 @@ func buildAmpArgs(resume ampThreadID, opts ExecOptions, logger *slog.Logger) []s
 		args = append(args, "threads", "continue", string(resume))
 	}
 	args = append(args, "--execute", "--stream-json", "--stream-json-thinking", "--dangerously-allow-all", "--no-archive-after-execute")
+	if mode := strings.TrimSpace(opts.Model); mode != "" {
+		args = append(args, "--mode", mode)
+	}
 	args = append(args, filterAmpRuntimeArgs(opts.ExtraArgs, logger)...)
 	args = append(args, filterAmpRuntimeArgs(opts.CustomArgs, logger)...)
 	return args
+}
+
+// ampModeCatalog is Amp's product dial, not a model id list. --mode selects
+// the model, system prompt, and tools together. medium is Amp's own default.
+func ampModeCatalog() []Model {
+	return []Model{
+		{ID: "low", Label: "Low", Provider: "amp"},
+		{ID: "medium", Label: "Medium", Provider: "amp", Default: true},
+		{ID: "high", Label: "High", Provider: "amp"},
+		{ID: "ultra", Label: "Ultra", Provider: "amp"},
+	}
+}
+
+const ampEmptyMcpSettings = "{\n  \"amp.mcpServers\": {}\n}\n"
+
+func writeAmpSettingsIsolateToTemp() (string, error) {
+	dir, err := os.MkdirTemp("", "multica-amp-settings-*")
+	if err != nil {
+		return "", fmt.Errorf("create amp settings temp dir: %w", err)
+	}
+	path := filepath.Join(dir, "settings.json")
+	if err := os.WriteFile(path, []byte(ampEmptyMcpSettings), 0o600); err != nil {
+		_ = os.RemoveAll(dir)
+		return "", fmt.Errorf("write amp settings temp file: %w", err)
+	}
+	return path, nil
+}
+
+func cleanupAmpSettingsTemp(path string) {
+	if path == "" {
+		return
+	}
+	dir := filepath.Dir(path)
+	if strings.HasPrefix(filepath.Base(dir), "multica-amp-settings-") {
+		_ = os.RemoveAll(dir)
+		return
+	}
+	_ = os.Remove(path)
 }
 
 const ampUnarchiveTimeout = 10 * time.Second
@@ -167,19 +213,46 @@ func (b *ampBackend) Execute(ctx context.Context, prompt string, opts ExecOption
 	}
 	timeout := opts.Timeout
 	runCtx, cancel := runContext(ctx, timeout)
-	if opts.Model != "" {
-		b.cfg.Logger.Debug("amp ignores ExecOptions.Model; Amp selects its own model", "model", opts.Model)
-	}
 	if opts.ThinkingLevel != "" {
 		b.cfg.Logger.Debug("amp ignores ExecOptions.ThinkingLevel", "thinking_level", opts.ThinkingLevel)
-	}
-	if hasManagedMcpConfig(opts.McpConfig) {
-		b.cfg.Logger.Debug("amp ignores ExecOptions.McpConfig until --mcp-config file-path support is verified")
 	}
 	if resume != "" {
 		unarchiveAmpThread(runCtx, b.cfg.commandAt(execName), lookedUp, resume, opts.Cwd, b.cfg.Env, b.cfg.Logger)
 	}
 	args := buildAmpArgs(resume, opts, b.cfg.Logger)
+
+	// --mcp-config merges with existing settings. Point --settings-file at a
+	// per-run file with empty amp.mcpServers so global ~/.config/amp MCP is
+	// not inherited. Account MCP and workspace .amp/settings.json may still
+	// load; Amp has no --strict-mcp-config equivalent.
+	var settingsPath, mcpConfigPath string
+	var fileCleanup func()
+	settingsPath, err = writeAmpSettingsIsolateToTemp()
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	fileCleanup = func() {
+		cleanupAmpSettingsTemp(settingsPath)
+		cleanupMcpConfigTemp(mcpConfigPath)
+	}
+	args = append(args, "--settings-file", settingsPath)
+	if hasManagedMcpConfig(opts.McpConfig) {
+		path, err := writeMcpConfigToTemp(opts.McpConfig)
+		if err != nil {
+			fileCleanup()
+			cancel()
+			return nil, fmt.Errorf("write amp mcp_config: %w", err)
+		}
+		mcpConfigPath = path
+		args = append(args, "--mcp-config", mcpConfigPath)
+	}
+	defer func() {
+		if fileCleanup != nil {
+			fileCleanup()
+		}
+	}()
+
 	cmd, _, _ := b.cfg.commandAt(execName).execVia(runCtx, chooseAmpInvocation, lookedUp, args, b.cfg.Logger)
 	hideAgentWindow(cmd)
 	b.cfg.logAgentCommand(cmd, newAgentCommandLogArgs(args))
@@ -208,7 +281,8 @@ func (b *ampBackend) Execute(ctx context.Context, prompt string, opts ExecOption
 		cancel()
 		return nil, fmt.Errorf("start amp: %w", err)
 	}
-	b.cfg.Logger.Info("amp started", "pid", cmd.Process.Pid, "cwd", opts.Cwd)
+	fileCleanup = nil
+	b.cfg.Logger.Info("amp started", "pid", cmd.Process.Pid, "cwd", opts.Cwd, "model", opts.Model)
 
 	writeErrCh := make(chan error, 1)
 	go func() {
@@ -223,6 +297,10 @@ func (b *ampBackend) Execute(ctx context.Context, prompt string, opts ExecOption
 		defer cancel()
 		defer close(msgCh)
 		defer close(resCh)
+		defer cleanupAmpSettingsTemp(settingsPath)
+		if mcpConfigPath != "" {
+			defer cleanupMcpConfigTemp(mcpConfigPath)
+		}
 
 		started := time.Now()
 		state := ampStreamState{usage: make(map[string]TokenUsage)}

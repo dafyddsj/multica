@@ -77,6 +77,12 @@ func TestBuildAmpArgsFreshAndResume(t *testing.T) {
 		}
 	}
 
+	withMode := buildAmpArgs("", ExecOptions{Model: "high"}, slog.Default())
+	joinedMode := strings.Join(withMode, " ")
+	if !strings.Contains(joinedMode, "--mode high") {
+		t.Fatalf("fresh with model missing --mode high: %v", withMode)
+	}
+
 	resume := buildAmpArgs(ampThreadID(ampFixtureThread), ExecOptions{}, slog.Default())
 	wantResume := []string{"threads", "continue", ampFixtureThread, "--execute"}
 	for i, want := range wantResume {
@@ -96,14 +102,15 @@ func TestBuildAmpArgsKeepsProtocolManaged(t *testing.T) {
 		CustomArgs: []string{
 			"-x", "--stream-json", "--stream-json-input", "--stream-json-thinking",
 			"--dangerously-allow-all", "--no-archive-after-execute", "--unarchive",
-			"--mcp-config", "injected.json", "--resume", "other",
+			"--mcp-config", "injected.json", "--settings-file", "evil.json",
+			"--mode", "ultra", "-m", "low", "--resume", "other",
 			"--continue", "--no-tui", "--executor", "orb", "-p", "prompt-text",
 			"--output-format", "text", "threads", "continue", ampFixtureThread, "--debug",
 		},
 	}, slog.Default())
 	joined := strings.Join(args, " ")
 	for _, forbidden := range []string{
-		"injected.json", "other", "orb", "prompt-text", "text", ampFixtureThread, "--resume", "--no-tui",
+		"injected.json", "evil.json", "other", "orb", "prompt-text", "text", ampFixtureThread, "--resume", "--no-tui",
 	} {
 		if strings.Contains(joined, forbidden) {
 			t.Fatalf("managed argument %q leaked into %v", forbidden, args)
@@ -123,6 +130,11 @@ func TestBuildAmpArgsKeepsProtocolManaged(t *testing.T) {
 	}
 	if !strings.Contains(joined, "--sandbox") || !strings.Contains(joined, "--debug") {
 		t.Fatalf("non-managed custom args missing from %v", args)
+	}
+	for _, arg := range args {
+		if arg == "--mode" || arg == "-m" || arg == "ultra" || arg == "low" {
+			t.Fatalf("custom --mode leaked into %v", args)
+		}
 	}
 }
 
@@ -151,6 +163,11 @@ if [ "$1" = "threads" ] && [ "$2" = "archive" ]; then
 fi
 if [ -n "$AMP_ARGS_FILE" ]; then printf '%s\n' "$@" > "$AMP_ARGS_FILE"; fi
 if [ -n "$AMP_STDIN_FILE" ]; then cat > "$AMP_STDIN_FILE"; fi
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--mcp-config" ] && [ -n "$AMP_MCP_CAPTURE_FILE" ]; then cp "$2" "$AMP_MCP_CAPTURE_FILE"; fi
+  if [ "$1" = "--settings-file" ] && [ -n "$AMP_SETTINGS_CAPTURE_FILE" ]; then cp "$2" "$AMP_SETTINGS_CAPTURE_FILE"; fi
+  shift
+done
 case "$AMP_MODE" in
   error)
     printf '%s\n' '{"type":"system","subtype":"init","session_id":"T-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}'
@@ -388,6 +405,35 @@ func TestAmpBackendDeliversPromptOnStdin(t *testing.T) {
 	}
 }
 
+func TestAmpBackendPassesMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture is POSIX-only")
+	}
+	argsPath := filepath.Join(t.TempDir(), "amp.args")
+	backend := newFakeAmpBackend(t, map[string]string{"AMP_ARGS_FILE": argsPath})
+	session, err := backend.Execute(context.Background(), "task", ExecOptions{
+		Model:   "ultra",
+		Timeout: 5 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	_, result := awaitAmpResult(t, session)
+	if result.Status != "completed" {
+		t.Fatalf("result = %+v", result)
+	}
+	got, err := os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatalf("read args: %v", err)
+	}
+	if !strings.Contains(string(got), "--mode\nultra") && !strings.Contains(string(got), "--mode ultra") {
+		joined := strings.ReplaceAll(string(got), "\n", " ")
+		if !strings.Contains(joined, "--mode ultra") {
+			t.Fatalf("Execute argv missing --mode ultra: %q", got)
+		}
+	}
+}
+
 func TestAmpExtraArgsReachTheCommandLine(t *testing.T) {
 	t.Parallel()
 	argsFile := filepath.Join(t.TempDir(), "args.txt")
@@ -440,17 +486,101 @@ func TestAmpFixtureParses(t *testing.T) {
 	}
 }
 
-func TestAmpListModelsIsEmptyWithoutSpawning(t *testing.T) {
+func TestAmpListModelsReturnsModesWithoutSpawning(t *testing.T) {
 	t.Parallel()
 	cat, err := ListModels(context.Background(), "amp", Command{Path: "/nonexistent/amp"})
 	if err != nil {
 		t.Fatalf("ListModels(amp): %v", err)
 	}
-	if len(cat.Models) != 0 {
-		t.Fatalf("ListModels(amp) = %d models, want empty", len(cat.Models))
+	want := ampModeCatalog()
+	if !reflect.DeepEqual(cat.Models, want) {
+		t.Fatalf("ListModels(amp) = %#v, want %#v", cat.Models, want)
 	}
-	if ModelSelectionSupported("amp") {
-		t.Fatal("ModelSelectionSupported(amp) should be false")
+	if !ModelSelectionSupported("amp") {
+		t.Fatal("ModelSelectionSupported(amp) should be true so the picker sends --mode")
+	}
+}
+
+func TestAmpBackendPassesManagedMCPThroughTempFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture is POSIX-only")
+	}
+	capturePath := filepath.Join(t.TempDir(), "amp.mcp.json")
+	argsPath := filepath.Join(t.TempDir(), "amp.args")
+	mcpConfig := json.RawMessage(`{"mcpServers":{"demo":{"command":"echo","args":["hello"]}}}`)
+	backend := newFakeAmpBackend(t, map[string]string{"AMP_ARGS_FILE": argsPath, "AMP_MCP_CAPTURE_FILE": capturePath})
+	session, err := backend.Execute(context.Background(), "task", ExecOptions{McpConfig: mcpConfig, Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	_, result := awaitAmpResult(t, session)
+	if result.Status != "completed" {
+		t.Fatalf("result = %+v", result)
+	}
+	argsData, err := os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatalf("read amp args: %v", err)
+	}
+	args := strings.Split(strings.TrimSpace(string(argsData)), "\n")
+	mcpPath := ""
+	settingsPath := ""
+	for i, arg := range args {
+		if arg == "--mcp-config" && i+1 < len(args) {
+			mcpPath = args[i+1]
+		}
+		if arg == "--settings-file" && i+1 < len(args) {
+			settingsPath = args[i+1]
+		}
+	}
+	if mcpPath == "" {
+		t.Fatalf("managed MCP argument missing from %v", args)
+	}
+	if settingsPath == "" {
+		t.Fatalf("settings-file isolation missing from %v", args)
+	}
+	data, err := os.ReadFile(capturePath)
+	if err != nil {
+		t.Fatalf("read captured managed MCP file: %v", err)
+	}
+	if string(data) != string(mcpConfig) {
+		t.Fatalf("managed MCP file = %s, want %s", data, mcpConfig)
+	}
+	if _, err := os.Stat(mcpPath); !os.IsNotExist(err) {
+		t.Fatalf("managed MCP file should be removed after completion, stat err=%v", err)
+	}
+	if _, err := os.Stat(settingsPath); !os.IsNotExist(err) {
+		t.Fatalf("settings isolate file should be removed after completion, stat err=%v", err)
+	}
+}
+
+func TestAmpBackendIsolatesGlobalMcpSettings(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture is POSIX-only")
+	}
+	capturePath := filepath.Join(t.TempDir(), "amp.settings.json")
+	argsPath := filepath.Join(t.TempDir(), "amp.args")
+	backend := newFakeAmpBackend(t, map[string]string{"AMP_ARGS_FILE": argsPath, "AMP_SETTINGS_CAPTURE_FILE": capturePath})
+	session, err := backend.Execute(context.Background(), "task", ExecOptions{Timeout: 5 * time.Second})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	_, result := awaitAmpResult(t, session)
+	if result.Status != "completed" {
+		t.Fatalf("result = %+v", result)
+	}
+	argsData, err := os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatalf("read amp args: %v", err)
+	}
+	if strings.Contains(string(argsData), "--mcp-config") {
+		t.Fatalf("empty managed MCP should not pass --mcp-config: %s", argsData)
+	}
+	got, err := os.ReadFile(capturePath)
+	if err != nil {
+		t.Fatalf("read captured settings file: %v", err)
+	}
+	if string(got) != ampEmptyMcpSettings {
+		t.Fatalf("settings file = %q, want empty amp.mcpServers", got)
 	}
 }
 

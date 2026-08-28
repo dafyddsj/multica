@@ -273,10 +273,11 @@ func ListModels(ctx context.Context, providerType string, runtimeCmd Command) (C
 		// an ACP subprocess that can only ever come back empty.
 		return Catalog{Models: []Model{}}, nil
 	case "amp":
-		// Amp's product dial is mode/effort (SDK extras), not a verified CLI
-		// --model. An empty catalog plus ModelSelectionSupported=false keeps
-		// the picker on "Managed by runtime" instead of advertising a dead knob.
-		return Catalog{Models: []Model{}}, nil
+		// Amp's product dial is --mode (low|medium|high|ultra or a plugin
+		// mode), not a model id. The catalog is static so the picker does not
+		// spawn amp. Plugin modes can still be typed; they pass through --mode
+		// unchanged.
+		return Catalog{Models: ampModeCatalog()}, nil
 	default:
 		return Catalog{}, fmt.Errorf("unknown agent type: %q", providerType)
 	}
@@ -380,7 +381,7 @@ func QualifyModelID(catalog Catalog, model string) (string, bool) {
 // dropdown plus a silently-ignored manual-entry field.
 func ModelSelectionSupported(providerType string) bool {
 	switch providerType {
-	case "qwenpaw", "mcode", "zeroclaw", "amp":
+	case "qwenpaw", "mcode", "zeroclaw":
 		// QwenPaw's `session/set_model` persists to agent.json at the agent
 		// scope, not the session scope. Calling it would mutate the user's
 		// shared, persistent agent config. Model override is therefore
@@ -392,7 +393,8 @@ func ModelSelectionSupported(providerType string) bool {
 		// its ACP dispatch table at all (0.8.4 answers -32601) and no handler
 		// reads a model param, so the model comes from the ZeroClaw agent
 		// profile (`agents.<alias>.model_provider`) and nothing Multica sends
-		// can change it.
+		// can change it. Amp is not in this list: its picker values are
+		// --mode tokens (low|medium|high|ultra), not model ids.
 		return false
 	default:
 		return true
