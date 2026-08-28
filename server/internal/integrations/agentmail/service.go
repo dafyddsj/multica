@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
@@ -73,6 +74,8 @@ type Config struct {
 	HostedOrgKey        string
 	WorkspaceInboxLimit int
 	MCPURL              string
+	APIBaseURL          string
+	HTTPClient          *http.Client
 }
 
 type WorkspaceStatus struct {
@@ -97,7 +100,7 @@ type Service struct {
 }
 
 func New(cfg Config, q *db.Queries) (*Service, error) {
-	return newService(cfg, q, liveClient{})
+	return newService(cfg, q, newLiveClient(cfg.HTTPClient, cfg.APIBaseURL))
 }
 
 // NewMemory builds a service backed by an in-process remote. Production uses New.

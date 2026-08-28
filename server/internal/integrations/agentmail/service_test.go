@@ -414,18 +414,18 @@ func TestServiceLifecycle(t *testing.T) {
 	})
 
 	t.Run("permission whitelist excludes management scopes", func(t *testing.T) {
-		forbidden := []string{"inbox_create", "api_key_create", "pod_create"}
-		for _, p := range inboxKeyPermissions {
+		forbidden := []string{"inbox_create", "inbox_delete", "api_key_create", "pod_create"}
+		for name, on := range inboxKeyPermissions {
+			if !on {
+				t.Fatalf("inboxKeyPermissions %q is false", name)
+			}
 			for _, bad := range forbidden {
-				if p == bad {
+				if name == bad {
 					t.Fatalf("inboxKeyPermissions contains %q", bad)
 				}
 			}
-			if strings.HasPrefix(p, "api_key_") || strings.HasPrefix(p, "pod_") || strings.HasPrefix(p, "domain_") {
-				t.Fatalf("inboxKeyPermissions contains management scope %q", p)
-			}
-			if p == "inbox_delete" {
-				t.Fatal("inboxKeyPermissions contains inbox_delete")
+			if strings.HasPrefix(name, "api_key_") || strings.HasPrefix(name, "pod_") || strings.HasPrefix(name, "domain_") {
+				t.Fatalf("inboxKeyPermissions contains management scope %q", name)
 			}
 		}
 	})

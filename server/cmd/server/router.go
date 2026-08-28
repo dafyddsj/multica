@@ -1138,6 +1138,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	}
 	agentMailCfg := agentmailinteg.Config{
 		HostedOrgKey: hostedOrgKey,
+		APIBaseURL:   strings.TrimSpace(os.Getenv("MULTICA_AGENTMAIL_API_BASE")),
 	}
 	if key, err := secretbox.LoadKey("MULTICA_AGENTMAIL_SECRET_KEY"); err == nil {
 		box, err := secretbox.New(key)
