@@ -106,5 +106,54 @@
   },
   "duration": {
     "less_than_minute": "1分未満"
+  },
+  "budgets": {
+    "title": "予算",
+    "caption": "上限は新しい作業に適用されます。実行中の作業はそのまま完了できます。",
+    "add": "予算を追加",
+    "empty": "予算はまだありません。",
+    "edit": "編集",
+    "delete": "削除",
+    "delete_confirm_title": "この予算を削除しますか？",
+    "delete_confirm_body": "新しい作業はこの上限の対象外になります。",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "create": "作成",
+    "limit_label": "月次上限（USD）",
+    "scope_label": "対象種別",
+    "owner_label": "対象",
+    "scope": {
+      "project": "プロジェクト",
+      "initiative": "イニシアチブ",
+      "agent": "エージェント",
+      "squad": "スクワッド"
+    },
+    "soften_label": "しきい値で緩和する",
+    "soften_hint": "この割合を超えると、次の新しい作業は軽量レーンを使います。",
+    "soften_percent_label": "しきい値（%）",
+    "over_limit_label": "上限到達時",
+    "over_limit_pause": "新しい作業を停止",
+    "over_limit_allow": "超過を許可",
+    "spent_of_limit": "{{spent}} / {{limit}}",
+    "bar_label": "月次上限に対する使用量",
+    "dialog_create_title": "新しい予算",
+    "dialog_edit_title": "予算を編集",
+    "state": {
+      "ok": "順調",
+      "softened": "緩和中",
+      "exhausted": "上限到達",
+      "pricing_incomplete": "一部の使用量に価格がありません。すべての行にレートが付くまで停止は閉じたままです。",
+      "unattributed": "帰属できる使用量はまだありません。作業がこの対象を持つまでバーは空のままです。",
+      "allow_over": "今月は超過できます"
+    },
+    "waiver": {
+      "bypass": "制限を免除",
+      "end": "免除を終了",
+      "title": "制限を免除",
+      "body": "UTC 月の終わりまで、このプロジェクトまたはイニシアチブの停止と緩和をスキップします。エージェントとスクワッドの上限は引き続き適用されます。",
+      "reason_label": "理由（任意）",
+      "confirm": "免除する",
+      "chip": "{{date}} まで制限を免除"
+    }
   }
 }

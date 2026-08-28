@@ -94,6 +94,14 @@ vi.mock("@tanstack/react-query", async () => {
           isSuccess: true,
         };
       }
+      if (opts.queryKey[0] === "budgets") {
+        return {
+          data:
+            opts.queryKey[2] === "waivers" ? { waivers: [] } : { budgets: [] },
+          isLoading: false,
+          isSuccess: true,
+        };
+      }
       if (dashboardDataRef.current) {
         // ["workspaces", wsId, "agents"] — needed so the Errors breakdown can
         // resolve agent-1 to a name and render its drill-down link.
@@ -235,6 +243,25 @@ vi.mock("@tanstack/react-query", async () => {
 
 vi.mock("@multica/core/hooks", () => ({
   useWorkspaceId: () => "ws-1",
+}));
+
+vi.mock("@multica/core/permissions", () => ({
+  useCurrentMember: () => ({
+    userId: "user-1",
+    role: "member",
+    member: null,
+    isLoading: false,
+  }),
+}));
+
+vi.mock("@multica/core/budgets", () => ({
+  useBudgets: () => ({ data: { budgets: [] }, isLoading: false, isSuccess: true }),
+  useBudgetWaivers: () => ({ data: { waivers: [] }, isLoading: false, isSuccess: true }),
+  useCreateBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateBudgetWaiver: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteBudgetWaiver: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 // The leaderboard renders ActorAvatar, which resolves avatar URLs through

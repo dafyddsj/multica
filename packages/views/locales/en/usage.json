@@ -106,5 +106,54 @@
   },
   "duration": {
     "less_than_minute": "<1m"
+  },
+  "budgets": {
+    "title": "Budgets",
+    "caption": "Caps apply to new tasks. Work already running can still finish.",
+    "add": "Add budget",
+    "empty": "No budgets yet.",
+    "edit": "Edit",
+    "delete": "Delete",
+    "delete_confirm_title": "Delete this budget?",
+    "delete_confirm_body": "New tasks will no longer be limited by this cap.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "create": "Create",
+    "limit_label": "Monthly limit (USD)",
+    "scope_label": "Scope",
+    "owner_label": "Owner",
+    "scope": {
+      "project": "Project",
+      "initiative": "Initiative",
+      "agent": "Agent",
+      "squad": "Squad"
+    },
+    "soften_label": "Soften at threshold",
+    "soften_hint": "Past this percent, the next new task uses the lightweight lane.",
+    "soften_percent_label": "Threshold percent",
+    "over_limit_label": "At the limit",
+    "over_limit_pause": "Pause new work",
+    "over_limit_allow": "Allow overspend",
+    "spent_of_limit": "{{spent}} / {{limit}}",
+    "bar_label": "Spend against the monthly cap",
+    "dialog_create_title": "New budget",
+    "dialog_edit_title": "Edit budget",
+    "state": {
+      "ok": "On track",
+      "softened": "Softened",
+      "exhausted": "At limit",
+      "pricing_incomplete": "Some usage is unpriced. Pause stays closed until every line has a rate.",
+      "unattributed": "No spend can be attributed yet. The bar stays empty until tasks carry this owner.",
+      "allow_over": "May exceed this month"
+    },
+    "waiver": {
+      "bypass": "Bypass teeth",
+      "end": "End bypass",
+      "title": "Bypass teeth",
+      "body": "Skip pause and soften for this project or initiative until the end of the UTC month. Agent and squad caps still apply.",
+      "reason_label": "Reason (optional)",
+      "confirm": "Bypass",
+      "chip": "Teeth waived until {{date}}"
+    }
   }
 }

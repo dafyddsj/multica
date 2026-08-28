@@ -12,8 +12,8 @@ import {
   NumberFlow,
 } from "@multica/ui/components/ui/number-flow";
 import { useWorkspaceId } from "@multica/core/hooks";
-import type { Agent } from "@multica/core/types";
-import { agentListOptions } from "@multica/core/workspace/queries";
+import type { Agent, Squad } from "@multica/core/types";
+import { agentListOptions, squadListOptions } from "@multica/core/workspace/queries";
 import { projectListOptions } from "@multica/core/projects/queries";
 import { initiativeListOptions } from "@multica/core/initiatives/queries";
 import {
@@ -75,6 +75,7 @@ import {
 import { UsageTrendCard } from "./usage-trend-card";
 import { Leaderboard } from "./leaderboard";
 import { ErrorsTab } from "./errors-tab";
+import { BudgetsCard } from "./budgets-card";
 import { cn } from "@multica/ui/lib/utils";
 
 // Stable references — `data ?? []` would create a new empty array on
@@ -88,6 +89,7 @@ const EMPTY_FAILURE_DAILY: import("@multica/core/types").DashboardFailureDaily[]
 const EMPTY_FAILURE_BY_AGENT: import("@multica/core/types").DashboardFailureByAgent[] =
   [];
 const EMPTY_AGENTS: Agent[] = [];
+const EMPTY_SQUADS: Squad[] = [];
 
 type DashboardTab = "usage" | "errors";
 const TAB_QUERY_KEY = "tab";
@@ -188,6 +190,7 @@ export function DashboardPage() {
   const { data: initiatives = [] } = useQuery(initiativeListOptions(wsId));
   const agentsQuery = useQuery(agentListOptions(wsId));
   const agents = agentsQuery.data ?? EMPTY_AGENTS;
+  const { data: squads = EMPTY_SQUADS } = useQuery(squadListOptions(wsId));
 
   // Validate the picked initiative against the current workspace's list. A
   // stale UUID would silently empty every rollup while the chip still read
@@ -569,6 +572,11 @@ export function DashboardPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl p-6">
           <TabsContent value="usage" className="space-y-5">
+            <BudgetsCard
+              wsId={wsId}
+              locales={locales}
+              lists={{ projects, initiatives, agents, squads }}
+            />
             {usageLoading ? (
               <DashboardSkeleton />
             ) : usageHasNoData ? (
