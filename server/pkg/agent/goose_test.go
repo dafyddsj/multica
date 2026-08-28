@@ -139,8 +139,8 @@ func TestFilterGooseBlockedArgs(t *testing.T) {
 func fakeGooseScript() string {
 	return `#!/bin/sh
 if [ -n "$GOOSE_ARGS_FILE" ]; then printf '%s\n' "$@" > "$GOOSE_ARGS_FILE"; fi
-if [ -n "$GOOSE_STDIN_FILE" ]; then cat > "$GOOSE_STDIN_FILE"; fi
 if [ -n "$GOOSE_ENV_FILE" ]; then printf '%s\n' "$GOOSE_MODE" > "$GOOSE_ENV_FILE"; fi
+if [ -n "$GOOSE_STDIN_FILE" ]; then cat > "$GOOSE_STDIN_FILE"; else cat >/dev/null; fi
 case "$GOOSE_MODE_FAKE" in
   error)
     printf '%s\n' '{"type":"error","error":"synthetic goose failure"}'
