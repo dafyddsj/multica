@@ -337,7 +337,7 @@ func TestEnqueueSnapshotsBudgetCoverage(t *testing.T) {
 			RETURNING id`, g.workspaceID, g.squadID, g.userID).Scan(&autopilotID)
 		g.pool.Cleanup(t, `DELETE FROM autopilot WHERE id = $1`, autopilotID)
 		g.pool.QueryRow(t, `
-			INSERT INTO autopilot_run (autopilot_id, source, status) VALUES ($1, 'manual', 'pending')
+			INSERT INTO autopilot_run (autopilot_id, source, status) VALUES ($1, 'manual', 'running')
 			RETURNING id`, autopilotID).Scan(&runID)
 		g.pool.Cleanup(t, `DELETE FROM autopilot_run WHERE id = $1`, runID)
 
