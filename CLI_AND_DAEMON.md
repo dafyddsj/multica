@@ -229,6 +229,7 @@ The daemon auto-detects these AI CLIs on your PATH:
 | [MiniMax Code](https://github.com/MiniMax-AI/minimax-code) | `mcode` | MiniMax Code ACP coding agent (ACP via `mcode acp`; model is managed by MCode) |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | `dsh` | DeepSeek Harness (`dsh --profile multica --stdio`; requires the Multica runtime profile to be installed; reads AGENTS.md and .dsh/skills/) |
 | [Amp](https://ampcode.com) | `amp` | Amp headless CLI (`amp --execute --stream-json`; resume via `amp threads continue`; mode via `--mode`) |
+| [Devin](https://docs.devin.ai/cli) | `devin` | Local Devin CLI (`devin --print`; resume via `--resume <id>`; not Devin Cloud) |
 
 You need at least one installed. The daemon registers each detected CLI as an available runtime.
 
@@ -346,6 +347,8 @@ Agent-specific overrides:
 | `MULTICA_QWENPAW_ARGS` | Daemon-wide extra QwenPaw arguments (POSIX shellword parsing; managed protocol flags are filtered) |
 | `MULTICA_AMP_PATH` | Custom path to the `amp` binary |
 | `MULTICA_AMP_ARGS` | Daemon-wide extra Amp arguments (POSIX shellword parsing; managed protocol flags are filtered) |
+| `MULTICA_DEVIN_PATH` | Custom path to the `devin` binary |
+| `MULTICA_DEVIN_ARGS` | Daemon-wide extra Devin arguments (POSIX shellword parsing; managed protocol flags are filtered) |
 | `MULTICA_MCODE_PATH` | Custom path to the `mcode` binary |
 | `MULTICA_DSH_PATH` | Custom path to the `dsh` binary |
 | `MULTICA_DSH_MODEL` | Override the DeepSeek Harness model used (a model id from the dsh catalog, e.g. `deepseek-official/deepseek-chat`) |
@@ -356,6 +359,8 @@ The daemon launches Qoder and Qoder CN as `qodercli --yolo --acp` and `qoderclic
 The daemon launches Qwen Code as `qwen -p <prompt> --output-format stream-json`. It writes the task brief to `QWEN.md`; when an agent has managed `mcp_config`, the daemon writes a 0600 per-run JSON file and passes it through `--mcp-config <path>`, then removes it after the process exits. A null config preserves Qwen Code native MCP settings.
 
 The daemon launches Amp as `amp --execute --stream-json --stream-json-thinking --dangerously-allow-all --no-archive-after-execute`, with the prompt on stdin. Without `--no-archive-after-execute`, Amp archives the thread when `--execute` exits and `amp threads continue` then fails with "This thread is archived and cannot be continued." Resume is `amp threads archive --unarchive <T-uuid>` followed by `amp threads continue <T-uuid>` plus the same execute flags. It writes the task brief to `AGENTS.md` and skills to `.agents/skills/`. The agent model field is passed as `--mode` (`low` / `medium` / `high` / `ultra`, or a plugin mode). When an agent has managed `mcp_config`, the daemon writes a 0600 per-run JSON file and passes `--mcp-config <path>`. Every Amp launch also gets `--settings-file` pointing at a per-run file with empty `amp.mcpServers`, so global `~/.config/amp` MCP is not inherited. Amp account MCP and workspace `.amp/settings.json` may still load. There is no `MULTICA_AMP_MODEL`.
+
+The daemon launches Devin as `devin --print --prompt-file <tmp> --permission-mode dangerous --respect-workspace-trust false`. The prompt is never placed on argv. Resume is `--resume <parsed-id>`; `-c` / `--continue` and a value-less `--resume` are never emitted. It writes the task brief to `AGENTS.md` and skills to `.devin/skills/`. Multica-managed MCP is off until an isolated `--config` canary. There is no `MULTICA_DEVIN_MODEL`.
 
 #### `mcp_config` on ACP runtimes
 

@@ -23,6 +23,7 @@ Multica currently detects these commands:
 | GitHub Copilot CLI | `copilot` | [Install Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli) |
 | Cursor Agent | `cursor-agent` | [Install Cursor CLI](https://docs.cursor.com/en/cli/installation) |
 | DeepSeek Harness | `dsh` | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) |
+| Devin | `devin` | [Devin CLI](https://docs.devin.ai/cli) |
 | DevEco Code | `deveco` | [DevEco Code](https://gitcode.com/openharmony-sig/deveco-code) |
 | Grok Build | `grok` | [Grok Build quickstart](https://docs.x.ai/build/overview) |
 | Hermes Agent | `hermes` | [Hermes quickstart](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart/) |
@@ -52,6 +53,8 @@ For Reasonix, run `reasonix setup` and configure a default provider and model be
 For QwenPaw, choose the provider and model in QwenPaw's own configuration. Multica cannot override a QwenPaw model at run time.
 
 For Amp, sign in with `amp login` or set `AMP_API_KEY`. Amp picks its own model; Multica does not send `--model`.
+
+For Devin, sign in with `devin auth login`. v1 is the local CLI (`devin --print`), not Devin Cloud. Multica does not list Devin models until a logged-in `devin models list` canary.
 
 For MiniMax Code, install a supported Node.js release (`>=22.19 <23` or `>=24 <27`) and run `npm install --global @minimax-ai/code@latest`. A global npm install places `mcode` on npm's global binary path; if `command -v mcode` or `Get-Command mcode` cannot find it, add that path to `PATH`. Then run `mcode login`. MiniMax Code owns the model selection; Multica cannot override it through ACP.
 

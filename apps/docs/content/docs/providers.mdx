@@ -28,6 +28,7 @@ Install steps are in [Install AI coding tools](/install-agent-runtime).
 | GitHub Copilot CLI | `copilot` | ✓ | — | `.github/skills/` |
 | Cursor Agent | `cursor-agent` | ✓ | ✓ | `.cursor/skills/` |
 | DeepSeek Harness | `dsh` | ✓ | ✓ | `.dsh/skills/` |
+| Devin | `devin` | ✓ | — | `.devin/skills/` |
 | DevEco Code | `deveco` | ✓ | — | `.deveco/skills/` |
 | Grok | `grok` | ✓ | ✓ | `.grok/skills/` |
 | Hermes | `hermes` | ✓ | ✓ | per-task `HERMES_HOME/skills/` |
@@ -74,7 +75,7 @@ Retry and session-resumption rules are in [Tasks](/tasks#manual-retry).
 
 ## MCP configuration
 
-Antigravity, GitHub Copilot CLI, DevEco Code, and Pi do not read the MCP configuration on an agent yet, so the field is not shown when creating agents for them.
+Antigravity, GitHub Copilot CLI, DevEco Code, Devin, and Pi do not read the MCP configuration on an agent yet, so the field is not shown when creating agents for them. Devin v1 is the local CLI (`devin --print`), not Devin Cloud.
 
 <Callout type="warning">
 MCP server commands, arguments, and environment variables are saved server-side with the agent configuration. Do not write local credentials you have no need to share into the configuration.

@@ -241,6 +241,12 @@ backends may consume protocol selectors before launch:
   `--executor`, `-p`, and `--output-format`. Those tokens are stripped from
   `custom_args`. The first-class `model` field is sent as `--mode`. Put extra
   Amp flags in `custom_args` or `MULTICA_AMP_ARGS`; do not put `--mode` there.
+- Devin owns `--print` / `-p`, `--prompt-file`, `--permission-mode`,
+  `--respect-workspace-trust`, `--model`, `-c` / `--continue`, `-r` / `--resume`,
+  `--sandbox`, and the `acp` / `cloud` / `ssh` / `desktop` subcommands. Those
+  tokens are stripped from `custom_args`. Resume requires a parsed local CLI
+  session id. Do not emit `-c` or a value-less `--resume`. Put extra Devin
+  flags in `custom_args` or `MULTICA_DEVIN_ARGS`.
 
 Never put credentials or other secrets in `custom_args`. Daemon command logs
 redact argument values, but values that a backend does not consume still live

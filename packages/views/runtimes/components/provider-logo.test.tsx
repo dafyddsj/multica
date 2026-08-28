@@ -93,6 +93,19 @@ describe("ProviderLogo", () => {
     expect(logo?.classList.contains("runtime-logo")).toBe(true);
   });
 
+  it("renders the Devin letter mark instead of the generic fallback", () => {
+    const { container } = render(
+      <ProviderLogo provider="devin" className="runtime-logo" />,
+    );
+
+    const logo = container.querySelector("svg");
+    expect(logo?.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(logo?.getAttribute("stroke")).toBe("currentColor");
+    expect(logo?.querySelectorAll("path").length).toBe(1);
+    expect(logo?.querySelector("rect")).toBeTruthy();
+    expect(logo?.classList.contains("runtime-logo")).toBe(true);
+  });
+
   it("renders the Amp letter mark instead of the generic fallback", () => {
     const { container } = render(
       <ProviderLogo provider="amp" className="runtime-logo" />,
