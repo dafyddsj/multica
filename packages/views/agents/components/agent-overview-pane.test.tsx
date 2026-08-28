@@ -45,6 +45,9 @@ vi.mock("./tabs/mcp-config-tab", () => ({
 vi.mock("./tabs/integrations-tab", () => ({
   IntegrationsTab: () => <div>integrations-tab</div>,
 }));
+vi.mock("./tabs/email-tab", () => ({
+  EmailTab: () => <div>email-tab</div>,
+}));
 vi.mock("../../common/actor-issues-panel", () => ({
   ActorIssuesPanel: () => <div>actor-issues-panel</div>,
 }));
@@ -94,6 +97,7 @@ vi.mock("@multica/core/telegram", () => ({
   }),
 }));
 
+import { configStore } from "@multica/core/config";
 import { AgentOverviewPane } from "./agent-overview-pane";
 
 const baseAgent: Agent = {
@@ -187,6 +191,10 @@ beforeEach(() => {
   larkListingRef.current = { installations: [], configured: false };
   slackListingRef.current = { installations: [], configured: false };
   telegramListingRef.current = { installations: [], configured: false };
+  configStore.getState().setAuthConfig({
+    allowSignup: true,
+    agentmailAvailable: false,
+  });
 });
 
 describe("AgentOverviewPane MCP tab visibility", () => {
@@ -263,6 +271,34 @@ describe("AgentOverviewPane Integrations tab visibility", () => {
     expect(
       screen.queryByRole("tab", { name: /^Integrations$/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("AgentOverviewPane Email tab visibility", () => {
+  it("shows Email when AgentMail is available and the viewer can manage the agent", () => {
+    configStore.getState().setAuthConfig({
+      allowSignup: true,
+      agentmailAvailable: true,
+    });
+    renderPane([makeRuntime("claude")]);
+    openCapabilities();
+    expect(screen.getByRole("tab", { name: /^Email$/i })).toBeInTheDocument();
+  });
+
+  it("hides Email when the deployment has no AgentMail box", () => {
+    renderPane([makeRuntime("claude")]);
+    openCapabilities();
+    expect(screen.queryByRole("tab", { name: /^Email$/i })).not.toBeInTheDocument();
+  });
+
+  it("hides Email from viewers who cannot manage the agent", () => {
+    configStore.getState().setAuthConfig({
+      allowSignup: true,
+      agentmailAvailable: true,
+    });
+    renderPane([makeRuntime("claude")], { canEdit: false });
+    openCapabilities();
+    expect(screen.queryByRole("tab", { name: /^Email$/i })).not.toBeInTheDocument();
   });
 });
 

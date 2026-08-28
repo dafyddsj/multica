@@ -285,11 +285,23 @@
     "mcp_config": "MCP",
     "composio_mcp": "MCP アプリ",
     "integrations": "連携",
+    "agentmail": "メール",
     "runtime_config": "ルーティング",
     "discard_dialog_title": "保存していない変更を破棄しますか？",
     "discard_dialog_description": "このタブに保存していない変更があります。今移動すると変更は破棄されます。",
     "discard_keep": "編集を続ける",
     "discard_confirm": "変更を破棄"
+  },
+  "email": {
+    "description": "このエージェント専用の AgentMail 受信箱を付与します。キーはタスクがクレームされたときだけ注入されます。",
+    "not_connected_prefix": "このワークスペースは AgentMail に未接続です。先に",
+    "settings_link": "設定 → メール",
+    "not_connected_suffix": "で接続してください。",
+    "switch_label": "エージェント受信箱",
+    "switch_off": "オフ。このエージェントに受信箱はありません。",
+    "toast_granted": "受信箱を付与しました",
+    "toast_revoked": "受信箱を取り消しました",
+    "toast_failed": "受信箱を更新できませんでした"
   },
   "create_dialog": {
     "title_create": "エージェントを作成",

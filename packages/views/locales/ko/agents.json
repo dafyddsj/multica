@@ -293,11 +293,23 @@
     "mcp_config": "MCP",
     "composio_mcp": "MCP 앱",
     "integrations": "연동",
+    "agentmail": "이메일",
     "runtime_config": "라우팅",
     "discard_dialog_title": "저장하지 않은 변경사항을 버릴까요?",
     "discard_dialog_description": "이 탭에 저장하지 않은 변경사항이 있습니다. 지금 나가면 변경사항이 사라집니다.",
     "discard_keep": "계속 편집",
     "discard_confirm": "변경사항 버리기"
+  },
+  "email": {
+    "description": "이 에이전트에 전용 AgentMail 받은편지함을 부여합니다. 키는 작업이 클레임될 때만 주입됩니다.",
+    "not_connected_prefix": "이 워크스페이스는 AgentMail에 연결되어 있지 않습니다. 먼저",
+    "settings_link": "설정 → 이메일",
+    "not_connected_suffix": "에서 연결하세요.",
+    "switch_label": "에이전트 받은편지함",
+    "switch_off": "꺼짐. 이 에이전트에는 받은편지함이 없습니다.",
+    "toast_granted": "받은편지함을 부여했습니다",
+    "toast_revoked": "받은편지함을 회수했습니다",
+    "toast_failed": "받은편지함을 업데이트하지 못했습니다"
   },
   "create_dialog": {
     "title_create": "에이전트 만들기",

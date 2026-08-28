@@ -302,11 +302,23 @@
     "mcp_config": "MCP",
     "composio_mcp": "MCP Apps",
     "integrations": "Integrations",
+    "agentmail": "Email",
     "runtime_config": "Routing",
     "discard_dialog_title": "Discard unsaved changes?",
     "discard_dialog_description": "You have unsaved changes in this tab. Leaving now will discard them.",
     "discard_keep": "Keep editing",
     "discard_confirm": "Discard changes"
+  },
+  "email": {
+    "description": "Grant this agent its own AgentMail inbox. The inbox key is injected only when a task is claimed.",
+    "not_connected_prefix": "This workspace is not connected to AgentMail. Connect it in",
+    "settings_link": "Settings → Email",
+    "not_connected_suffix": ".",
+    "switch_label": "Agent inbox",
+    "switch_off": "Off. This agent has no inbox.",
+    "toast_granted": "Inbox granted",
+    "toast_revoked": "Inbox revoked",
+    "toast_failed": "Could not update inbox"
   },
   "creation_studio": {
     "title": "Create an agent",

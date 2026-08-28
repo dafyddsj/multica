@@ -293,11 +293,23 @@
     "mcp_config": "MCP",
     "composio_mcp": "MCP 应用",
     "integrations": "集成",
+    "agentmail": "邮箱",
     "runtime_config": "路由",
     "discard_dialog_title": "放弃未保存的修改？",
     "discard_dialog_description": "当前 tab 有未保存的修改，离开会丢弃这些修改。",
     "discard_keep": "继续编辑",
     "discard_confirm": "放弃修改"
+  },
+  "email": {
+    "description": "为这个智能体开通独立的 AgentMail 邮箱。邮箱密钥只在任务被领取时注入。",
+    "not_connected_prefix": "此工作区尚未连接 AgentMail。请先到",
+    "settings_link": "设置 → 邮箱",
+    "not_connected_suffix": "连接。",
+    "switch_label": "智能体邮箱",
+    "switch_off": "未开通。此智能体没有邮箱。",
+    "toast_granted": "已开通邮箱",
+    "toast_revoked": "已关闭邮箱",
+    "toast_failed": "无法更新邮箱"
   },
   "creation_studio": {
     "title": "创建智能体",

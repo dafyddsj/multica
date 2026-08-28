@@ -8,7 +8,7 @@ import type {
   MemberWithUser,
 } from "@multica/core/types";
 import { providerSupportsMcpConfig } from "@multica/core/agents";
-import { useFeatureEnabled } from "@multica/core/config";
+import { useConfigStore, useFeatureEnabled } from "@multica/core/config";
 import { COMPOSIO_MCP_APPS_FLAG } from "@multica/core/feature-flags";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useAgentPermissions } from "@multica/core/permissions";
@@ -36,6 +36,7 @@ import { CustomArgsTab } from "./tabs/custom-args-tab";
 import { McpConfigTab } from "./tabs/mcp-config-tab";
 import { AgentMcpTab } from "./tabs/agent-mcp-tab";
 import { IntegrationsTab } from "./tabs/integrations-tab";
+import { EmailTab } from "./tabs/email-tab";
 import { RuntimeConfigTab } from "./tabs/runtime-config-tab";
 import { AgentDetailInspector } from "./agent-detail-inspector";
 import { AgentAccessSettings } from "./agent-access-settings";
@@ -55,6 +56,7 @@ export type DetailTab =
   | "mcp_config"
   | "composio_mcp"
   | "integrations"
+  | "agentmail"
   | "general"
   | "access"
   | "env"
@@ -69,6 +71,7 @@ type SecondaryTab = {
     | "mcp_config"
     | "composio_mcp"
     | "integrations"
+    | "agentmail"
     | "general"
     | "access"
     | "environment"
@@ -82,6 +85,7 @@ const CAPABILITY_TABS: SecondaryTab[] = [
   { id: "mcp_config", labelKey: "mcp_config" },
   { id: "composio_mcp", labelKey: "composio_mcp" },
   { id: "integrations", labelKey: "integrations" },
+  { id: "agentmail", labelKey: "agentmail" },
 ];
 
 const SETTINGS_TABS: SecondaryTab[] = [
@@ -163,6 +167,7 @@ export function AgentOverviewPane({
     COMPOSIO_MCP_APPS_FLAG,
     false,
   );
+  const agentmailAvailable = useConfigStore((s) => s.agentmailAvailable);
   const [activeView, setActiveView] = useState<DetailTab>(() =>
     isDetailTab(urlView) ? urlView : "overview",
   );
@@ -211,10 +216,13 @@ export function AgentOverviewPane({
       if (tab.id === "mcp_config") return showMcp;
       if (tab.id === "composio_mcp") return showComposioMcp;
       if (tab.id === "integrations") return integrationsConfigured;
+      if (tab.id === "agentmail") return agentmailAvailable && canEdit;
       return true;
     });
   }, [
     agent.owner_id,
+    agentmailAvailable,
+    canEdit,
     composioMCPAppsEnabled,
     currentUserId,
     integrationsConfigured,
@@ -457,6 +465,9 @@ export function AgentOverviewPane({
                   )}
                   {effectiveView === "integrations" && (
                     <IntegrationsTab agent={agent} />
+                  )}
+                  {effectiveView === "agentmail" && (
+                    <EmailTab agent={agent} />
                   )}
                   {effectiveView === "general" && (
                     <AgentDetailInspector
