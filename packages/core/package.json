@@ -123,6 +123,8 @@
     "./billing": "./billing/index.ts",
     "./billing/queries": "./billing/queries.ts",
     "./billing/mutations": "./billing/mutations.ts",
+    "./agentmail": "./agentmail/index.ts",
+    "./agentmail/queries": "./agentmail/queries.ts",
     "./github": "./github/index.ts",
     "./github/queries": "./github/queries.ts",
     "./vcs": "./vcs/index.ts",
