@@ -129,10 +129,11 @@ func TestAgentMailConnectGrantClaimAndRevoke(t *testing.T) {
 
 	testutil.Call(t, testHandler.RevokeAgentMailInbox, agentMailAgentReq(http.MethodDelete, agentID, nil)).
 		Want(http.StatusNoContent)
+	var revoked AgentMailInboxResponse
 	testutil.Call(t, testHandler.GetAgentMailInbox, agentMailAgentReq(http.MethodGet, agentID, nil)).
-		Want(http.StatusOK).JSON(&got)
-	if got.Enabled || got.Address != "" {
-		t.Fatalf("revoked inbox still enabled: %+v", got)
+		Want(http.StatusOK).JSON(&revoked)
+	if revoked.Enabled || revoked.Address != "" || revoked.State != "disabled" {
+		t.Fatalf("revoked inbox still enabled: %+v", revoked)
 	}
 }
 
