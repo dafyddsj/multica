@@ -1,0 +1,76 @@
+---
+title: AgentMail
+description: Give each agent its own email address. The workspace holds the minting key; each agent gets a narrowed inbox key only when a task is claimed.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+[AgentMail](https://www.agentmail.to) issues programmable inboxes. In Multica, a workspace connects once, then each agent can be granted its own address. The brand name **AgentMail** stays in English.
+
+<Callout type="info">
+This is not the [notification Inbox](/inbox). Settings → **Email** and the agent **Email** tab are mailboxes. `/{slug}/inbox` is still assignments, mentions, and failures.
+</Callout>
+
+Mail lives at AgentMail. Multica stores connection and inbox metadata plus sealed keys — never message bodies.
+
+## What you get
+
+- A workspace-wide connection: **hosted** (process env org key) or **bring your own** (your org or pod-scoped key).
+- A per-agent switch on the agent page. Turning it on creates an inbox; turning it off deletes the remote inbox so hosted quota can return.
+- At [task](/tasks) claim, Multica injects an inbox-scoped MCP server. The agent can read, send, and draft. It cannot create or delete inboxes, pods, domains, or API keys.
+- A text-only mail viewer on the agent Email tab for the agent owner and workspace owners/admins.
+
+Members can see granted addresses on Settings → Email. They cannot open the agent Email tab or the viewer.
+
+## Prerequisites (server)
+
+The Email tab stays hidden until the server can seal keys:
+
+```sh
+openssl rand -base64 32
+```
+
+```sh
+MULTICA_AGENTMAIL_SECRET_KEY=<base64 32-byte key>
+```
+
+Hosted connect also needs an AgentMail organization key in process env (never written to the database):
+
+```sh
+MULTICA_AGENTMAIL_ORG_KEY=am_...
+```
+
+`AGENTMAIL_ORG_API_KEY` is accepted as a fallback name. EU operators can point the client at `https://api.agentmail.eu/v0` with `MULTICA_AGENTMAIL_API_BASE`.
+
+Without the hosted org key, **Settings → Email** still offers bring-your-own: paste an org-level or pod-scoped key. An inbox-scoped key is rejected.
+
+Hosted workspaces default to five in-flight inboxes (`provisioning`, `minting_key`, `active`, `disabling`).
+
+## Connect a workspace
+
+1. Open **Settings → Email**.
+2. Choose **Hosted** (if the server offers it) or **Bring your own**.
+3. Connect. Switching hosted ↔ bring-your-own requires disconnect first.
+
+Disconnect revokes every agent inbox, then deletes the hosted pod when the workspace used hosted mode.
+
+## Grant an agent inbox
+
+1. Open the agent → **Email**.
+2. Turn **Agent inbox** on. Multica creates the remote inbox and seals a narrowed key.
+3. The address appears under the switch and on the workspace Email roster.
+
+Revoke deletes the remote inbox. Granting again reuses the same `client_id` (the agent UUID) so the address can return.
+
+Archiving an agent does not revoke its inbox. Restore keeps the address.
+
+## How the agent uses mail
+
+The inbox key is not stored on the agent row or in `custom_env`. It is merged into the claimed task's MCP config as `mcpServers.agentmail` and discarded with the claim. Failures here do not fail the claim.
+
+The viewer on the Email tab fetches threads live with that same inbox key and returns plain text only. HTML from AgentMail is dropped and never rendered.
+
+## Related
+
+- [Inbox and subscriptions](/inbox) — in-app notifications, not email.
+- [Environment variables](/environment-variables#external-integrations) — secret and hosted-key names.

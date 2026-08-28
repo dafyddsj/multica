@@ -43,6 +43,7 @@
     "telegram-bot-integration",
     "github-integration",
     "vcs-integration",
+    "agentmail-integration",
     "---앱---",
     "desktop-app",
     "mobile-app",

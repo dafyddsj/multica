@@ -1,0 +1,76 @@
+---
+title: AgentMail
+description: 에이전트마다 이메일 주소를 부여합니다. 워크스페이스가 발급 권한을 갖고, 작업이 클레임될 때만 좁혀진 inbox 키가 전달됩니다.
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+[AgentMail](https://www.agentmail.to)은 프로그래밍 가능한 받은편지함을 제공합니다. Multica에서는 워크스페이스가 한 번 연결한 뒤 각 에이전트에 주소를 부여합니다. 브랜드 이름 **AgentMail**은 영어로 유지합니다.
+
+<Callout type="info">
+이 기능은 [알림 Inbox](/inbox)가 아닙니다. 설정 → **이메일**과 에이전트 **이메일** 탭이 메일함입니다. `/{slug}/inbox`는 여전히 할당, 멘션, 실패 알림입니다.
+</Callout>
+
+메일 본문은 AgentMail에 있습니다. Multica는 연결·받은편지함 메타데이터와 봉인된 키만 저장하며 본문은 저장하지 않습니다.
+
+## 제공 내용
+
+- 워크스페이스 단위 연결: **hosted**(프로세스 환경의 조직 키) 또는 **bring your own**(조직 키 또는 pod 범위 키).
+- 에이전트 페이지의 스위치. 켜면 받은편지함을 만들고, 끄면 원격 받은편지함을 삭제해 hosted 할당을 돌려줍니다.
+- [작업](/tasks) 클레임 시 해당 받은편지함만 다루는 MCP를 주입합니다. 읽기·보내기·초안은 가능합니다. 받은편지함, pod, 도메인, API 키를 만들거나 지울 수는 없습니다.
+- 에이전트 소유자와 워크스페이스 owner/admin은 이메일 탭에서 텍스트만 볼 수 있습니다.
+
+멤버는 설정 → 이메일에서 부여된 주소를 볼 수 있습니다. 에이전트 이메일 탭이나 메일 열람은 할 수 없습니다.
+
+## 서버 전제
+
+키를 봉인할 수 있을 때까지 이메일 탭은 숨겨집니다.
+
+```sh
+openssl rand -base64 32
+```
+
+```sh
+MULTICA_AGENTMAIL_SECRET_KEY=<base64 32-byte key>
+```
+
+hosted 연결에는 프로세스 환경의 AgentMail 조직 키도 필요합니다(데이터베이스에 쓰지 않음).
+
+```sh
+MULTICA_AGENTMAIL_ORG_KEY=am_...
+```
+
+`AGENTMAIL_ORG_API_KEY`도 받습니다. EU에서는 `MULTICA_AGENTMAIL_API_BASE`를 `https://api.agentmail.eu/v0`로 지정할 수 있습니다.
+
+hosted 조직 키가 없어도 **설정 → 이메일**에서 bring your own을 쓸 수 있습니다. 조직 키 또는 pod 범위 키를 붙여 넣습니다. inbox 범위 키는 거절됩니다.
+
+hosted 워크스페이스의 진행 중 받은편지함은 기본 5개입니다(`provisioning`, `minting_key`, `active`, `disabling`).
+
+## 워크스페이스 연결
+
+1. **설정 → 이메일**을 엽니다.
+2. **Hosted**(서버가 제공하는 경우) 또는 **Bring your own**을 고릅니다.
+3. 연결합니다. hosted와 bring your own을 바꾸려면 먼저 연결을 끊어야 합니다.
+
+연결을 끊으면 모든 에이전트 받은편지함을 회수하고, hosted라면 해당 워크스페이스의 pod도 삭제합니다.
+
+## 에이전트에 받은편지함 부여
+
+1. 에이전트 → **이메일**을 엽니다.
+2. **에이전트 받은편지함**을 켭니다. Multica가 원격 받은편지함을 만들고 좁혀진 키를 봉인합니다.
+3. 주소는 스위치 아래와 워크스페이스 이메일 목록에 나타납니다.
+
+끄면 원격 받은편지함을 삭제합니다. 다시 켜면 같은 `client_id`(에이전트 UUID)를 재사용하므로 주소가 돌아올 수 있습니다.
+
+에이전트를 보관해도 받은편지함은 회수하지 않습니다. 복원하면 주소가 남습니다.
+
+## 에이전트가 메일을 쓰는 방식
+
+inbox 키는 에이전트 행이나 `custom_env`에 저장되지 않습니다. 클레임 시점의 MCP 설정 `mcpServers.agentmail`에만 합쳐지고 그 클레임과 함께 버려집니다. 여기서 실패해도 클레임 자체는 실패하지 않습니다.
+
+이메일 탭의 뷰어는 같은 키로 스레드를 그때그때 가져오고 일반 텍스트만 반환합니다. AgentMail HTML은 버리고 렌더링하지 않습니다.
+
+## 관련
+
+- [Inbox와 구독](/inbox) — 앱 알림이며 이메일이 아닙니다.
+- [환경 변수](/environment-variables#외부-연동) — 비밀 키와 hosted 조직 키 이름.
