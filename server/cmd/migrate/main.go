@@ -296,6 +296,7 @@ var concurrentIndexCleanups = map[string]string{
 	"484_budget_waiver_owner_index":                             "budget_waiver_owner_idx",
 	"486_agent_runtime_online_last_seen_index":                  "idx_agent_runtime_online_last_seen",
 	"487_agent_runtime_offline_last_seen_index":                 "idx_agent_runtime_offline_last_seen",
+	"488_github_pr_head_sha_index":                              "idx_github_pull_request_head_sha",
 }
 
 // concurrentDownIndexCleanups covers every migration whose down direction
