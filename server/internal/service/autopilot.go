@@ -979,7 +979,11 @@ func (s *AutopilotService) dispatchRunOnly(ctx context.Context, ap db.Autopilot,
 		return &errDispatchSkipped{reason: formatAdmissionReason(ap, "workspace fail-closed: no accountable human for autopilot run"), code: dispatch.ReasonAttributionBlocked}
 	}
 	apSource, _, apEvidenceKind, apEvidenceRef := attributionCreateParams(autopilotAttr)
-	task, err := s.Queries.CreateAutopilotTask(ctx, db.CreateAutopilotTaskParams{
+	var originSquad pgtype.UUID
+	if ap.AssigneeType == "squad" {
+		originSquad = ap.AssigneeID
+	}
+	autopilotParams := db.CreateAutopilotTaskParams{
 		ID:             dbid.NewV7(),
 		AgentID:        agent.ID,
 		RuntimeID:      agent.RuntimeID,
@@ -998,7 +1002,11 @@ func (s *AutopilotService) dispatchRunOnly(ctx context.Context, ap db.Autopilot,
 		OriginatorSource:     apSource,
 		TriggerEvidenceKind:  apEvidenceKind,
 		TriggerEvidenceRefID: apEvidenceRef,
-	})
+	}
+	if s.TaskSvc != nil {
+		s.TaskSvc.resolveBudgetTaskContext(ctx, ap.WorkspaceID, pgtype.UUID{}, originSquad).applyAutopilot(&autopilotParams)
+	}
+	task, err := s.Queries.CreateAutopilotTask(ctx, autopilotParams)
 	if err != nil {
 		return fmt.Errorf("create autopilot task: %w", err)
 	}

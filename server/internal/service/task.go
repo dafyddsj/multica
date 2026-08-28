@@ -1219,6 +1219,8 @@ func (s *TaskService) enqueueIssueTaskWithCommentPlan(ctx context.Context, issue
 	createParams.ExecutionLane = stamp.Lane
 	createParams.ModelOverride = stamp.ModelOverride
 	createParams.ForceFreshSession = applyLaneStampToFresh(createParams.ForceFreshSession, stamp)
+	coverage := s.budgetContextForIssue(ctx, issue, pgtype.UUID{}, triggerCommentID, rerunOfTaskID)
+	coverage.applyAgent(&createParams)
 	var task db.AgentTaskQueue
 	if fireAt.Valid {
 		task, err = s.Queries.CreateDeferredChannelIssueTask(ctx, db.CreateDeferredChannelIssueTaskParams{
@@ -1248,6 +1250,9 @@ func (s *TaskService) enqueueIssueTaskWithCommentPlan(ctx context.Context, issue
 			FireAt:               fireAt,
 			ExecutionLane:        createParams.ExecutionLane,
 			ModelOverride:        createParams.ModelOverride,
+			BudgetProjectID:      createParams.BudgetProjectID,
+			BudgetInitiativeID:   createParams.BudgetInitiativeID,
+			BudgetOriginSquadID:  createParams.BudgetOriginSquadID,
 		})
 	} else {
 		task, err = s.Queries.CreateAgentTask(ctx, createParams)
@@ -1352,7 +1357,7 @@ func (s *TaskService) enqueueMentionTaskWithCommentPlan(ctx context.Context, iss
 	runtimeMCPOverlay := s.buildRuntimeMCPOverlay(ctx, originatorUserID, agent)
 	attrSource, attrDelegatedFrom, attrEvidenceKind, attrEvidenceRef := attributionCreateParams(attr)
 	mentionStamp := s.initialLaneStamp(ctx, agent)
-	task, err := s.Queries.CreateAgentTask(ctx, db.CreateAgentTaskParams{
+	mentionParams := db.CreateAgentTaskParams{
 		ID:                   dbid.NewV7(),
 		AgentID:              agentID,
 		RuntimeID:            agent.RuntimeID,
@@ -1380,7 +1385,9 @@ func (s *TaskService) enqueueMentionTaskWithCommentPlan(ctx context.Context, iss
 		ExecutionLane:     mentionStamp.Lane,
 		ModelOverride:     mentionStamp.ModelOverride,
 		ForceFreshSession: applyLaneStampToFresh(pgtype.Bool{Bool: forceFreshSession, Valid: forceFreshSession}, mentionStamp),
-	})
+	}
+	s.budgetContextForIssue(ctx, issue, squadID, triggerCommentID, rerunOfTaskID).applyAgent(&mentionParams)
+	task, err := s.Queries.CreateAgentTask(ctx, mentionParams)
 	if err != nil {
 		// A concurrent enqueue for the same (issue, agent) won the race and the
 		// unique index rejected this insert. That is benign — a sibling run
@@ -1440,7 +1447,7 @@ func (s *TaskService) EnqueueDeferredAssigneeFallback(ctx context.Context, issue
 	attrSource, attrDelegatedFrom, attrEvidenceKind, attrEvidenceRef := attributionCreateParams(attr)
 	isLeader := squadID.Valid
 	deferredStamp := s.initialLaneStamp(ctx, agent)
-	task, err := s.Queries.CreateDeferredAgentTask(ctx, db.CreateDeferredAgentTaskParams{
+	deferredParams := db.CreateDeferredAgentTaskParams{
 		ID:                   dbid.NewV7(),
 		AgentID:              agentID,
 		RuntimeID:            agent.RuntimeID,
@@ -1460,7 +1467,9 @@ func (s *TaskService) EnqueueDeferredAssigneeFallback(ctx context.Context, issue
 		TriggerEvidenceRefID: attrEvidenceRef,
 		ExecutionLane:        deferredStamp.Lane,
 		ModelOverride:        deferredStamp.ModelOverride,
-	})
+	}
+	s.budgetContextForIssue(ctx, issue, squadID, triggerCommentID, pgtype.UUID{}).applyDeferred(&deferredParams)
+	task, err := s.Queries.CreateDeferredAgentTask(ctx, deferredParams)
 	if err != nil {
 		slog.Error("deferred fallback enqueue failed", "issue_id", util.UUIDToString(issue.ID), "agent_id", util.UUIDToString(agentID), "error", err)
 		return db.AgentTaskQueue{}, fmt.Errorf("create deferred task: %w", err)
@@ -1626,6 +1635,7 @@ func (s *TaskService) enqueueQuickCreateTask(ctx context.Context, workspaceID, r
 		ExecutionLane:        qcStamp.Lane,
 		ModelOverride:        qcStamp.ModelOverride,
 	}
+	s.budgetContextForProject(ctx, workspaceID, projectID, squadID).applyQuickCreate(&createParams)
 	var task db.AgentTaskQueue
 	if capture == nil {
 		task, err = s.Queries.CreateQuickCreateTask(ctx, createParams)
@@ -2034,7 +2044,7 @@ func (s *TaskService) enqueueChatTaskTx(
 	}
 
 	chatStamp := s.initialLaneStamp(ctx, agent)
-	task, err := qtx.CreateChatTask(ctx, db.CreateChatTaskParams{
+	chatParams := db.CreateChatTaskParams{
 		ID:                   dbid.NewV7(),
 		AgentID:              chatSession.AgentID,
 		RuntimeID:            agent.RuntimeID,
@@ -2055,7 +2065,9 @@ func (s *TaskService) enqueueChatTaskTx(
 		ChannelContextRevision: pgtype.Int8{
 			Int64: contextRevision, Valid: contextRevision > 0,
 		},
-	})
+	}
+	s.resolveBudgetTaskContext(ctx, chatSession.WorkspaceID, pgtype.UUID{}, pgtype.UUID{}).applyChat(&chatParams)
+	task, err := qtx.CreateChatTask(ctx, chatParams)
 	if err != nil {
 		return db.AgentTaskQueue{}, fmt.Errorf("create chat task: %w", err)
 	}
@@ -2345,7 +2357,7 @@ func (s *TaskService) SendDirectChatMessage(
 		out.Queued = queued
 
 		directStamp := s.initialLaneStamp(ctx, carrier)
-		task, err := qtx.CreateChatTask(ctx, db.CreateChatTaskParams{
+		directParams := db.CreateChatTaskParams{
 			ID:                   dbid.NewV7(),
 			AgentID:              session.AgentID,
 			RuntimeID:            carrier.RuntimeID,
@@ -2362,7 +2374,9 @@ func (s *TaskService) SendDirectChatMessage(
 			TriggerEvidenceRefID: attrEvidenceRef,
 			ExecutionLane:        directStamp.Lane,
 			ModelOverride:        directStamp.ModelOverride,
-		})
+		}
+		s.resolveBudgetTaskContext(ctx, session.WorkspaceID, pgtype.UUID{}, pgtype.UUID{}).applyChat(&directParams)
+		task, err := qtx.CreateChatTask(ctx, directParams)
 		if err != nil {
 			return fmt.Errorf("create direct chat task: %w", err)
 		}
@@ -6172,7 +6186,7 @@ func (s *TaskService) dispatchDelegatedFailureRecovery(ctx context.Context, targ
 		}
 		overlay := s.buildRuntimeMCPOverlay(ctx, originator, target.agent)
 		recoveryStamp := s.initialLaneStamp(ctx, target.agent)
-		task, err := s.Queries.CreateAgentTask(ctx, db.CreateAgentTaskParams{
+		recoveryParams := db.CreateAgentTaskParams{
 			ID:                   dbid.NewV7(),
 			AgentID:              target.agent.ID,
 			RuntimeID:            target.agent.RuntimeID,
@@ -6195,7 +6209,9 @@ func (s *TaskService) dispatchDelegatedFailureRecovery(ctx context.Context, targ
 			ExecutionLane:        recoveryStamp.Lane,
 			ModelOverride:        recoveryStamp.ModelOverride,
 			ForceFreshSession:    applyLaneStampToFresh(pgtype.Bool{}, recoveryStamp),
-		})
+		}
+		s.budgetContextForIssue(ctx, target.issue, pgtype.UUID{}, target.comment.ID, target.source.ID).applyAgent(&recoveryParams)
+		task, err := s.Queries.CreateAgentTask(ctx, recoveryParams)
 		if err == nil {
 			slog.Info("delegated failure recovery task enqueued",
 				"failed_task_id", util.UUIDToString(target.failed.ID),

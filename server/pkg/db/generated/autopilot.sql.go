@@ -288,6 +288,7 @@ INSERT INTO agent_task_queue (
     agent_id, runtime_id, issue_id, status, priority, autopilot_run_id, trigger_summary,
     originator_user_id, accountable_user_id, rule_version_id,
     originator_source, trigger_evidence_kind, trigger_evidence_ref_id,
+    budget_project_id, budget_initiative_id, budget_origin_squad_id,
     id
 )
 SELECT
@@ -298,9 +299,12 @@ SELECT
     $9,
     $10,
     $11,
-    COALESCE($12::uuid, gen_random_uuid())
+    $12,
+    $13,
+    $14,
+    COALESCE($15::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, NULL, $2)
-RETURNING id, agent_id, issue_id, status, priority, dispatched_at, started_at, completed_at, result, error, created_at, context, runtime_id, session_id, work_dir, trigger_comment_id, chat_session_id, autopilot_run_id, attempt, max_attempts, parent_task_id, failure_reason, trigger_summary, force_fresh_session, is_leader_task, wait_reason, initiator_user_id, handoff_note, prepare_lease_expires_at, squad_id, runtime_mcp_overlay, escalation_for_task_id, fire_at, originator_user_id, runtime_connected_apps, coalesced_comment_ids, delivered_comment_ids, chat_input_task_id, chat_finalize_deferred_at, originator_source, delegated_from_task_id, retry_of_task_id, rerun_of_task_id, rule_version_id, trigger_evidence_kind, trigger_evidence_ref_id, accountable_user_id, session_rollout_missing, retired_session_id, quick_actions_disabled, regenerate_quick_actions_for, branch_name, durable_work_dir, channel_context_revision, execution_lane, model_override
+RETURNING id, agent_id, issue_id, status, priority, dispatched_at, started_at, completed_at, result, error, created_at, context, runtime_id, session_id, work_dir, trigger_comment_id, chat_session_id, autopilot_run_id, attempt, max_attempts, parent_task_id, failure_reason, trigger_summary, force_fresh_session, is_leader_task, wait_reason, initiator_user_id, handoff_note, prepare_lease_expires_at, squad_id, runtime_mcp_overlay, escalation_for_task_id, fire_at, originator_user_id, runtime_connected_apps, coalesced_comment_ids, delivered_comment_ids, chat_input_task_id, chat_finalize_deferred_at, originator_source, delegated_from_task_id, retry_of_task_id, rerun_of_task_id, rule_version_id, trigger_evidence_kind, trigger_evidence_ref_id, accountable_user_id, session_rollout_missing, retired_session_id, quick_actions_disabled, regenerate_quick_actions_for, branch_name, durable_work_dir, channel_context_revision, execution_lane, model_override, budget_project_id, budget_initiative_id, budget_origin_squad_id
 `
 
 type CreateAutopilotTaskParams struct {
@@ -315,6 +319,9 @@ type CreateAutopilotTaskParams struct {
 	OriginatorSource     pgtype.Text `json:"originator_source"`
 	TriggerEvidenceKind  pgtype.Text `json:"trigger_evidence_kind"`
 	TriggerEvidenceRefID pgtype.UUID `json:"trigger_evidence_ref_id"`
+	BudgetProjectID      pgtype.UUID `json:"budget_project_id"`
+	BudgetInitiativeID   pgtype.UUID `json:"budget_initiative_id"`
+	BudgetOriginSquadID  pgtype.UUID `json:"budget_origin_squad_id"`
 	ID                   pgtype.UUID `json:"id"`
 }
 
@@ -350,6 +357,9 @@ func (q *Queries) CreateAutopilotTask(ctx context.Context, arg CreateAutopilotTa
 		arg.OriginatorSource,
 		arg.TriggerEvidenceKind,
 		arg.TriggerEvidenceRefID,
+		arg.BudgetProjectID,
+		arg.BudgetInitiativeID,
+		arg.BudgetOriginSquadID,
 		arg.ID,
 	)
 	var i AgentTaskQueue
@@ -410,6 +420,9 @@ func (q *Queries) CreateAutopilotTask(ctx context.Context, arg CreateAutopilotTa
 		&i.ChannelContextRevision,
 		&i.ExecutionLane,
 		&i.ModelOverride,
+		&i.BudgetProjectID,
+		&i.BudgetInitiativeID,
+		&i.BudgetOriginSquadID,
 	)
 	return i, err
 }
@@ -927,7 +940,7 @@ func (q *Queries) GetAutopilotRunByWebhookDelivery(ctx context.Context, webhookD
 }
 
 const getAutopilotTaskByRun = `-- name: GetAutopilotTaskByRun :one
-SELECT id, agent_id, issue_id, status, priority, dispatched_at, started_at, completed_at, result, error, created_at, context, runtime_id, session_id, work_dir, trigger_comment_id, chat_session_id, autopilot_run_id, attempt, max_attempts, parent_task_id, failure_reason, trigger_summary, force_fresh_session, is_leader_task, wait_reason, initiator_user_id, handoff_note, prepare_lease_expires_at, squad_id, runtime_mcp_overlay, escalation_for_task_id, fire_at, originator_user_id, runtime_connected_apps, coalesced_comment_ids, delivered_comment_ids, chat_input_task_id, chat_finalize_deferred_at, originator_source, delegated_from_task_id, retry_of_task_id, rerun_of_task_id, rule_version_id, trigger_evidence_kind, trigger_evidence_ref_id, accountable_user_id, session_rollout_missing, retired_session_id, quick_actions_disabled, regenerate_quick_actions_for, branch_name, durable_work_dir, channel_context_revision, execution_lane, model_override FROM agent_task_queue
+SELECT id, agent_id, issue_id, status, priority, dispatched_at, started_at, completed_at, result, error, created_at, context, runtime_id, session_id, work_dir, trigger_comment_id, chat_session_id, autopilot_run_id, attempt, max_attempts, parent_task_id, failure_reason, trigger_summary, force_fresh_session, is_leader_task, wait_reason, initiator_user_id, handoff_note, prepare_lease_expires_at, squad_id, runtime_mcp_overlay, escalation_for_task_id, fire_at, originator_user_id, runtime_connected_apps, coalesced_comment_ids, delivered_comment_ids, chat_input_task_id, chat_finalize_deferred_at, originator_source, delegated_from_task_id, retry_of_task_id, rerun_of_task_id, rule_version_id, trigger_evidence_kind, trigger_evidence_ref_id, accountable_user_id, session_rollout_missing, retired_session_id, quick_actions_disabled, regenerate_quick_actions_for, branch_name, durable_work_dir, channel_context_revision, execution_lane, model_override, budget_project_id, budget_initiative_id, budget_origin_squad_id FROM agent_task_queue
 WHERE autopilot_run_id = $1
 ORDER BY created_at
 LIMIT 1
@@ -995,6 +1008,9 @@ func (q *Queries) GetAutopilotTaskByRun(ctx context.Context, autopilotRunID pgty
 		&i.ChannelContextRevision,
 		&i.ExecutionLane,
 		&i.ModelOverride,
+		&i.BudgetProjectID,
+		&i.BudgetInitiativeID,
+		&i.BudgetOriginSquadID,
 	)
 	return i, err
 }

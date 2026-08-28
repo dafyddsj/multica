@@ -572,6 +572,7 @@ INSERT INTO agent_task_queue (
     agent_id, runtime_id, issue_id, status, priority, autopilot_run_id, trigger_summary,
     originator_user_id, accountable_user_id, rule_version_id,
     originator_source, trigger_evidence_kind, trigger_evidence_ref_id,
+    budget_project_id, budget_initiative_id, budget_origin_squad_id,
     id
 )
 SELECT
@@ -582,6 +583,9 @@ SELECT
     sqlc.narg(originator_source),
     sqlc.narg(trigger_evidence_kind),
     sqlc.narg(trigger_evidence_ref_id),
+    sqlc.narg(budget_project_id),
+    sqlc.narg(budget_initiative_id),
+    sqlc.narg(budget_origin_squad_id),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, NULL, $2)
 RETURNING *;

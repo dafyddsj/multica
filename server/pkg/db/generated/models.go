@@ -185,6 +185,9 @@ type AgentTaskQueue struct {
 	ChannelContextRevision    pgtype.Int8 `json:"channel_context_revision"`
 	ExecutionLane             string      `json:"execution_lane"`
 	ModelOverride             pgtype.Text `json:"model_override"`
+	BudgetProjectID           pgtype.UUID `json:"budget_project_id"`
+	BudgetInitiativeID        pgtype.UUID `json:"budget_initiative_id"`
+	BudgetOriginSquadID       pgtype.UUID `json:"budget_origin_squad_id"`
 }
 
 type AgentToLabel struct {
