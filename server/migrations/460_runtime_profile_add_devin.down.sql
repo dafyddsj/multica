@@ -1,4 +1,3 @@
--- Restore the pre-460 whitelist (including amp from migration 459).
 -- Existing Devin rows remain valid because the replacement constraint is
 -- NOT VALID, but new Devin profiles are blocked.
 ALTER TABLE runtime_profile DROP CONSTRAINT IF EXISTS runtime_profile_protocol_family_check;

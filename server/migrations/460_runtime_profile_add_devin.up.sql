@@ -1,6 +1,5 @@
--- Add Devin as a first-party local-CLI protocol family. NOT VALID preserves
--- historical-row tolerance while enforcing the expanded whitelist for new rows.
--- The whitelist includes amp (added by migration 459) and devin.
+-- NOT VALID preserves historical-row tolerance while enforcing the expanded
+-- whitelist for new rows.
 ALTER TABLE runtime_profile DROP CONSTRAINT IF EXISTS runtime_profile_protocol_family_check;
 
 ALTER TABLE runtime_profile ADD CONSTRAINT runtime_profile_protocol_family_check

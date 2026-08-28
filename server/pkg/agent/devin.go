@@ -14,21 +14,12 @@ import (
 	"unicode"
 )
 
-// devinBackend drives Cognition's local Devin CLI.
-// Fresh:  devin --print --prompt-file <tmp> --permission-mode dangerous --respect-workspace-trust false
-// Resume: the same flags plus --resume <parsed-id>
-//
-// The prompt lives in a 0600 temp file. Official help also allows -p "prompt";
-// that form is never used because user text on argv breaks on Windows the same
-// way Qwen and Cursor already did.
+// Official help also allows -p "prompt"; that form is never used because
+// user text on argv breaks on Windows the same way Qwen and Cursor already did.
 type devinBackend struct {
 	cfg Config
 }
 
-// devinSessionID is a validated local CLI session id. The zero value means a
-// fresh run. The only constructors are parseDevinSessionID and
-// resolveDevinResume, so an unvalidated string cannot reach resume argv or
-// Result.SessionID.
 type devinSessionID string
 
 // Official docs show brisk-otter and abc12345. Cloud DRS box ids look like
