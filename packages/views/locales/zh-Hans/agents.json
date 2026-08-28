@@ -278,6 +278,7 @@
   "tabs": {
     "overview": "概览",
     "work": "工作",
+    "email": "邮箱",
     "capabilities": "能力",
     "settings": "设置",
     "general": "通用",
@@ -307,13 +308,28 @@
     "not_connected_suffix": "连接。",
     "switch_label": "智能体邮箱",
     "switch_off": "未开通。此智能体没有邮箱。",
+    "username_label": "地址",
+    "username_placeholder": "agent-name",
+    "username_invalid": "请使用字母、数字、点、连字符或下划线。",
+    "domain_label": "域名",
+    "address_preview": "此智能体将使用",
+    "create_inbox": "开通邮箱",
     "toast_granted": "已开通邮箱",
     "toast_revoked": "已关闭邮箱",
     "toast_failed": "无法更新邮箱",
     "viewer_empty": "还没有邮件。",
     "viewer_load_failed": "无法加载邮件",
     "untitled": "（无主题）",
-    "back": "全部邮件"
+    "back": "全部邮件",
+    "folders_aria": "邮箱文件夹",
+    "folders": {
+      "inbox": "收件箱",
+      "sent": "已发送",
+      "drafts": "草稿",
+      "scheduled": "定时",
+      "all": "所有邮件",
+      "trash": "垃圾箱"
+    }
   },
   "creation_studio": {
     "title": "创建智能体",

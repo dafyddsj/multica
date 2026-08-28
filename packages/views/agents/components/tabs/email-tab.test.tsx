@@ -17,10 +17,22 @@ const workspaceRef = vi.hoisted(() => ({
 const inboxRef = vi.hoisted(() => ({
   current: { agent_id: "agent-1", enabled: false, address: "" },
 }));
+const domainsRef = vi.hoisted(() => ({
+  current: { domains: ["agentmail.to", "acme.test"] },
+}));
+const foldersRef = vi.hoisted(() => ({
+  current: { folders: ["sales"] },
+}));
+const mailboxRef = vi.hoisted(() => ({
+  current: { items: [] as { kind: string; id: string; subject: string }[] },
+}));
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (opts: { queryKey: unknown[] }) => {
     const key = JSON.stringify(opts.queryKey);
+    if (key.includes("mailbox")) return { data: mailboxRef.current, isError: false };
+    if (key.includes("folders")) return { data: foldersRef.current, isError: false };
+    if (key.includes("domains")) return { data: domainsRef.current, isError: false };
     if (key.includes("thread")) return { data: { threads: [], messages: [] }, isError: false };
     if (key.includes("inbox")) return { data: inboxRef.current };
     return { data: workspaceRef.current };
@@ -66,7 +78,7 @@ function I18nWrapper({ children }: { children: ReactNode }) {
   );
 }
 
-const agent = { id: "agent-1", name: "Ada" } as Agent;
+const agent = { id: "agent-1", name: "Ada Mail" } as Agent;
 
 describe("EmailTab", () => {
   beforeEach(() => {
@@ -75,19 +87,35 @@ describe("EmailTab", () => {
     mockInvalidate.mockReset();
     workspaceRef.current = { connected: true, available: true, can_manage: true, inboxes: [] };
     inboxRef.current = { agent_id: "agent-1", enabled: false, address: "" };
+    domainsRef.current = { domains: ["agentmail.to", "acme.test"] };
+    foldersRef.current = { folders: ["sales"] };
+    mailboxRef.current = { items: [] };
   });
 
-  it("grants an inbox when the switch is turned on", async () => {
+  it("creates an inbox with the chosen username and domain", async () => {
     const user = userEvent.setup();
     render(<EmailTab agent={agent} />, { wrapper: I18nWrapper });
-    await user.click(screen.getByRole("switch"));
-    expect(mockGrant).toHaveBeenCalledWith("agent-1");
+    const username = screen.getByLabelText("Address");
+    await user.clear(username);
+    await user.type(username, "ada");
+    await user.click(screen.getByRole("button", { name: "Create inbox" }));
+    expect(mockGrant).toHaveBeenCalledWith("agent-1", {
+      username: "ada",
+      domain: "agentmail.to",
+    });
   });
 
-  it("shows an empty mail list when the inbox is active", () => {
+  it("shows mailbox folders when the inbox is active", () => {
     inboxRef.current = { agent_id: "agent-1", enabled: true, address: "ada@agentmail.to" };
     render(<EmailTab agent={agent} />, { wrapper: I18nWrapper });
     expect(screen.getByText("ada@agentmail.to")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Inbox" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Sent" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Drafts" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Scheduled" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "All Mail" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Trash" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "sales" })).toBeInTheDocument();
     expect(screen.getByText("No messages yet.")).toBeInTheDocument();
   });
 
@@ -98,6 +126,6 @@ describe("EmailTab", () => {
       "href",
       "/acme/settings?tab=agentmail",
     );
-    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create inbox" })).not.toBeInTheDocument();
   });
 });

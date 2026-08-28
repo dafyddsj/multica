@@ -3432,6 +3432,52 @@ export interface ConnectAgentMailRequest {
   org_key?: string;
 }
 
+export interface GrantAgentMailInboxRequest {
+  username: string;
+  domain?: string;
+}
+
+export const AgentMailDomainListResponseSchema = z.object({
+  domains: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export type AgentMailDomainListResponse = z.infer<typeof AgentMailDomainListResponseSchema>;
+
+export const EMPTY_AGENTMAIL_DOMAINS: AgentMailDomainListResponse = {
+  domains: [],
+};
+
+export const AgentMailFolderListResponseSchema = z.object({
+  folders: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export type AgentMailFolderListResponse = z.infer<typeof AgentMailFolderListResponseSchema>;
+
+export const EMPTY_AGENTMAIL_FOLDERS: AgentMailFolderListResponse = {
+  folders: [],
+};
+
+export const AgentMailMailboxItemSchema = z.object({
+  kind: z.string(),
+  id: z.string(),
+  subject: OptionalStringSchema,
+  preview: OptionalStringSchema,
+  participants: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+  timestamp: OptionalStringSchema,
+}).loose();
+
+export const AgentMailMailboxResponseSchema = z.object({
+  items: z.array(AgentMailMailboxItemSchema).nullish().transform((rows) => rows ?? []),
+  next_page_token: OptionalStringSchema,
+}).loose();
+
+export type AgentMailMailboxItem = z.infer<typeof AgentMailMailboxItemSchema>;
+export type AgentMailMailboxResponse = z.infer<typeof AgentMailMailboxResponseSchema>;
+
+export const EMPTY_AGENTMAIL_MAILBOX: AgentMailMailboxResponse = {
+  items: [],
+};
+
 export const AgentMailInboxResponseSchema = z.object({
   agent_id: z.string(),
   enabled: BooleanWithDefaultSchema(false),

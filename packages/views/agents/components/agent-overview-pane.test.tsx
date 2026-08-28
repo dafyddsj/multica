@@ -275,19 +275,20 @@ describe("AgentOverviewPane Integrations tab visibility", () => {
 });
 
 describe("AgentOverviewPane Email tab visibility", () => {
-  it("shows Email when AgentMail is available and the viewer can manage the agent", () => {
+  it("shows Email next to Work when AgentMail is available and the viewer can manage the agent", () => {
     configStore.getState().setAuthConfig({
       allowSignup: true,
       agentmailAvailable: true,
     });
     renderPane([makeRuntime("claude")]);
-    openCapabilities();
     expect(screen.getByRole("tab", { name: /^Email$/i })).toBeInTheDocument();
+    openCapabilities();
+    expect(screen.queryByRole("tab", { name: /^Email$/i })).toBeInTheDocument();
+    expect(screen.queryByText("email-tab")).not.toBeInTheDocument();
   });
 
   it("hides Email when the deployment has no AgentMail box", () => {
     renderPane([makeRuntime("claude")]);
-    openCapabilities();
     expect(screen.queryByRole("tab", { name: /^Email$/i })).not.toBeInTheDocument();
   });
 
@@ -297,7 +298,6 @@ describe("AgentOverviewPane Email tab visibility", () => {
       agentmailAvailable: true,
     });
     renderPane([makeRuntime("claude")], { canEdit: false });
-    openCapabilities();
     expect(screen.queryByRole("tab", { name: /^Email$/i })).not.toBeInTheDocument();
   });
 });

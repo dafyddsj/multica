@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  AgentMailDomainListResponseSchema,
+  AgentMailMailboxResponseSchema,
   AgentMailThreadListResponseSchema,
   AgentMailWorkspaceResponseSchema,
   AppConfigSchema,
@@ -1228,6 +1230,20 @@ describe("AgentMailThreadListResponseSchema malformed", () => {
   it("falls back threads to [] when missing", () => {
     const parsed = AgentMailThreadListResponseSchema.parse({});
     expect(parsed.threads).toEqual([]);
+  });
+});
+
+describe("AgentMailMailboxResponseSchema malformed", () => {
+  it("falls back items to [] when missing", () => {
+    const parsed = AgentMailMailboxResponseSchema.parse({});
+    expect(parsed.items).toEqual([]);
+  });
+});
+
+describe("AgentMailDomainListResponseSchema malformed", () => {
+  it("falls back domains to [] when missing", () => {
+    const parsed = AgentMailDomainListResponseSchema.parse({});
+    expect(parsed.domains).toEqual([]);
   });
 });
 

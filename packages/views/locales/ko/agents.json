@@ -278,6 +278,7 @@
   "tabs": {
     "overview": "개요",
     "work": "작업",
+    "email": "이메일",
     "capabilities": "기능",
     "settings": "설정",
     "general": "일반",
@@ -307,13 +308,28 @@
     "not_connected_suffix": "에서 연결하세요.",
     "switch_label": "에이전트 받은편지함",
     "switch_off": "꺼짐. 이 에이전트에는 받은편지함이 없습니다.",
+    "username_label": "주소",
+    "username_placeholder": "agent-name",
+    "username_invalid": "영문, 숫자, 점, 하이픈, 밑줄만 사용하세요.",
+    "domain_label": "도메인",
+    "address_preview": "이 에이전트는 다음 주소를 사용합니다",
+    "create_inbox": "메일함 만들기",
     "toast_granted": "받은편지함을 부여했습니다",
     "toast_revoked": "받은편지함을 회수했습니다",
     "toast_failed": "받은편지함을 업데이트하지 못했습니다",
     "viewer_empty": "메일이 없습니다.",
     "viewer_load_failed": "메일을 불러오지 못했습니다",
     "untitled": "(제목 없음)",
-    "back": "모든 메일"
+    "back": "모든 메일",
+    "folders_aria": "메일 폴더",
+    "folders": {
+      "inbox": "받은편지함",
+      "sent": "보낸편지함",
+      "drafts": "임시보관함",
+      "scheduled": "예약",
+      "all": "모든 메일",
+      "trash": "휴지통"
+    }
   },
   "create_dialog": {
     "title_create": "에이전트 만들기",

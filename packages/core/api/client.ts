@@ -284,7 +284,10 @@ import {
   DashboardFailureByAgentListSchema,
   DashboardUsageByAgentListSchema,
   DashboardUsageDailyListSchema,
+  EMPTY_AGENTMAIL_DOMAINS,
+  EMPTY_AGENTMAIL_FOLDERS,
   EMPTY_AGENTMAIL_INBOX,
+  EMPTY_AGENTMAIL_MAILBOX,
   EMPTY_AGENTMAIL_THREAD,
   EMPTY_AGENTMAIL_THREAD_LIST,
   EMPTY_AGENTMAIL_WORKSPACE,
@@ -314,17 +317,24 @@ import {
   EMPTY_USER,
   EMPTY_LIST_WEBHOOK_DELIVERIES_RESPONSE,
   EMPTY_WEBHOOK_DELIVERY,
+  AgentMailDomainListResponseSchema,
+  AgentMailFolderListResponseSchema,
   AgentMailInboxResponseSchema,
+  AgentMailMailboxResponseSchema,
   AgentMailThreadDetailResponseSchema,
   AgentMailThreadListResponseSchema,
   AgentMailWorkspaceResponseSchema,
   AppConfigSchema,
+  type AgentMailDomainListResponse,
+  type AgentMailFolderListResponse,
   type AgentMailInboxResponse,
+  type AgentMailMailboxResponse,
   type AgentMailThreadDetailResponse,
   type AgentMailThreadListResponse,
   type AgentMailWorkspaceResponse,
   type AppConfigResponse,
   type ConnectAgentMailRequest,
+  type GrantAgentMailInboxRequest,
   GroupedIssuesResponseSchema,
   IssueTableFacetsResponseSchema,
   IssueTableGroupsResponseSchema,
@@ -4597,15 +4607,57 @@ export class ApiClient {
     );
   }
 
-  async grantAgentMailInbox(agentId: string): Promise<AgentMailInboxResponse> {
+  async listAgentMailDomains(workspaceId: string): Promise<AgentMailDomainListResponse> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/agentmail/domains`);
+    return parseWithFallback(
+      raw,
+      AgentMailDomainListResponseSchema,
+      EMPTY_AGENTMAIL_DOMAINS,
+      { endpoint: "GET /api/workspaces/:id/agentmail/domains" },
+    );
+  }
+
+  async grantAgentMailInbox(
+    agentId: string,
+    body: GrantAgentMailInboxRequest,
+  ): Promise<AgentMailInboxResponse> {
     const raw = await this.fetch<unknown>(`/api/agents/${agentId}/agentmail`, {
       method: "PUT",
+      body: JSON.stringify(body),
     });
     return parseWithFallback(
       raw,
       AgentMailInboxResponseSchema,
       EMPTY_AGENTMAIL_INBOX,
       { endpoint: "PUT /api/agents/:id/agentmail" },
+    );
+  }
+
+  async listAgentMailMailbox(
+    agentId: string,
+    params?: { section?: string; label?: string; pageToken?: string },
+  ): Promise<AgentMailMailboxResponse> {
+    const search = new URLSearchParams();
+    if (params?.section) search.set("section", params.section);
+    if (params?.label) search.set("label", params.label);
+    if (params?.pageToken) search.set("page_token", params.pageToken);
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    const raw = await this.fetch<unknown>(`/api/agents/${agentId}/agentmail/mailbox${suffix}`);
+    return parseWithFallback(
+      raw,
+      AgentMailMailboxResponseSchema,
+      EMPTY_AGENTMAIL_MAILBOX,
+      { endpoint: "GET /api/agents/:id/agentmail/mailbox" },
+    );
+  }
+
+  async listAgentMailFolders(agentId: string): Promise<AgentMailFolderListResponse> {
+    const raw = await this.fetch<unknown>(`/api/agents/${agentId}/agentmail/folders`);
+    return parseWithFallback(
+      raw,
+      AgentMailFolderListResponseSchema,
+      EMPTY_AGENTMAIL_FOLDERS,
+      { endpoint: "GET /api/agents/:id/agentmail/folders" },
     );
   }
 

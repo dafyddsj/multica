@@ -12,8 +12,9 @@ This folder is the implementation record. Product copy lives in
 - Live AgentMail `/v0` HTTP client, plus an in-process memory client for tests
 - HTTP under `/api/workspaces/{id}/agentmail` and `/api/agents/{id}/agentmail`
 - Config flags `agentmail_available` and `agentmail_hosted_available`
-- Settings → Email (`?tab=agentmail`) and the agent Email capability tab
-- Text-only thread viewer on the agent Email tab (live fetch, no Postgres mail)
+- Settings → Email (`?tab=agentmail`) and a first-class agent Email tab
+- Chosen username + AgentMail domain (including custom domains) at grant
+- Text-only mailbox on the agent Email tab (live fetch, no Postgres mail)
 - Claim-time overlay `mcpServers.agentmail` with an inbox-scoped `x-api-key`
 - Workspace delete sweep of product rows. Purge rows stay
 

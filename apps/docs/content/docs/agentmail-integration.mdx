@@ -16,9 +16,10 @@ Mail lives at AgentMail. Multica stores connection and inbox metadata plus seale
 ## What you get
 
 - A workspace-wide connection: **hosted** (process env org key) or **bring your own** (your org or pod-scoped key).
-- A per-agent switch on the agent page. Turning it on creates an inbox; turning it off deletes the remote inbox so hosted quota can return.
+- A per-agent Email tab on the agent page. Creating an inbox asks for a username and a domain from the AgentMail account, including custom domains.
+- Turning Email off deletes the remote inbox so hosted quota can return.
 - At [task](/tasks) claim, Multica injects an inbox-scoped MCP server. The agent can read, send, and draft. It cannot create or delete inboxes, pods, domains, or API keys.
-- A text-only mail viewer on the agent Email tab for the agent owner and workspace owners/admins.
+- A text-only mailbox on the agent Email tab (Inbox, Sent, Drafts, Scheduled, All Mail, Trash, and any extra folders) for the agent owner and workspace owners/admins.
 
 Members can see granted addresses on Settings → Email. They cannot open the agent Email tab or the viewer.
 
@@ -57,8 +58,9 @@ Disconnect revokes every agent inbox, then deletes the hosted pod when the works
 ## Grant an agent inbox
 
 1. Open the agent → **Email**.
-2. Turn **Agent inbox** on. Multica creates the remote inbox and seals a narrowed key.
-3. The address appears under the switch and on the workspace Email roster.
+2. Choose a username and a domain (`agentmail.to` or a custom domain on the AgentMail account).
+3. Create the inbox. Multica creates that address and seals a narrowed key.
+4. The address appears under the switch and on the workspace Email roster. The Email tab becomes a mailbox.
 
 Revoke deletes the remote inbox. Granting again reuses the same `client_id` (the agent UUID) so the address can return.
 

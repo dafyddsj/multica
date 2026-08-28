@@ -85,6 +85,7 @@ Hosted inbox cap defaults to 5. The count is in-flight states
 Workspace (any member can GET. Writes are owner/admin plus human actor):
 
 - `GET /api/workspaces/{id}/agentmail`
+- `GET /api/workspaces/{id}/agentmail/domains`
 - `POST /api/workspaces/{id}/agentmail` body `{ "mode": "hosted" or "bring_your_own", "org_key"? }`
 - `DELETE /api/workspaces/{id}/agentmail`
 
@@ -92,8 +93,10 @@ Agent (GET needs `canViewAgentSecrets`. Writes need `canManageAgent` plus
 human. Agents are denied):
 
 - `GET /api/agents/{id}/agentmail`
-- `PUT /api/agents/{id}/agentmail`
+- `PUT /api/agents/{id}/agentmail` body `{ "username", "domain"? }`
 - `DELETE /api/agents/{id}/agentmail`
+- `GET /api/agents/{id}/agentmail/mailbox?section=&label=`
+- `GET /api/agents/{id}/agentmail/folders`
 - `GET /api/agents/{id}/agentmail/threads`
 - `GET /api/agents/{id}/agentmail/threads/{threadId}`
 
@@ -120,9 +123,15 @@ Settings chrome matches GitHub. Tab key `agentmail`, copy says Email. Hidden
 unless `configStore.agentmailAvailable`. A direct `?tab=agentmail` while
 hidden falls back to workspace General.
 
-The agent Email tab is a capability tab, not the IM Integrations tab. Visible
-only when `agentmailAvailable && canEdit`. If the workspace is not connected,
-the tab links to `{paths.settings()}?tab=agentmail`.
+The agent Email tab is a top-level tab next to Work and Capabilities, not
+an IM Integrations tab. Visible only when `agentmailAvailable && canEdit`.
+`?view=agentmail` still opens it. If the workspace is not connected, the
+tab links to `{paths.settings()}?tab=agentmail`. Grant asks for a username
+and a domain from `GET .../agentmail/domains`. After grant, the tab is a
+mailbox: Inbox, Sent, Drafts, Scheduled, All Mail, Trash, plus extra labels.
+
+Hosted (and BYO-pod) inbox delete uses `DELETE /v0/pods/{pod}/inboxes/{id}`.
+The org-level inbox path is only a fallback.
 
 Mobile is out of scope. Mobile may import types from `@multica/core` later.
 It does not share this UI.

@@ -287,6 +287,7 @@
   "tabs": {
     "overview": "Overview",
     "work": "Work",
+    "email": "Email",
     "capabilities": "Capabilities",
     "settings": "Settings",
     "general": "General",
@@ -316,13 +317,28 @@
     "not_connected_suffix": ".",
     "switch_label": "Agent inbox",
     "switch_off": "Off. This agent has no inbox.",
+    "username_label": "Address",
+    "username_placeholder": "agent-name",
+    "username_invalid": "Use letters, numbers, dots, hyphens, or underscores.",
+    "domain_label": "Domain",
+    "address_preview": "This agent will use",
+    "create_inbox": "Create inbox",
     "toast_granted": "Inbox granted",
     "toast_revoked": "Inbox revoked",
     "toast_failed": "Could not update inbox",
     "viewer_empty": "No messages yet.",
     "viewer_load_failed": "Couldn't load mail",
     "untitled": "(no subject)",
-    "back": "All messages"
+    "back": "All messages",
+    "folders_aria": "Mailbox folders",
+    "folders": {
+      "inbox": "Inbox",
+      "sent": "Sent",
+      "drafts": "Drafts",
+      "scheduled": "Scheduled",
+      "all": "All Mail",
+      "trash": "Trash"
+    }
   },
   "creation_studio": {
     "title": "Create an agent",
