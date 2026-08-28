@@ -1,0 +1,67 @@
+Start or resume interactive chat sessions
+
+Usage: goose session [OPTIONS] [COMMAND]
+
+Commands:
+  list         List all available sessions
+  remove       Remove sessions. Runs interactively if no ID, name, or regex is provided.
+  export       Export a session
+  import       Import a session from JSON, a Claude Code / Codex / Pi .jsonl, or an encrypted Nostr share link
+  diagnostics  
+  help         Print this message or the help of the given subcommand(s)
+
+Options:
+  -n, --name <NAME>
+          Specify a name for your chat session. When used with --resume, will resume this specific session if it exists.
+
+      --session-id <SESSION_ID>
+          Specify a session ID to resume. Requires --resume.
+
+      --path <PATH>
+          Legacy parameter for backward compatibility. Extracts session ID from the file path (e.g., '/path/to/20250325_200615.
+          jsonl' -> '20250325_200615').
+
+  -r, --resume
+          Continue from a previous session. If --name or --session-id is provided, resumes that specific session. Otherwise, resumes the most recently used session.
+
+      --fork
+          Create a new session by copying all messages from a previous session. Must be used with --resume. If --name or --session-id is provided, forks that specific session. Otherwise, forks the most recently used session.
+
+      --edit
+          Open the session's conversation in your editor ($VISUAL / $EDITOR / vi) for modification before resuming. When combined with --fork, creates a new session from the edited result.
+
+      --history
+          Show previous messages when resuming a session
+
+      --debug
+          When enabled, shows complete tool responses without truncation and full paths.
+
+      --max-tool-repetitions <NUMBER>
+          Set a limit on how many times the same tool can be called consecutively with identical parameters. Helps prevent infinite loops.
+
+      --max-turns <NUMBER>
+          Set a limit on how many turns (iterations) the agent can take without asking for user input to continue.
+
+      --container <CONTAINER_ID>
+          Run extensions (stdio and built-in) inside the specified container. The extension must exist in the container. For built-in extensions, goose must be installed inside the container.
+
+      --with-extension <COMMAND>
+          Add stdio extensions from full commands with environment variables. Can be specified multiple times. Format: '[name:]ENV1=val1 ENV2=val2 command args...'. Without the optional name, the extension is named after the command, which is the launcher for anything started through one ('npx', 'python', 'uvx', ...); extensions that would end up sharing a name are instead named after their full command line.
+
+      --with-streamable-http-extension <URL>
+          Add streamable HTTP extensions from a URL. Can be specified multiple times. Format: 'url...' or 'url... timeout=100' to set up timeout other than default
+
+      --with-builtin <NAME>
+          Add one or more builtin extensions that are bundled with goose by specifying their names, comma-separated
+
+      --no-profile
+          Don't load your default extensions, only use CLI-specified extensions
+
+      --provider <PROVIDER>
+          Override the GOOSE_PROVIDER environment variable for this run. Available providers include openai, anthropic, ollama, databricks, gemini-cli, claude-code, and others.
+
+      --model <MODEL>
+          Override the GOOSE_MODEL environment variable for this run. The model must be supported by the specified provider.
+
+  -h, --help
+          Print help (see a summary with '-h')
