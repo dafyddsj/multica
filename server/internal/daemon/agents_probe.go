@@ -284,9 +284,6 @@ var probeAgentCLIs = func() map[string]AgentEntry {
 	if e, ok := probe("MULTICA_AMP_PATH", "amp", ""); ok {
 		agents["amp"] = e
 	}
-	// Goose (`goose`) runs headlessly with `goose run -i - --output-format
-	// stream-json`. It takes no model env var until ListModels can enumerate
-	// a signed-in provider catalog — see ModelSelectionSupported.
 	if e, ok := probe("MULTICA_GOOSE_PATH", "goose", ""); ok {
 		agents["goose"] = e
 	}

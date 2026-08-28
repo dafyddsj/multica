@@ -362,7 +362,6 @@ function AmpLogo({ className }: { className: string }) {
   );
 }
 
-// Goose — letter mark until an official brand asset is sourced.
 function GooseLogo({ className }: { className: string }) {
   return (
     <svg

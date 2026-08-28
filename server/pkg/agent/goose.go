@@ -13,20 +13,10 @@ import (
 	"time"
 )
 
-// gooseBackend drives Goose's headless run protocol.
-// Fresh:  goose run -i - --output-format stream-json
-// Resume: goose run -i - --output-format stream-json --resume --session-id <id>
-//
-// The prompt is piped on stdin through -i - so user-influenced text never
-// rides argv (same class of fix as cursor #5649, qwen #6082, and Amp stdin).
 type gooseBackend struct {
 	cfg Config
 }
 
-// gooseSessionID is a validated Goose session id. The zero value means a
-// fresh run. The only constructors are parseGooseSessionID and
-// resolveGooseResume, so an unvalidated string cannot reach the resume argv
-// or Result.SessionID.
 type gooseSessionID string
 
 // Documented Goose 1.48.0 shapes: 20250325_200615 (--path help) and
@@ -236,8 +226,6 @@ func (b *gooseBackend) Execute(ctx context.Context, prompt string, opts ExecOpti
 
 // gooseStreamEvent is the 1.48.0 StreamEvent wire shape
 // (tag = "type", rename_all = "snake_case"): message, notification, error, complete.
-// Session id is not on that enum. The optional session_id field is accepted
-// only when it parses, so a later Goose release can start emitting one.
 type gooseStreamEvent struct {
 	Type      string          `json:"type"`
 	SessionID string          `json:"session_id,omitempty"`

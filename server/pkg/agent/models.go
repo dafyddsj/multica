@@ -279,11 +279,6 @@ func ListModels(ctx context.Context, providerType string, runtimeCmd Command) (C
 		// unchanged.
 		return Catalog{Models: ampModeCatalog()}, nil
 	case "goose":
-		// Goose 1.48.0 has --model / GOOSE_MODEL, but listing models needs a
-		// signed-in provider. Return an empty catalog rather than spawning
-		// goose until that canary exists. ModelSelectionSupported stays false
-		// so the UI shows "Managed by runtime" instead of a picker that drops
-		// values.
 		return Catalog{Models: []Model{}}, nil
 	default:
 		return Catalog{}, fmt.Errorf("unknown agent type: %q", providerType)
@@ -388,7 +383,7 @@ func QualifyModelID(catalog Catalog, model string) (string, bool) {
 // dropdown plus a silently-ignored manual-entry field.
 func ModelSelectionSupported(providerType string) bool {
 	switch providerType {
-	case "qwenpaw", "mcode", "zeroclaw", "goose":
+	case "qwenpaw", "mcode", "zeroclaw":
 		// QwenPaw's `session/set_model` persists to agent.json at the agent
 		// scope, not the session scope. Calling it would mutate the user's
 		// shared, persistent agent config. Model override is therefore
@@ -402,6 +397,8 @@ func ModelSelectionSupported(providerType string) bool {
 		// profile (`agents.<alias>.model_provider`) and nothing Multica sends
 		// can change it. Amp is not in this list: its picker values are
 		// --mode tokens (low|medium|high|ultra), not model ids.
+		return false
+	case "goose":
 		return false
 	default:
 		return true

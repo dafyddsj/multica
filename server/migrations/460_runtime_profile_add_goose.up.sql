@@ -1,6 +1,4 @@
--- Add Goose as a first-party stream-json protocol family. NOT VALID preserves
--- historical-row tolerance while enforcing the expanded whitelist for new rows.
--- The whitelist includes zeroclaw (403), amp (459), and goose.
+-- NOT VALID preserves historical-row tolerance while enforcing the expanded whitelist for new rows.
 ALTER TABLE runtime_profile DROP CONSTRAINT IF EXISTS runtime_profile_protocol_family_check;
 
 ALTER TABLE runtime_profile ADD CONSTRAINT runtime_profile_protocol_family_check
