@@ -286,3 +286,37 @@ func TestClaimTaskByRuntime_CarriesAgentMailOverlay(t *testing.T) {
 		t.Fatalf("claim overlay key = %q", key)
 	}
 }
+
+func TestAgentMailThreadsRequireActiveInboxAndSecrets(t *testing.T) {
+	withAgentMail(t)
+
+	runtimeID := dbfx.Runtime(t, "agentmail threads runtime")
+	agentID := dbfx.Agent(t, "Thread Mail", runtimeID)
+
+	listReq := newRequest(http.MethodGet, "/api/agents/"+agentID+"/agentmail/threads", nil)
+	listReq = withURLParam(listReq, "id", agentID)
+	testutil.Call(t, testHandler.ListAgentMailThreads, listReq).Want(http.StatusConflict)
+
+	testutil.Call(t, testHandler.ConnectAgentMail, agentMailWorkspaceReq(http.MethodPost, map[string]string{
+		"mode": "hosted",
+	})).Want(http.StatusOK)
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{})).
+		Want(http.StatusOK)
+
+	var listed AgentMailThreadListResponse
+	testutil.Call(t, testHandler.ListAgentMailThreads, listReq).Want(http.StatusOK).JSON(&listed)
+	if listed.Threads == nil {
+		t.Fatal("threads must be an empty list, not null")
+	}
+
+	missing := newRequest(http.MethodGet, "/api/agents/"+agentID+"/agentmail/threads/missing", nil)
+	missing = withURLParams(missing, "id", agentID, "threadId", "missing")
+	testutil.Call(t, testHandler.GetAgentMailThread, missing).Want(http.StatusNotFound)
+
+	memberID := dbfx.User(t, "AgentMail Thread Member", "agentmail-thread-"+agentID[:8]+"@example.com")
+	dbfx.Member(t, testWorkspaceID, memberID, "member")
+	memberReq := newRequest(http.MethodGet, "/api/agents/"+agentID+"/agentmail/threads", nil)
+	memberReq = withURLParam(memberReq, "id", agentID)
+	memberReq.Header.Set("X-User-ID", memberID)
+	testutil.Call(t, testHandler.ListAgentMailThreads, memberReq).Want(http.StatusForbidden)
+}

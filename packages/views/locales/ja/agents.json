@@ -301,7 +301,11 @@
     "switch_off": "オフ。このエージェントに受信箱はありません。",
     "toast_granted": "受信箱を付与しました",
     "toast_revoked": "受信箱を取り消しました",
-    "toast_failed": "受信箱を更新できませんでした"
+    "toast_failed": "受信箱を更新できませんでした",
+    "viewer_empty": "メールはまだありません。",
+    "viewer_load_failed": "メールを読み込めませんでした",
+    "untitled": "（件名なし）",
+    "back": "すべてのメール"
   },
   "create_dialog": {
     "title_create": "エージェントを作成",

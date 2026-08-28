@@ -309,7 +309,11 @@
     "switch_off": "꺼짐. 이 에이전트에는 받은편지함이 없습니다.",
     "toast_granted": "받은편지함을 부여했습니다",
     "toast_revoked": "받은편지함을 회수했습니다",
-    "toast_failed": "받은편지함을 업데이트하지 못했습니다"
+    "toast_failed": "받은편지함을 업데이트하지 못했습니다",
+    "viewer_empty": "메일이 없습니다.",
+    "viewer_load_failed": "메일을 불러오지 못했습니다",
+    "untitled": "(제목 없음)",
+    "back": "모든 메일"
   },
   "create_dialog": {
     "title_create": "에이전트 만들기",

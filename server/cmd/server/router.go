@@ -2142,6 +2142,8 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/env", h.GetAgentEnv)
 					r.Put("/env", h.UpdateAgentEnv)
 					r.Get("/agentmail", h.GetAgentMailInbox)
+					r.Get("/agentmail/threads", h.ListAgentMailThreads)
+					r.Get("/agentmail/threads/{threadId}", h.GetAgentMailThread)
 					r.With(handler.RequireHumanActor).Put("/agentmail", h.GrantAgentMailInbox)
 					r.With(handler.RequireHumanActor).Delete("/agentmail", h.RevokeAgentMailInbox)
 				})

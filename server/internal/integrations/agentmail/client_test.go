@@ -236,6 +236,64 @@ func TestLiveClientInspectKey(t *testing.T) {
 	})
 }
 
+func TestLiveClientListAndGetThreads(t *testing.T) {
+	client := newTestLive(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer am_inbox" {
+			t.Fatalf("Authorization = %q", r.Header.Get("Authorization"))
+		}
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/inboxes/inb_1/threads":
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"threads": []map[string]any{{
+					"thread_id":     "thr_1",
+					"subject":       "Hello",
+					"preview":       "plain preview",
+					"senders":       []string{"pat@example.com"},
+					"recipients":    []string{"ada@agentmail.to"},
+					"timestamp":     "2024-01-15T09:30:00Z",
+					"message_count": 1,
+				}},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/inboxes/inb_1/threads/thr_1":
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"thread_id": "thr_1",
+				"subject":   "Hello",
+				"messages": []map[string]any{{
+					"message_id":     "msg_1",
+					"from":           "pat@example.com",
+					"to":             []string{"ada@agentmail.to"},
+					"text":           "",
+					"extracted_text": "from extract",
+					"preview":        "from preview",
+					"html":           "<script>alert(1)</script>",
+				}},
+			})
+		default:
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+	})
+
+	page, err := client.listThreads(context.Background(), "am_inbox", "inb_1", "")
+	if err != nil {
+		t.Fatalf("listThreads: %v", err)
+	}
+	if len(page.Threads) != 1 || page.Threads[0].ID != "thr_1" {
+		t.Fatalf("page = %+v", page)
+	}
+
+	detail, err := client.getThread(context.Background(), "am_inbox", "inb_1", "thr_1")
+	if err != nil {
+		t.Fatalf("getThread: %v", err)
+	}
+	if len(detail.Messages) != 1 || detail.Messages[0].Text != "from extract" {
+		t.Fatalf("detail = %+v", detail)
+	}
+	raw, _ := json.Marshal(detail)
+	if strings.Contains(string(raw), "<script>") || strings.Contains(string(raw), "html") {
+		t.Fatalf("html leaked: %s", raw)
+	}
+}
+
 func TestLiveClientRejectsEmptyKey(t *testing.T) {
 	client := newTestLive(t, func(http.ResponseWriter, *http.Request) {
 		t.Fatal("empty key must not hit the network")

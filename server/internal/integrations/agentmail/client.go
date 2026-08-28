@@ -30,7 +30,9 @@ var inboxKeyPermissions = map[string]bool{
 	"draft_send":   true,
 }
 
-var errRemoteNotFound = errors.New("agentmail: remote not found")
+var ErrRemoteNotFound = errors.New("agentmail: remote not found")
+
+var errRemoteNotFound = ErrRemoteNotFound
 
 type clientCred struct {
 	apiKey string
@@ -56,6 +58,8 @@ type apiClient interface {
 	deletePod(ctx context.Context, orgKey, podID string) error
 	validateOrgKey(ctx context.Context, orgKey string) error
 	inspectKey(ctx context.Context, orgKey string) (inspectedKey, error)
+	listThreads(ctx context.Context, inboxKey, inboxID, pageToken string) (ThreadPage, error)
+	getThread(ctx context.Context, inboxKey, inboxID, threadID string) (ThreadDetail, error)
 }
 
 type liveClient struct {
@@ -187,6 +191,48 @@ func (c liveClient) inspectKey(ctx context.Context, orgKey string) (inspectedKey
 	default:
 		return inspectedKey{}, ErrBadOrgKey
 	}
+}
+
+func (c liveClient) listThreads(ctx context.Context, inboxKey, inboxID, pageToken string) (ThreadPage, error) {
+	if inboxID == "" {
+		return ThreadPage{}, errRemoteNotFound
+	}
+	path := "/inboxes/" + url.PathEscape(inboxID) + "/threads?limit=20"
+	if pageToken != "" {
+		path += "&page_token=" + url.QueryEscape(pageToken)
+	}
+	var out threadListResponse
+	if err := c.do(ctx, http.MethodGet, path, inboxKey, nil, &out); err != nil {
+		return ThreadPage{}, err
+	}
+	page := ThreadPage{NextPageToken: out.NextPageToken, Threads: make([]Thread, 0, len(out.Threads))}
+	for _, row := range out.Threads {
+		page.Threads = append(page.Threads, row.thread())
+	}
+	return page, nil
+}
+
+func (c liveClient) getThread(ctx context.Context, inboxKey, inboxID, threadID string) (ThreadDetail, error) {
+	if inboxID == "" || threadID == "" {
+		return ThreadDetail{}, errRemoteNotFound
+	}
+	var out threadDetailResponse
+	path := "/inboxes/" + url.PathEscape(inboxID) + "/threads/" + url.PathEscape(threadID)
+	if err := c.do(ctx, http.MethodGet, path, inboxKey, nil, &out); err != nil {
+		return ThreadDetail{}, err
+	}
+	detail := ThreadDetail{Thread: out.thread()}
+	for _, msg := range out.Messages {
+		detail.Messages = append(detail.Messages, Message{
+			ID:        msg.MessageID,
+			From:      msg.From,
+			To:        msg.To,
+			Timestamp: msg.Timestamp,
+			Subject:   msg.Subject,
+			Text:      firstNonEmpty(msg.Text, msg.ExtractedText, msg.Preview),
+		})
+	}
+	return detail, nil
 }
 
 func (c liveClient) lookupDomain(ctx context.Context, apiKey string) string {
@@ -378,4 +424,45 @@ type domainListResponse struct {
 	Domains []struct {
 		Domain string `json:"domain"`
 	} `json:"domains"`
+}
+
+type threadListResponse struct {
+	Threads       []threadSummaryResponse `json:"threads"`
+	NextPageToken string                  `json:"next_page_token"`
+}
+
+type threadSummaryResponse struct {
+	ThreadID     string   `json:"thread_id"`
+	Subject      string   `json:"subject"`
+	Preview      string   `json:"preview"`
+	Senders      []string `json:"senders"`
+	Recipients   []string `json:"recipients"`
+	Timestamp    string   `json:"timestamp"`
+	MessageCount int      `json:"message_count"`
+}
+
+func (r threadSummaryResponse) thread() Thread {
+	return Thread{
+		ID:           r.ThreadID,
+		Subject:      r.Subject,
+		Preview:      r.Preview,
+		Senders:      r.Senders,
+		Recipients:   r.Recipients,
+		Timestamp:    r.Timestamp,
+		MessageCount: r.MessageCount,
+	}
+}
+
+type threadDetailResponse struct {
+	threadSummaryResponse
+	Messages []struct {
+		MessageID     string   `json:"message_id"`
+		From          string   `json:"from"`
+		To            []string `json:"to"`
+		Timestamp     string   `json:"timestamp"`
+		Subject       string   `json:"subject"`
+		Text          string   `json:"text"`
+		ExtractedText string   `json:"extracted_text"`
+		Preview       string   `json:"preview"`
+	} `json:"messages"`
 }

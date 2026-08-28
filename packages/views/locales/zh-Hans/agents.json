@@ -309,7 +309,11 @@
     "switch_off": "未开通。此智能体没有邮箱。",
     "toast_granted": "已开通邮箱",
     "toast_revoked": "已关闭邮箱",
-    "toast_failed": "无法更新邮箱"
+    "toast_failed": "无法更新邮箱",
+    "viewer_empty": "还没有邮件。",
+    "viewer_load_failed": "无法加载邮件",
+    "untitled": "（无主题）",
+    "back": "全部邮件"
   },
   "creation_studio": {
     "title": "创建智能体",

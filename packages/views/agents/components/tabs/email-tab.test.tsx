@@ -21,6 +21,7 @@ const inboxRef = vi.hoisted(() => ({
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (opts: { queryKey: unknown[] }) => {
     const key = JSON.stringify(opts.queryKey);
+    if (key.includes("thread")) return { data: { threads: [], messages: [] }, isError: false };
     if (key.includes("inbox")) return { data: inboxRef.current };
     return { data: workspaceRef.current };
   },
@@ -81,6 +82,13 @@ describe("EmailTab", () => {
     render(<EmailTab agent={agent} />, { wrapper: I18nWrapper });
     await user.click(screen.getByRole("switch"));
     expect(mockGrant).toHaveBeenCalledWith("agent-1");
+  });
+
+  it("shows an empty mail list when the inbox is active", () => {
+    inboxRef.current = { agent_id: "agent-1", enabled: true, address: "ada@agentmail.to" };
+    render(<EmailTab agent={agent} />, { wrapper: I18nWrapper });
+    expect(screen.getByText("ada@agentmail.to")).toBeInTheDocument();
+    expect(screen.getByText("No messages yet.")).toBeInTheDocument();
   });
 
   it("points at Settings when the workspace is not connected", () => {

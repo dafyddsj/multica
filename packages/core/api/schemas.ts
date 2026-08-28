@@ -3463,3 +3463,71 @@ export const EMPTY_AGENTMAIL_WORKSPACE: AgentMailWorkspaceResponse = {
   can_manage: false,
   inboxes: [],
 };
+
+export interface AgentMailThreadResponse {
+  thread_id: string;
+  subject?: string;
+  preview?: string;
+  senders: string[];
+  recipients: string[];
+  timestamp?: string;
+  message_count: number;
+}
+
+export interface AgentMailThreadListResponse {
+  threads: AgentMailThreadResponse[];
+  next_page_token?: string;
+}
+
+export interface AgentMailMessageResponse {
+  message_id: string;
+  from: string;
+  to: string[];
+  timestamp?: string;
+  subject?: string;
+  text: string;
+}
+
+export interface AgentMailThreadDetailResponse extends AgentMailThreadResponse {
+  messages: AgentMailMessageResponse[];
+}
+
+export const AgentMailThreadResponseSchema = z.object({
+  thread_id: z.string(),
+  subject: OptionalStringSchema,
+  preview: OptionalStringSchema,
+  senders: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+  recipients: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+  timestamp: OptionalStringSchema,
+  message_count: z.number().int().nonnegative().catch(0),
+}).loose();
+
+export const AgentMailThreadListResponseSchema = z.object({
+  threads: z.array(AgentMailThreadResponseSchema).nullish().transform((rows) => rows ?? []),
+  next_page_token: OptionalStringSchema,
+}).loose();
+
+export const AgentMailMessageResponseSchema = z.object({
+  message_id: z.string(),
+  from: z.string(),
+  to: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+  timestamp: OptionalStringSchema,
+  subject: OptionalStringSchema,
+  text: z.string().catch(""),
+}).loose();
+
+export const AgentMailThreadDetailResponseSchema = AgentMailThreadResponseSchema.extend({
+  messages: z.array(AgentMailMessageResponseSchema).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export const EMPTY_AGENTMAIL_THREAD_LIST: AgentMailThreadListResponse = {
+  threads: [],
+};
+
+export const EMPTY_AGENTMAIL_THREAD: AgentMailThreadDetailResponse = {
+  thread_id: "",
+  senders: [],
+  recipients: [],
+  message_count: 0,
+  messages: [],
+};

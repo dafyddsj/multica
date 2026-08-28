@@ -91,6 +91,35 @@ type Inbox struct {
 	DisplayName string
 }
 
+type Thread struct {
+	ID           string
+	Subject      string
+	Preview      string
+	Senders      []string
+	Recipients   []string
+	Timestamp    string
+	MessageCount int
+}
+
+type ThreadPage struct {
+	Threads       []Thread
+	NextPageToken string
+}
+
+type Message struct {
+	ID        string
+	From      string
+	To        []string
+	Timestamp string
+	Subject   string
+	Text      string
+}
+
+type ThreadDetail struct {
+	Thread
+	Messages []Message
+}
+
 type Service struct {
 	cfg Config
 	q   *db.Queries
@@ -483,6 +512,57 @@ func (s *Service) ClaimOverlay(ctx context.Context, wsID, agentID pgtype.UUID) (
 		return nil, err
 	}
 	return claimOverlayJSON(s.cfg.MCPURL, key)
+}
+
+func (s *Service) ListThreads(ctx context.Context, wsID, agentID pgtype.UUID, pageToken string) (ThreadPage, error) {
+	inboxID, key, err := s.activeInboxAccess(ctx, wsID, agentID)
+	if err != nil {
+		return ThreadPage{}, err
+	}
+	return s.api.listThreads(ctx, key, inboxID, pageToken)
+}
+
+func (s *Service) GetThread(ctx context.Context, wsID, agentID pgtype.UUID, threadID string) (ThreadDetail, error) {
+	if strings.TrimSpace(threadID) == "" {
+		return ThreadDetail{}, errRemoteNotFound
+	}
+	inboxID, key, err := s.activeInboxAccess(ctx, wsID, agentID)
+	if err != nil {
+		return ThreadDetail{}, err
+	}
+	return s.api.getThread(ctx, key, inboxID, threadID)
+}
+
+func (s *Service) activeInboxAccess(ctx context.Context, wsID, agentID pgtype.UUID) (string, string, error) {
+	if !s.Available() {
+		return "", "", ErrUnavailable
+	}
+	conn, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) || (err == nil && conn.State != stateActive) {
+		return "", "", ErrNotConnected
+	}
+	if err != nil {
+		return "", "", err
+	}
+	row, err := s.q.GetAgentMailInbox(ctx, db.GetAgentMailInboxParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+	})
+	if isNoRows(err) || (err == nil && row.State != stateActive) {
+		return "", "", ErrInboxNotActive
+	}
+	if err != nil {
+		return "", "", err
+	}
+	remote := textString(row.RemoteInboxID)
+	if remote == "" || !row.InboxKeyEncrypted.Valid || row.InboxKeyEncrypted.String == "" {
+		return "", "", ErrInboxNotActive
+	}
+	key, err := openInboxKey(s.cfg.Box, row.InboxKeyEncrypted.String)
+	if err != nil {
+		return "", "", err
+	}
+	return remote, key, nil
 }
 
 func (s *Service) SweepWorkspace(ctx context.Context, qtx *db.Queries, wsID pgtype.UUID) error {

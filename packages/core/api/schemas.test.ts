@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AgentMailThreadListResponseSchema,
   AgentMailWorkspaceResponseSchema,
   AppConfigSchema,
   ChildIssueProgressResponseSchema,
@@ -1220,6 +1221,13 @@ describe("AgentMailWorkspaceResponseSchema malformed", () => {
     });
     expect(parsed.inboxes).toEqual([]);
     expect(parsed.can_manage).toBe(false);
+  });
+});
+
+describe("AgentMailThreadListResponseSchema malformed", () => {
+  it("falls back threads to [] when missing", () => {
+    const parsed = AgentMailThreadListResponseSchema.parse({});
+    expect(parsed.threads).toEqual([]);
   });
 });
 

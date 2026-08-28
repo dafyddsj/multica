@@ -413,6 +413,52 @@ func TestServiceLifecycle(t *testing.T) {
 		}
 	})
 
+	t.Run("list and get threads are live and text-only", func(t *testing.T) {
+		fake := newFake()
+		svc := newTestService(t, fake, Config{})
+		wsID, actorID, agentID := newIDs(t)
+		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		got, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada")
+		if err != nil {
+			t.Fatalf("grant: %v", err)
+		}
+		remote := fake.inboxes[util.UUIDToString(agentID)].id
+		fake.seedThread(remote, ThreadDetail{
+			Thread: Thread{ID: "thr_1", Subject: "Hello", Preview: "plain preview", Senders: []string{"pat@example.com"}},
+			Messages: []Message{{
+				ID:   "msg_1",
+				From: "pat@example.com",
+				Text: "plain body",
+			}},
+		})
+
+		page, err := svc.ListThreads(ctx, wsID, agentID, "")
+		if err != nil {
+			t.Fatalf("ListThreads: %v", err)
+		}
+		if len(page.Threads) != 1 || page.Threads[0].ID != "thr_1" || page.Threads[0].Subject != "Hello" {
+			t.Fatalf("page = %+v", page)
+		}
+		if got.Address == "" {
+			t.Fatal("granted inbox missing address")
+		}
+
+		detail, err := svc.GetThread(ctx, wsID, agentID, "thr_1")
+		if err != nil {
+			t.Fatalf("GetThread: %v", err)
+		}
+		if len(detail.Messages) != 1 || detail.Messages[0].Text != "plain body" {
+			t.Fatalf("detail = %+v", detail)
+		}
+
+		_, err = svc.ListThreads(ctx, wsID, actorID, "")
+		if !errors.Is(err, ErrInboxNotActive) {
+			t.Fatalf("other agent = %v, want ErrInboxNotActive", err)
+		}
+	})
+
 	t.Run("permission whitelist excludes management scopes", func(t *testing.T) {
 		forbidden := []string{"inbox_create", "inbox_delete", "api_key_create", "pod_create"}
 		for name, on := range inboxKeyPermissions {

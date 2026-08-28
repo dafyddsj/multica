@@ -29,6 +29,35 @@ type AgentMailInboxResponse struct {
 	DisplayName string `json:"display_name,omitempty"`
 }
 
+type AgentMailThreadResponse struct {
+	ThreadID     string   `json:"thread_id"`
+	Subject      string   `json:"subject,omitempty"`
+	Preview      string   `json:"preview,omitempty"`
+	Senders      []string `json:"senders"`
+	Recipients   []string `json:"recipients"`
+	Timestamp    string   `json:"timestamp,omitempty"`
+	MessageCount int      `json:"message_count"`
+}
+
+type AgentMailThreadListResponse struct {
+	Threads       []AgentMailThreadResponse `json:"threads"`
+	NextPageToken string                    `json:"next_page_token,omitempty"`
+}
+
+type AgentMailMessageResponse struct {
+	MessageID string   `json:"message_id"`
+	From      string   `json:"from"`
+	To        []string `json:"to"`
+	Timestamp string   `json:"timestamp,omitempty"`
+	Subject   string   `json:"subject,omitempty"`
+	Text      string   `json:"text"`
+}
+
+type AgentMailThreadDetailResponse struct {
+	AgentMailThreadResponse
+	Messages []AgentMailMessageResponse `json:"messages"`
+}
+
 type connectAgentMailRequest struct {
 	Mode   string `json:"mode"`
 	OrgKey string `json:"org_key"`
@@ -188,6 +217,47 @@ func (h *Handler) GrantAgentMailInbox(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, agentMailInboxResponse(inbox))
 }
 
+func (h *Handler) ListAgentMailThreads(w http.ResponseWriter, r *http.Request) {
+	agent, ok := h.authorizeAgentMailRead(w, r)
+	if !ok {
+		return
+	}
+	if h.AgentMail == nil || !h.AgentMail.Available() {
+		writeError(w, http.StatusServiceUnavailable, "agentmail not configured")
+		return
+	}
+	page, err := h.AgentMail.ListThreads(r.Context(), agent.WorkspaceID, agent.ID, r.URL.Query().Get("page_token"))
+	if err != nil {
+		writeAgentMailError(w, err)
+		return
+	}
+	resp := AgentMailThreadListResponse{
+		Threads:       make([]AgentMailThreadResponse, 0, len(page.Threads)),
+		NextPageToken: page.NextPageToken,
+	}
+	for _, thread := range page.Threads {
+		resp.Threads = append(resp.Threads, agentMailThreadResponse(thread))
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (h *Handler) GetAgentMailThread(w http.ResponseWriter, r *http.Request) {
+	agent, ok := h.authorizeAgentMailRead(w, r)
+	if !ok {
+		return
+	}
+	if h.AgentMail == nil || !h.AgentMail.Available() {
+		writeError(w, http.StatusServiceUnavailable, "agentmail not configured")
+		return
+	}
+	detail, err := h.AgentMail.GetThread(r.Context(), agent.WorkspaceID, agent.ID, chi.URLParam(r, "threadId"))
+	if err != nil {
+		writeAgentMailError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, agentMailThreadDetailResponse(detail))
+}
+
 func (h *Handler) RevokeAgentMailInbox(w http.ResponseWriter, r *http.Request) {
 	agent, ok := h.authorizeAgentMailWrite(w, r)
 	if !ok {
@@ -287,6 +357,43 @@ func agentMailInboxResponse(inbox agentmail.Inbox) AgentMailInboxResponse {
 	return resp
 }
 
+func agentMailThreadResponse(thread agentmail.Thread) AgentMailThreadResponse {
+	return AgentMailThreadResponse{
+		ThreadID:     thread.ID,
+		Subject:      thread.Subject,
+		Preview:      thread.Preview,
+		Senders:      nonNilStrings(thread.Senders),
+		Recipients:   nonNilStrings(thread.Recipients),
+		Timestamp:    thread.Timestamp,
+		MessageCount: thread.MessageCount,
+	}
+}
+
+func agentMailThreadDetailResponse(detail agentmail.ThreadDetail) AgentMailThreadDetailResponse {
+	resp := AgentMailThreadDetailResponse{
+		AgentMailThreadResponse: agentMailThreadResponse(detail.Thread),
+		Messages:                make([]AgentMailMessageResponse, 0, len(detail.Messages)),
+	}
+	for _, msg := range detail.Messages {
+		resp.Messages = append(resp.Messages, AgentMailMessageResponse{
+			MessageID: msg.ID,
+			From:      msg.From,
+			To:        nonNilStrings(msg.To),
+			Timestamp: msg.Timestamp,
+			Subject:   msg.Subject,
+			Text:      msg.Text,
+		})
+	}
+	return resp
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
+}
+
 func writeAgentMailError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, agentmail.ErrUnavailable):
@@ -303,6 +410,8 @@ func writeAgentMailError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "workspace inbox limit reached")
 	case errors.Is(err, agentmail.ErrInboxNotActive):
 		writeError(w, http.StatusConflict, "inbox is not active")
+	case errors.Is(err, agentmail.ErrRemoteNotFound):
+		writeError(w, http.StatusNotFound, "mail not found")
 	default:
 		writeError(w, http.StatusInternalServerError, "agentmail request failed")
 	}

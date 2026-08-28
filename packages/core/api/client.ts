@@ -285,6 +285,8 @@ import {
   DashboardUsageByAgentListSchema,
   DashboardUsageDailyListSchema,
   EMPTY_AGENTMAIL_INBOX,
+  EMPTY_AGENTMAIL_THREAD,
+  EMPTY_AGENTMAIL_THREAD_LIST,
   EMPTY_AGENTMAIL_WORKSPACE,
   EMPTY_APP_CONFIG,
   EMPTY_ATTACHMENT,
@@ -313,9 +315,13 @@ import {
   EMPTY_LIST_WEBHOOK_DELIVERIES_RESPONSE,
   EMPTY_WEBHOOK_DELIVERY,
   AgentMailInboxResponseSchema,
+  AgentMailThreadDetailResponseSchema,
+  AgentMailThreadListResponseSchema,
   AgentMailWorkspaceResponseSchema,
   AppConfigSchema,
   type AgentMailInboxResponse,
+  type AgentMailThreadDetailResponse,
+  type AgentMailThreadListResponse,
   type AgentMailWorkspaceResponse,
   type AppConfigResponse,
   type ConnectAgentMailRequest,
@@ -4607,6 +4613,37 @@ export class ApiClient {
     await this.fetch(`/api/agents/${agentId}/agentmail`, {
       method: "DELETE",
     });
+  }
+
+  async listAgentMailThreads(
+    agentId: string,
+    pageToken?: string,
+  ): Promise<AgentMailThreadListResponse> {
+    const search = new URLSearchParams();
+    if (pageToken) search.set("page_token", pageToken);
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    const raw = await this.fetch<unknown>(`/api/agents/${agentId}/agentmail/threads${suffix}`);
+    return parseWithFallback(
+      raw,
+      AgentMailThreadListResponseSchema,
+      EMPTY_AGENTMAIL_THREAD_LIST,
+      { endpoint: "GET /api/agents/:id/agentmail/threads" },
+    );
+  }
+
+  async getAgentMailThread(
+    agentId: string,
+    threadId: string,
+  ): Promise<AgentMailThreadDetailResponse> {
+    const raw = await this.fetch<unknown>(
+      `/api/agents/${agentId}/agentmail/threads/${encodeURIComponent(threadId)}`,
+    );
+    return parseWithFallback(
+      raw,
+      AgentMailThreadDetailResponseSchema,
+      EMPTY_AGENTMAIL_THREAD,
+      { endpoint: "GET /api/agents/:id/agentmail/threads/:threadId" },
+    );
   }
 
   // Lark integration

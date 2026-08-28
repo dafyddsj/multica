@@ -14,6 +14,7 @@ type memoryClient struct {
 	deleted    map[string]struct{}
 	podKeys    map[string]string
 	rejectKeys map[string]struct{}
+	threads    map[string][]ThreadDetail
 	minted     []string
 	ensurePodN atomic.Int32
 	createKeyN atomic.Int32
@@ -27,6 +28,7 @@ func newMemoryClient() *memoryClient {
 		deleted:    map[string]struct{}{},
 		podKeys:    map[string]string{},
 		rejectKeys: map[string]struct{}{},
+		threads:    map[string][]ThreadDetail{},
 	}
 }
 
@@ -104,6 +106,34 @@ func (f *memoryClient) validateOrgKey(_ context.Context, orgKey string) error {
 		return ErrBadOrgKey
 	}
 	return nil
+}
+
+func (f *memoryClient) seedThread(inboxID string, thread ThreadDetail) {
+	f.threads[inboxID] = append(f.threads[inboxID], thread)
+}
+
+func (f *memoryClient) listThreads(_ context.Context, _, inboxID, _ string) (ThreadPage, error) {
+	if inboxID == "" {
+		return ThreadPage{}, errRemoteNotFound
+	}
+	rows := f.threads[inboxID]
+	page := ThreadPage{Threads: make([]Thread, 0, len(rows))}
+	for _, row := range rows {
+		page.Threads = append(page.Threads, row.Thread)
+	}
+	return page, nil
+}
+
+func (f *memoryClient) getThread(_ context.Context, _, inboxID, threadID string) (ThreadDetail, error) {
+	if inboxID == "" || threadID == "" {
+		return ThreadDetail{}, errRemoteNotFound
+	}
+	for _, row := range f.threads[inboxID] {
+		if row.ID == threadID {
+			return row, nil
+		}
+	}
+	return ThreadDetail{}, errRemoteNotFound
 }
 
 func (f *memoryClient) inspectKey(ctx context.Context, orgKey string) (inspectedKey, error) {

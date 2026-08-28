@@ -318,7 +318,11 @@
     "switch_off": "Off. This agent has no inbox.",
     "toast_granted": "Inbox granted",
     "toast_revoked": "Inbox revoked",
-    "toast_failed": "Could not update inbox"
+    "toast_failed": "Could not update inbox",
+    "viewer_empty": "No messages yet.",
+    "viewer_load_failed": "Couldn't load mail",
+    "untitled": "(no subject)",
+    "back": "All messages"
   },
   "creation_studio": {
     "title": "Create an agent",
