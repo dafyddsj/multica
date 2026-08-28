@@ -3991,7 +3991,7 @@ func TestShellArgsFromEnvEmptyIsNil(t *testing.T) {
 }
 
 func TestDefaultArgsForProvider(t *testing.T) {
-	cfg := Config{ClaudeArgs: []string{"--max-turns", "60"}, CodexArgs: []string{"--sandbox", "workspace-write"}, AmpArgs: []string{"--try-gpt-5"}}
+	cfg := Config{ClaudeArgs: []string{"--max-turns", "60"}, CodexArgs: []string{"--sandbox", "workspace-write"}, AmpArgs: []string{"--try-gpt-5"}, DevinArgs: []string{"--from-devin"}}
 	if got := defaultArgsForProvider(cfg, "claude"); strings.Join(got, " ") != "--max-turns 60" {
 		t.Fatalf("unexpected claude args: %#v", got)
 	}
@@ -4000,6 +4000,9 @@ func TestDefaultArgsForProvider(t *testing.T) {
 	}
 	if got := defaultArgsForProvider(cfg, "amp"); strings.Join(got, " ") != "--try-gpt-5" {
 		t.Fatalf("unexpected amp args: %#v", got)
+	}
+	if got := defaultArgsForProvider(cfg, "devin"); strings.Join(got, " ") != "--from-devin" {
+		t.Fatalf("unexpected devin args: %#v", got)
 	}
 	if got := defaultArgsForProvider(cfg, "unsupported"); got != nil {
 		t.Fatalf("expected nil for unsupported provider, got %#v", got)

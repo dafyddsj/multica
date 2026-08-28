@@ -9176,6 +9176,8 @@ func defaultArgsForProvider(cfg Config, provider string) []string {
 		args = cfg.QwenpawArgs
 	case "amp":
 		args = cfg.AmpArgs
+	case "devin":
+		args = cfg.DevinArgs
 	default:
 		return nil
 	}

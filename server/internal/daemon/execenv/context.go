@@ -445,6 +445,11 @@ func skillsDirPath(workDir, provider string) string {
 		// on that scan list, so Amp spent a minute hunting SKILL.md files
 		// that the brief said were "discovered automatically".
 		return filepath.Join(workDir, ".agents", "skills")
+	case "devin":
+		// Devin CLI 3000.6.2 `devin skills paths` lists project skills at
+		// .devin/skills/. .agents/skills/ is also scanned and is shared
+		// with Amp and Goose, so Multica-managed Devin skills stay here.
+		return filepath.Join(workDir, ".devin", "skills")
 	case "grok":
 		// Grok Build CLI discovers project-level skills from .grok/skills/
 		// (and also scans .agents/skills/). Prefer the native .grok tree.

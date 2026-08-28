@@ -513,6 +513,41 @@ func TestLoadConfig_DiscoversAmp(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_DiscoversDevin(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX shell fixture is unavailable on Windows")
+	}
+	binDir := stageFakeAgent(t)
+	devin := filepath.Join(binDir, "devin")
+	if err := os.WriteFile(devin, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("write fake devin: %v", err)
+	}
+	t.Setenv("SHELL", "/usr/bin/fish")
+	t.Setenv("MULTICA_DEVIN_ARGS", "--verbose --foo=bar")
+
+	cfg, err := LoadConfig(Overrides{
+		ServerURL:      "http://localhost:0",
+		WorkspacesRoot: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	entry, ok := cfg.Agents["devin"]
+	if !ok {
+		t.Fatalf("devin was not discovered: %v", cfg.Agents)
+	}
+	wantPath, err := filepath.EvalSymlinks(devin)
+	if err != nil {
+		t.Fatalf("eval symlinks for devin: %v", err)
+	}
+	if entry.Path != wantPath || entry.Command != "devin" || entry.Model != "" {
+		t.Fatalf("devin entry = %+v, want path=%q command=devin empty model", entry, wantPath)
+	}
+	if got, want := strings.Join(cfg.DevinArgs, " "), "--verbose --foo=bar"; got != want {
+		t.Fatalf("DevinArgs = %q, want %q", got, want)
+	}
+}
+
 func TestLoadConfig_SkipsMulticaHooksShadowingAgentBinaries(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("POSIX shell not available on Windows")

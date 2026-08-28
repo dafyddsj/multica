@@ -147,6 +147,7 @@ type Config struct {
 	QwenArgs                        []string
 	QwenpawArgs                     []string
 	AmpArgs                         []string
+	DevinArgs                       []string
 
 	// ProfileCommandOverrides maps a custom runtime profile_id -> the absolute
 	// executable path to use for that profile on THIS machine (MUL-3284).
@@ -278,6 +279,10 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		return Config{}, err
 	}
 	ampArgs, err := shellArgsFromEnv("MULTICA_AMP_ARGS")
+	if err != nil {
+		return Config{}, err
+	}
+	devinArgs, err := shellArgsFromEnv("MULTICA_DEVIN_ARGS")
 	if err != nil {
 		return Config{}, err
 	}
@@ -580,6 +585,7 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		QwenArgs:                        qwenArgs,
 		QwenpawArgs:                     qwenpawArgs,
 		AmpArgs:                         ampArgs,
+		DevinArgs:                       devinArgs,
 		ProfileCommandOverrides:         profileCommandOverrides,
 	}, nil
 }
@@ -886,7 +892,7 @@ func isExecutableFile(path string) bool {
 // doesn't require editing this list by hand.
 var defaultAgentCommandNames = append([]string{
 	"claude", "codex", "opencode", "deveco", "openclaw", "hermes",
-	"pi", "cursor-agent", "copilot", "kimi", "reasonix", "dsh", "kiro-cli", "codebuddy", "agy", "qodercli", "qoderclicn", "traecli", "grok", "qwen", "qwenpaw", "mcode", "dim", "zeroclaw", "amp",
+	"pi", "cursor-agent", "copilot", "kimi", "reasonix", "dsh", "kiro-cli", "codebuddy", "agy", "qodercli", "qoderclicn", "traecli", "grok", "qwen", "qwenpaw", "mcode", "dim", "zeroclaw", "amp", "devin",
 }, agent.BuiltinRuntimeCommands()...)
 
 // codexDesktopAppBundlePaths returns candidate macOS app-bundle locations for

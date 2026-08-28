@@ -284,6 +284,12 @@ var probeAgentCLIs = func() map[string]AgentEntry {
 	if e, ok := probe("MULTICA_AMP_PATH", "amp", ""); ok {
 		agents["amp"] = e
 	}
+	// Devin (`devin`) runs headlessly with --print. It takes no model env
+	// var: listing models requires a logged-in account and
+	// ModelSelectionSupported is false until that canary.
+	if e, ok := probe("MULTICA_DEVIN_PATH", "devin", ""); ok {
+		agents["devin"] = e
+	}
 	return agents
 }
 
