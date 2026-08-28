@@ -288,7 +288,7 @@ type Config struct {
 // migration 242 to add qoderclicn, migration 253 to add qwenpaw,
 // migration 254 to add reasonix, migration 313 to add dsh, migration 327 to
 // add mcode, migration 370 to add dim, migration 403 to add zeroclaw,
-// migration 459 to add amp): a
+// migration 459 to add amp, migration 460 to add goose): a
 // custom runtime profile may only
 // be based on a backend Multica officially supports.
 // qoder and qoderclicn share the same ACP backend; keeping both provider keys
@@ -324,6 +324,7 @@ var SupportedTypes = []string{
 	"dim",
 	"zeroclaw",
 	"amp",
+	"goose",
 }
 
 // IsSupportedType reports whether agentType is in the SupportedTypes whitelist.
@@ -428,6 +429,8 @@ func New(agentType string, cfg Config) (Backend, error) {
 		return &zeroclawBackend{cfg: cfg}, nil
 	case "amp":
 		return &ampBackend{cfg: cfg}, nil
+	case "goose":
+		return &gooseBackend{cfg: cfg}, nil
 	default:
 		return nil, fmt.Errorf("unknown agent type: %q (supported: %s)", agentType, strings.Join(SupportedTypes, ", "))
 	}
@@ -475,6 +478,7 @@ var launchHeaders = map[string]string{
 	"mcode":       "mcode acp",
 	"zeroclaw":    "zeroclaw acp",
 	"amp":         "amp -x (stream-json)",
+	"goose":       "goose run (stream-json)",
 }
 
 // LaunchHeader returns the user-visible launch skeleton for agentType, or an

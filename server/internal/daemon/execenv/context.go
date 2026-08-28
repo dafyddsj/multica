@@ -445,6 +445,11 @@ func skillsDirPath(workDir, provider string) string {
 		// on that scan list, so Amp spent a minute hunting SKILL.md files
 		// that the brief said were "discovered automatically".
 		return filepath.Join(workDir, ".agents", "skills")
+	case "goose":
+		// Goose 1.48.0 `goose skills list` names the project path as
+		// .agents/skills/. Do not write ~/.agents/skills/ or
+		// ~/.config/goose/skills/.
+		return filepath.Join(workDir, ".agents", "skills")
 	case "grok":
 		// Grok Build CLI discovers project-level skills from .grok/skills/
 		// (and also scans .agents/skills/). Prefer the native .grok tree.

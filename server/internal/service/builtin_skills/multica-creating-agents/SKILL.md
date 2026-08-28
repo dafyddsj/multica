@@ -241,6 +241,12 @@ backends may consume protocol selectors before launch:
   `--executor`, `-p`, and `--output-format`. Those tokens are stripped from
   `custom_args`. The first-class `model` field is sent as `--mode`. Put extra
   Amp flags in `custom_args` or `MULTICA_AMP_ARGS`; do not put `--mode` there.
+- Goose owns `-i` / `--instructions`, `-t` / `--text`, `--output-format`,
+  `--resume`, `-r`, `--session-id`, `--no-session`, `-s` / `--interactive`,
+  `--recipe`, `--acp`, `acp`, and `serve`. Those tokens are stripped from
+  `custom_args`. The prompt is written on stdin through `-i -`. Resume is
+  `--resume --session-id <id>` together. Put extra Goose flags in
+  `custom_args` or `MULTICA_GOOSE_ARGS`.
 
 Never put credentials or other secrets in `custom_args`. Daemon command logs
 redact argument values, but values that a backend does not consume still live

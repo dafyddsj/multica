@@ -346,6 +346,8 @@ Agent-specific overrides:
 | `MULTICA_QWENPAW_ARGS` | Daemon-wide extra QwenPaw arguments (POSIX shellword parsing; managed protocol flags are filtered) |
 | `MULTICA_AMP_PATH` | Custom path to the `amp` binary |
 | `MULTICA_AMP_ARGS` | Daemon-wide extra Amp arguments (POSIX shellword parsing; managed protocol flags are filtered) |
+| `MULTICA_GOOSE_PATH` | Custom path to the `goose` binary |
+| `MULTICA_GOOSE_ARGS` | Daemon-wide extra Goose arguments (POSIX shellword parsing; managed protocol flags are filtered) |
 | `MULTICA_MCODE_PATH` | Custom path to the `mcode` binary |
 | `MULTICA_DSH_PATH` | Custom path to the `dsh` binary |
 | `MULTICA_DSH_MODEL` | Override the DeepSeek Harness model used (a model id from the dsh catalog, e.g. `deepseek-official/deepseek-chat`) |
@@ -356,6 +358,8 @@ The daemon launches Qoder and Qoder CN as `qodercli --yolo --acp` and `qoderclic
 The daemon launches Qwen Code as `qwen -p <prompt> --output-format stream-json`. It writes the task brief to `QWEN.md`; when an agent has managed `mcp_config`, the daemon writes a 0600 per-run JSON file and passes it through `--mcp-config <path>`, then removes it after the process exits. A null config preserves Qwen Code native MCP settings.
 
 The daemon launches Amp as `amp --execute --stream-json --stream-json-thinking --dangerously-allow-all --no-archive-after-execute`, with the prompt on stdin. Without `--no-archive-after-execute`, Amp archives the thread when `--execute` exits and `amp threads continue` then fails with "This thread is archived and cannot be continued." Resume is `amp threads archive --unarchive <T-uuid>` followed by `amp threads continue <T-uuid>` plus the same execute flags. It writes the task brief to `AGENTS.md` and skills to `.agents/skills/`. The agent model field is passed as `--mode` (`low` / `medium` / `high` / `ultra`, or a plugin mode). When an agent has managed `mcp_config`, the daemon writes a 0600 per-run JSON file and passes `--mcp-config <path>`. Every Amp launch also gets `--settings-file` pointing at a per-run file with empty `amp.mcpServers`, so global `~/.config/amp` MCP is not inherited. Amp account MCP and workspace `.amp/settings.json` may still load. There is no `MULTICA_AMP_MODEL`.
+
+The daemon launches Goose as `goose run -i - --output-format stream-json`, with the prompt on stdin. Resume is `--resume --session-id <id>` together. A bare `--resume` is never emitted. It writes the task brief to `AGENTS.md` and skills to `.agents/skills/`. `GOOSE_MODE=auto` is pinned on the process. There is no `MULTICA_GOOSE_MODEL` until Goose can list models without a signed-in provider. Multica-managed MCP is held until an isolated `--no-profile --with-extension` canary.
 
 #### `mcp_config` on ACP runtimes
 

@@ -24,6 +24,7 @@ Multica は現在、次のコマンドを検出します。
 | Cursor Agent | `cursor-agent` | [Cursor CLI のインストール](https://docs.cursor.com/en/cli/installation) |
 | DeepSeek Harness | `dsh` | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) |
 | DevEco Code | `deveco` | [DevEco Code](https://gitcode.com/openharmony-sig/deveco-code) |
+| Goose | `goose` | [Goose](https://github.com/block/goose) |
 | Grok Build | `grok` | [Grok Build クイックスタート](https://docs.x.ai/build/overview) |
 | Hermes Agent | `hermes` | [Hermes クイックスタート](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart/) |
 | Kimi CLI | `kimi` | [Kimi CLI](https://github.com/MoonshotAI/kimi-cli) |
@@ -52,6 +53,8 @@ Reasonix を使う場合は、デーモンを起動する前に `reasonix setup`
 QwenPaw を使う場合は、QwenPaw 側の設定でプロバイダーとモデルを選んでください。Multica が実行時に QwenPaw のモデルを上書きすることはできません。
 
 Amp は `amp login` でログインするか `AMP_API_KEY` を設定してください。モデルは Amp が選び、Multica は `--model` を送りません。
+
+Goose は `goose configure` を実行し、`GOOSE_PROVIDER`、`GOOSE_MODEL`、およびそのプロバイダーの API key を設定してください。Multica は Goose の IdP にはなりません。Goose が未ログインでもモデル一覧を出せるようになるまで、モデル選択欄は「ランタイムで管理」のままです。
 
 MiniMax Code を使う場合は、対応する Node.js バージョン（`>=22.19 <23` または `>=24 <27`）をインストールし、`npm install --global @minimax-ai/code@latest` を実行してください。npm のグローバルインストールによって `mcode` は npm のグローバル実行ファイルディレクトリに配置されます。`command -v mcode` または `Get-Command mcode` で見つからない場合は、そのディレクトリを `PATH` に追加してください。その後 `mcode login` を実行します。モデルは MiniMax Code が管理し、Multica から ACP 経由で上書きすることはできません。
 
