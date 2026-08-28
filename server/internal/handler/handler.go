@@ -188,6 +188,7 @@ type Handler struct {
 	Bus                    *events.Bus
 	TaskService            *service.TaskService
 	AgentPause             *service.AgentPauseService
+	Budgets                *service.BudgetService
 	PluginService          *service.PluginService
 	IssueService           *service.IssueService
 	AutopilotService       *service.AutopilotService
@@ -461,6 +462,7 @@ func New(queries *db.Queries, txStarter txStarter, hub *realtime.Hub, bus *event
 		Bus:                          bus,
 		TaskService:                  taskSvc,
 		AgentPause:                   service.NewAgentPauseService(queries, bus),
+		Budgets:                      service.NewBudgetService(queries, txStarter),
 		PluginService:                service.NewPluginService(queries, txStarter),
 		IssueService:                 service.NewIssueService(queries, txStarter, bus, analyticsClient, taskSvc),
 		AutopilotService:             service.NewAutopilotService(queries, txStarter, bus, taskSvc),

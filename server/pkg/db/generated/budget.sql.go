@@ -11,6 +11,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countOverlappingBudgetWaivers = `-- name: CountOverlappingBudgetWaivers :one
+SELECT COUNT(*)::int
+FROM budget_waiver
+WHERE workspace_id = $1
+  AND scope = $2
+  AND owner_id = $3
+  AND starts_at < $4
+  AND ends_at > $5
+`
+
+type CountOverlappingBudgetWaiversParams struct {
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	Scope       string             `json:"scope"`
+	OwnerID     pgtype.UUID        `json:"owner_id"`
+	EndsAt      pgtype.Timestamptz `json:"ends_at"`
+	StartsAt    pgtype.Timestamptz `json:"starts_at"`
+}
+
+func (q *Queries) CountOverlappingBudgetWaivers(ctx context.Context, arg CountOverlappingBudgetWaiversParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countOverlappingBudgetWaivers,
+		arg.WorkspaceID,
+		arg.Scope,
+		arg.OwnerID,
+		arg.EndsAt,
+		arg.StartsAt,
+	)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createBudget = `-- name: CreateBudget :one
 INSERT INTO budget (
     id, workspace_id, scope, owner_id, period,
@@ -218,6 +249,24 @@ type DeleteBudgetParams struct {
 
 func (q *Queries) DeleteBudget(ctx context.Context, arg DeleteBudgetParams) error {
 	_, err := q.db.Exec(ctx, deleteBudget, arg.ID, arg.WorkspaceID)
+	return err
+}
+
+const deleteBudgetDebits = `-- name: DeleteBudgetDebits :exec
+DELETE FROM budget_debit WHERE budget_id = $1
+`
+
+func (q *Queries) DeleteBudgetDebits(ctx context.Context, budgetID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteBudgetDebits, budgetID)
+	return err
+}
+
+const deleteBudgetPeriods = `-- name: DeleteBudgetPeriods :exec
+DELETE FROM budget_period WHERE budget_id = $1
+`
+
+func (q *Queries) DeleteBudgetPeriods(ctx context.Context, budgetID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteBudgetPeriods, budgetID)
 	return err
 }
 
@@ -518,6 +567,84 @@ func (q *Queries) ListBudgetPeriods(ctx context.Context, budgetID pgtype.UUID) (
 	return items, nil
 }
 
+const listBudgetUsageForBackfill = `-- name: ListBudgetUsageForBackfill :many
+SELECT
+    tu.task_id,
+    tu.provider,
+    tu.model,
+    tu.input_tokens,
+    tu.output_tokens,
+    tu.cache_read_tokens,
+    tu.cache_write_tokens,
+    tu.cost_usd_ticks
+FROM task_usage tu
+JOIN agent_task_queue atq ON atq.id = tu.task_id
+JOIN agent a ON a.id = atq.agent_id
+WHERE a.workspace_id = $1
+  AND tu.updated_at >= $2
+  AND tu.updated_at < $3
+  AND (
+    ($4::text = 'agent' AND atq.agent_id = $5)
+    OR ($4::text = 'squad' AND atq.budget_origin_squad_id = $5)
+    OR ($4::text = 'project' AND atq.budget_project_id = $5)
+    OR ($4::text = 'initiative' AND atq.budget_initiative_id = $5)
+  )
+`
+
+type ListBudgetUsageForBackfillParams struct {
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd   pgtype.Timestamptz `json:"period_end"`
+	Scope       string             `json:"scope"`
+	OwnerID     pgtype.UUID        `json:"owner_id"`
+}
+
+type ListBudgetUsageForBackfillRow struct {
+	TaskID           pgtype.UUID `json:"task_id"`
+	Provider         string      `json:"provider"`
+	Model            string      `json:"model"`
+	InputTokens      int64       `json:"input_tokens"`
+	OutputTokens     int64       `json:"output_tokens"`
+	CacheReadTokens  int64       `json:"cache_read_tokens"`
+	CacheWriteTokens int64       `json:"cache_write_tokens"`
+	CostUsdTicks     pgtype.Int8 `json:"cost_usd_ticks"`
+}
+
+func (q *Queries) ListBudgetUsageForBackfill(ctx context.Context, arg ListBudgetUsageForBackfillParams) ([]ListBudgetUsageForBackfillRow, error) {
+	rows, err := q.db.Query(ctx, listBudgetUsageForBackfill,
+		arg.WorkspaceID,
+		arg.PeriodStart,
+		arg.PeriodEnd,
+		arg.Scope,
+		arg.OwnerID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBudgetUsageForBackfillRow{}
+	for rows.Next() {
+		var i ListBudgetUsageForBackfillRow
+		if err := rows.Scan(
+			&i.TaskID,
+			&i.Provider,
+			&i.Model,
+			&i.InputTokens,
+			&i.OutputTokens,
+			&i.CacheReadTokens,
+			&i.CacheWriteTokens,
+			&i.CostUsdTicks,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBudgetWaivers = `-- name: ListBudgetWaivers :many
 SELECT id, workspace_id, scope, owner_id, starts_at, ends_at, created_by, reason, created_at FROM budget_waiver
 WHERE workspace_id = $1
@@ -592,22 +719,77 @@ func (q *Queries) ListBudgets(ctx context.Context, workspaceID pgtype.UUID) ([]B
 	return items, nil
 }
 
+const recalcBudgetPeriodTotals = `-- name: RecalcBudgetPeriodTotals :one
+UPDATE budget_period SET
+    spent_usd_ticks = COALESCE((
+        SELECT SUM(amount_usd_ticks) FROM budget_debit
+        WHERE budget_period_id = budget_period.id AND priced_by <> 'unpriced'
+    ), 0),
+    unpriced_line_count = COALESCE((
+        SELECT COUNT(*)::int FROM budget_debit
+        WHERE budget_period_id = budget_period.id AND priced_by = 'unpriced'
+    ), 0)
+WHERE budget_period.id = $1
+RETURNING id, budget_id, workspace_id, period_start, period_end, spent_usd_ticks, unpriced_line_count
+`
+
+func (q *Queries) RecalcBudgetPeriodTotals(ctx context.Context, id pgtype.UUID) (BudgetPeriod, error) {
+	row := q.db.QueryRow(ctx, recalcBudgetPeriodTotals, id)
+	var i BudgetPeriod
+	err := row.Scan(
+		&i.ID,
+		&i.BudgetID,
+		&i.WorkspaceID,
+		&i.PeriodStart,
+		&i.PeriodEnd,
+		&i.SpentUsdTicks,
+		&i.UnpricedLineCount,
+	)
+	return i, err
+}
+
+const squadHasOriginStamp = `-- name: SquadHasOriginStamp :one
+SELECT EXISTS (
+    SELECT 1
+    FROM agent_task_queue atq
+    JOIN agent a ON a.id = atq.agent_id
+    WHERE a.workspace_id = $1
+      AND atq.budget_origin_squad_id = $2
+)::bool
+`
+
+type SquadHasOriginStampParams struct {
+	WorkspaceID         pgtype.UUID `json:"workspace_id"`
+	BudgetOriginSquadID pgtype.UUID `json:"budget_origin_squad_id"`
+}
+
+func (q *Queries) SquadHasOriginStamp(ctx context.Context, arg SquadHasOriginStampParams) (bool, error) {
+	row := q.db.QueryRow(ctx, squadHasOriginStamp, arg.WorkspaceID, arg.BudgetOriginSquadID)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const updateBudget = `-- name: UpdateBudget :one
 UPDATE budget SET
     limit_usd_ticks = COALESCE($3, limit_usd_ticks),
-    soften_at_percent = $4,
-    over_limit = COALESCE($5, over_limit),
+    soften_at_percent = CASE
+        WHEN $4::bool THEN $5
+        ELSE soften_at_percent
+    END,
+    over_limit = COALESCE($6, over_limit),
     updated_at = now()
 WHERE id = $1 AND workspace_id = $2
 RETURNING id, workspace_id, scope, owner_id, period, limit_usd_ticks, soften_at_percent, over_limit, created_by, created_at, updated_at
 `
 
 type UpdateBudgetParams struct {
-	ID              pgtype.UUID `json:"id"`
-	WorkspaceID     pgtype.UUID `json:"workspace_id"`
-	LimitUsdTicks   pgtype.Int8 `json:"limit_usd_ticks"`
-	SoftenAtPercent pgtype.Int2 `json:"soften_at_percent"`
-	OverLimit       pgtype.Text `json:"over_limit"`
+	ID                 pgtype.UUID `json:"id"`
+	WorkspaceID        pgtype.UUID `json:"workspace_id"`
+	LimitUsdTicks      pgtype.Int8 `json:"limit_usd_ticks"`
+	SetSoftenAtPercent pgtype.Bool `json:"set_soften_at_percent"`
+	SoftenAtPercent    pgtype.Int2 `json:"soften_at_percent"`
+	OverLimit          pgtype.Text `json:"over_limit"`
 }
 
 func (q *Queries) UpdateBudget(ctx context.Context, arg UpdateBudgetParams) (Budget, error) {
@@ -615,6 +797,7 @@ func (q *Queries) UpdateBudget(ctx context.Context, arg UpdateBudgetParams) (Bud
 		arg.ID,
 		arg.WorkspaceID,
 		arg.LimitUsdTicks,
+		arg.SetSoftenAtPercent,
 		arg.SoftenAtPercent,
 		arg.OverLimit,
 	)
@@ -631,6 +814,61 @@ func (q *Queries) UpdateBudget(ctx context.Context, arg UpdateBudgetParams) (Bud
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertBudgetDebit = `-- name: UpsertBudgetDebit :one
+INSERT INTO budget_debit (
+    id, workspace_id, budget_id, budget_period_id,
+    task_id, provider, model, amount_usd_ticks, priced_by
+) VALUES (
+    COALESCE($9::uuid, gen_random_uuid()),
+    $1, $2, $3, $4, $5, $6, $7, $8
+)
+ON CONFLICT (budget_id, task_id, provider, model)
+DO UPDATE SET
+    amount_usd_ticks = EXCLUDED.amount_usd_ticks,
+    priced_by = EXCLUDED.priced_by,
+    budget_period_id = EXCLUDED.budget_period_id
+RETURNING id, workspace_id, budget_id, budget_period_id, task_id, provider, model, amount_usd_ticks, priced_by
+`
+
+type UpsertBudgetDebitParams struct {
+	WorkspaceID    pgtype.UUID `json:"workspace_id"`
+	BudgetID       pgtype.UUID `json:"budget_id"`
+	BudgetPeriodID pgtype.UUID `json:"budget_period_id"`
+	TaskID         pgtype.UUID `json:"task_id"`
+	Provider       string      `json:"provider"`
+	Model          string      `json:"model"`
+	AmountUsdTicks int64       `json:"amount_usd_ticks"`
+	PricedBy       string      `json:"priced_by"`
+	ID             pgtype.UUID `json:"id"`
+}
+
+func (q *Queries) UpsertBudgetDebit(ctx context.Context, arg UpsertBudgetDebitParams) (BudgetDebit, error) {
+	row := q.db.QueryRow(ctx, upsertBudgetDebit,
+		arg.WorkspaceID,
+		arg.BudgetID,
+		arg.BudgetPeriodID,
+		arg.TaskID,
+		arg.Provider,
+		arg.Model,
+		arg.AmountUsdTicks,
+		arg.PricedBy,
+		arg.ID,
+	)
+	var i BudgetDebit
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.BudgetID,
+		&i.BudgetPeriodID,
+		&i.TaskID,
+		&i.Provider,
+		&i.Model,
+		&i.AmountUsdTicks,
+		&i.PricedBy,
 	)
 	return i, err
 }

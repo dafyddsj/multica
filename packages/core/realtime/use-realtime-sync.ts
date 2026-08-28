@@ -19,6 +19,7 @@ import { labelKeys } from "../labels/queries";
 import { propertyKeys } from "../properties/queries";
 import { issueStatusKeys } from "../issue-statuses/queries";
 import { entityStatusKeys } from "../entity-statuses/queries";
+import { budgetKeys } from "../budgets/queries";
 import {
   agentTaskSnapshotKeys,
   workspaceWorkingAgentsKeys,
@@ -848,6 +849,13 @@ export function useRealtimeSync(
       entity_status: () => {
         const wsId = getCurrentWsId();
         if (wsId) qc.invalidateQueries({ queryKey: entityStatusKeys.all(wsId) });
+      },
+      budget: () => {
+        const wsId = getCurrentWsId();
+        if (wsId) {
+          qc.invalidateQueries({ queryKey: budgetKeys.all(wsId) });
+          qc.invalidateQueries({ queryKey: budgetKeys.waivers(wsId) });
+        }
       },
       pin: () => {
         const wsId = getCurrentWsId();

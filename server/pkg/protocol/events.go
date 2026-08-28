@@ -130,6 +130,10 @@ const (
 	// catalog. resource_type in the payload names which catalog moved.
 	EventEntityStatusChanged = "entity_status:changed"
 
+	// Budget catalog. One event for create, update, delete, and waiver
+	// writes. Clients re-read budgets and waivers; action is advisory.
+	EventBudgetUpdated = "budget:updated"
+
 	// Pin events
 	EventPinCreated   = "pin:created"
 	EventPinDeleted   = "pin:deleted"
