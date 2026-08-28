@@ -278,6 +278,11 @@ func ListModels(ctx context.Context, providerType string, runtimeCmd Command) (C
 		// spawn amp. Plugin modes can still be typed; they pass through --mode
 		// unchanged.
 		return Catalog{Models: ampModeCatalog()}, nil
+	case "devin":
+		// Listing models requires a logged-in Devin account
+		// (`devin models list --format json`). Keep the catalog empty
+		// until that canary so the picker does not spawn the CLI.
+		return Catalog{Models: []Model{}}, nil
 	default:
 		return Catalog{}, fmt.Errorf("unknown agent type: %q", providerType)
 	}
@@ -381,7 +386,7 @@ func QualifyModelID(catalog Catalog, model string) (string, bool) {
 // dropdown plus a silently-ignored manual-entry field.
 func ModelSelectionSupported(providerType string) bool {
 	switch providerType {
-	case "qwenpaw", "mcode", "zeroclaw":
+	case "qwenpaw", "mcode", "zeroclaw", "devin":
 		// QwenPaw's `session/set_model` persists to agent.json at the agent
 		// scope, not the session scope. Calling it would mutate the user's
 		// shared, persistent agent config. Model override is therefore
@@ -395,6 +400,8 @@ func ModelSelectionSupported(providerType string) bool {
 		// profile (`agents.<alias>.model_provider`) and nothing Multica sends
 		// can change it. Amp is not in this list: its picker values are
 		// --mode tokens (low|medium|high|ultra), not model ids.
+		// Devin's `--model` flag is real, but `devin models list --format json`
+		// needs a logged-in account. Keep the picker off until that canary.
 		return false
 	default:
 		return true
