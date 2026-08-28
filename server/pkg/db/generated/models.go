@@ -327,6 +327,54 @@ type AutopilotTrigger struct {
 	PublishedByID pgtype.UUID `json:"published_by_id"`
 }
 
+type Budget struct {
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	Scope           string             `json:"scope"`
+	OwnerID         pgtype.UUID        `json:"owner_id"`
+	Period          string             `json:"period"`
+	LimitUsdTicks   int64              `json:"limit_usd_ticks"`
+	SoftenAtPercent pgtype.Int2        `json:"soften_at_percent"`
+	OverLimit       string             `json:"over_limit"`
+	CreatedBy       pgtype.UUID        `json:"created_by"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BudgetDebit struct {
+	ID             pgtype.UUID `json:"id"`
+	WorkspaceID    pgtype.UUID `json:"workspace_id"`
+	BudgetID       pgtype.UUID `json:"budget_id"`
+	BudgetPeriodID pgtype.UUID `json:"budget_period_id"`
+	TaskID         pgtype.UUID `json:"task_id"`
+	Provider       string      `json:"provider"`
+	Model          string      `json:"model"`
+	AmountUsdTicks int64       `json:"amount_usd_ticks"`
+	PricedBy       string      `json:"priced_by"`
+}
+
+type BudgetPeriod struct {
+	ID                pgtype.UUID        `json:"id"`
+	BudgetID          pgtype.UUID        `json:"budget_id"`
+	WorkspaceID       pgtype.UUID        `json:"workspace_id"`
+	PeriodStart       pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd         pgtype.Timestamptz `json:"period_end"`
+	SpentUsdTicks     int64              `json:"spent_usd_ticks"`
+	UnpricedLineCount int32              `json:"unpriced_line_count"`
+}
+
+type BudgetWaiver struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	Scope       string             `json:"scope"`
+	OwnerID     pgtype.UUID        `json:"owner_id"`
+	StartsAt    pgtype.Timestamptz `json:"starts_at"`
+	EndsAt      pgtype.Timestamptz `json:"ends_at"`
+	CreatedBy   pgtype.UUID        `json:"created_by"`
+	Reason      pgtype.Text        `json:"reason"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
 type ChannelBindingToken struct {
 	TokenHash      string             `json:"token_hash"`
 	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
