@@ -1,0 +1,8 @@
+goose Version:
+  Version:                  1.48.0
+
+Paths:
+Config dir:              /home/ubuntu/.config/goose                              missing (can create)
+Config yaml:             /home/ubuntu/.config/goose/config.yaml                  missing (can create)
+Sessions DB (sqlite):    /home/ubuntu/.local/share/goose/sessions/sessions.db    missing (can create)
+Logs dir:                /home/ubuntu/.local/state/goose/logs                    
