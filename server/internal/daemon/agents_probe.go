@@ -278,6 +278,12 @@ var probeAgentCLIs = func() map[string]AgentEntry {
 	if e, ok := probe("MULTICA_ZEROCLAW_PATH", "zeroclaw", ""); ok {
 		agents["zeroclaw"] = e
 	}
+	// Amp (`amp`) runs headlessly with --execute --stream-json. It takes no
+	// model env var: Amp's product dial is mode/effort, not a verified CLI
+	// --model, and ExecOptions.Model is ignored — see ModelSelectionSupported.
+	if e, ok := probe("MULTICA_AMP_PATH", "amp", ""); ok {
+		agents["amp"] = e
+	}
 	return agents
 }
 

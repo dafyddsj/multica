@@ -15,6 +15,7 @@ Multica 当前会检测以下命令：
 
 | 工具 | 检测的命令 | 官方安装说明 |
 | --- | --- | --- |
+| Amp | `amp` | [Amp](https://ampcode.com) |
 | Antigravity CLI | `agy` | [Antigravity 安装与登录](https://antigravity.google/docs/cli-install) |
 | Claude Code | `claude` | [Claude Code 快速开始](https://code.claude.com/docs/en/quickstart) |
 | CodeBuddy Code | `codebuddy` | [CodeBuddy 快速开始](https://www.codebuddy.ai/docs/cli/quickstart) |
@@ -49,6 +50,8 @@ Multica 当前会检测以下命令：
 使用 Reasonix 时，请先运行 `reasonix setup`，配置默认的模型服务和模型，再启动守护进程。
 
 使用 QwenPaw 时，请在 QwenPaw 自身的配置里选择模型服务和模型。Multica 无法在执行时覆盖 QwenPaw 的模型。
+
+使用 Amp 时，请先运行 `amp login`，或设置 `AMP_API_KEY`。模型由 Amp 自己选择，Multica 不会发送 `--model`。
 
 使用 MiniMax Code 时，请安装受支持的 Node.js 版本（`>=22.19 <23` 或 `>=24 <27`），并运行 `npm install --global @minimax-ai/code@latest`。全局 npm 安装会把 `mcode` 放入 npm 的全局可执行目录；如果 `command -v mcode` 或 `Get-Command mcode` 找不到它，请将该目录加入 `PATH`。然后运行 `mcode login`。模型由 MiniMax Code 管理，Multica 无法通过 ACP 覆盖它。
 

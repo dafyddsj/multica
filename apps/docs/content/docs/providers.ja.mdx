@@ -20,6 +20,7 @@ Multica は、普段使っている AI コーディングツールの代わり�
 
 | ツール | 検出コマンド | セッション再開 | Multica による MCP 管理 | スキルの注入先 |
 |---|---|---:|---:|---|
+| Amp | `amp` | ✓ | ✓ | `.agents/skills/` |
 | Antigravity | `agy` | ✓ | — | `.agents/skills/` |
 | Claude Code | `claude` | ✓ | ✓ | `.claude/skills/` |
 | CodeBuddy | `codebuddy` | ✓ | ✓ | `.codebuddy/skills/` |
@@ -45,7 +46,7 @@ Multica は、普段使っている AI コーディングツールの代わり�
 | Trae CLI | `traecli` | ✓ | ✓ | `.traecli/skills/` |
 | Dim | `dim` | ✓ | ✓ | — |
 
-「Multica による MCP 管理」とは、エージェント設定に MCP server を入力し、Multica が実行前にその設定を対応ツールへ渡せることを意味します。そのツールにほかの MCP 設定方法がない、という意味ではありません。
+「Multica による MCP 管理」とは、エージェント設定に MCP server を入力し、Multica が実行前にその設定を対応ツールへ渡せることを意味します。そのツールにほかの MCP 設定方法がない、という意味ではありません。Amp の `--mcp-config` は既存設定とマージされます。Multica は `--settings-file` を `amp.mcpServers` が空の実行ごとのファイルへ向け、グローバルな Amp MCP を引き継がないようにします。Amp アカウントの server とワークスペースの `.amp/settings.json` は、なお読み込まれることがあります。
 
 ## モデルの取得元
 
@@ -54,6 +55,8 @@ Multica は、普段使っている AI コーディングツールの代わり�
 モデルを選択しない場合、Multica はそのツールのデフォルト設定を使用します。一覧が空の場合は、ランタイムがオンラインでツールにログイン済みであることを確認してから、モデル一覧を更新してください。
 
 QwenPaw と MiniMax Code は例外です。Multica 側で選んだモデルを受け付けないため、選択欄は操作できず「ランタイムで管理」と表示されます。モデルは各ツール側の設定で選んでください。モデル一覧が空なのは正常であり、ランタイムがオフラインであることを示すものではありません。
+
+Amp の選択欄に並ぶのは Amp の mode（`low`、`medium`、`high`、`ultra`）です。mode がモデル、システムプロンプト、ツールをまとめて決めます。空欄なら Amp 既定の `medium` を使います。プラグイン mode は手入力できます。
 
 DeepSeek Harness のモデルカタログはランタイム自身が提供します（`dsh --profile multica --list-models`）。モデル ID は `provider/model` 形式（例: `deepseek-official/deepseek-chat`）なので、一覧から完全な ID を選択してください。
 
