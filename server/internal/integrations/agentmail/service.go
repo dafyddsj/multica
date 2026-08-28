@@ -831,7 +831,7 @@ func (s *Service) revokeInbox(ctx context.Context, q *db.Queries, conn db.Agentm
 		if err != nil {
 			return err
 		}
-		if err := s.api.deleteInbox(ctx, cred, remote); err != nil && !errors.Is(err, errRemoteNotFound) {
+		if err := s.deleteRemoteInbox(ctx, cred, remote, textString(inbox.Address)); err != nil {
 			return err
 		}
 	}
@@ -847,6 +847,27 @@ func (s *Service) revokeInbox(ctx context.Context, q *db.Queries, conn db.Agentm
 		CreatedByID:   inbox.CreatedByID,
 	})
 	return err
+}
+
+func (s *Service) deleteRemoteInbox(ctx context.Context, cred clientCred, remoteID, address string) error {
+	var last error
+	seen := map[string]struct{}{}
+	for _, id := range []string{remoteID, address} {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		err := s.api.deleteInbox(ctx, cred, id)
+		if err == nil || errors.Is(err, errRemoteNotFound) {
+			return nil
+		}
+		last = err
+	}
+	return last
 }
 
 func (s *Service) insertPurge(ctx context.Context, q *db.Queries, wsID pgtype.UUID, kind, remoteID string, conn db.AgentmailConnection) error {

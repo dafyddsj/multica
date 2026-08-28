@@ -83,18 +83,13 @@ func (f *memoryClient) deleteInbox(_ context.Context, _ clientCred, inboxID stri
 	if inboxID == "" {
 		return errRemoteNotFound
 	}
-	found := false
 	for _, inbox := range f.inboxes {
-		if inbox.id == inboxID {
-			found = true
-			break
+		if inbox.id == inboxID || inbox.address == inboxID {
+			f.deleted[inbox.id] = struct{}{}
+			return nil
 		}
 	}
-	if !found {
-		return errRemoteNotFound
-	}
-	f.deleted[inboxID] = struct{}{}
-	return nil
+	return errRemoteNotFound
 }
 
 func (f *memoryClient) deletePod(_ context.Context, _, podID string) error {

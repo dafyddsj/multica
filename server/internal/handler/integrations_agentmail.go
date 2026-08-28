@@ -521,6 +521,10 @@ func writeAgentMailError(w http.ResponseWriter, err error) {
 	case errors.Is(err, agentmail.ErrBadMailbox):
 		writeError(w, http.StatusBadRequest, "unknown mailbox section")
 	default:
+		if msg, ok := agentmail.RemoteMessage(err); ok {
+			writeError(w, http.StatusBadGateway, msg)
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "agentmail request failed")
 	}
 }

@@ -824,11 +824,15 @@ export class ApiClient {
       ...init,
       extraHeaders: { "Content-Type": "application/json" },
     });
-    // Handle 204 No Content
-    if (res.status === 204) {
+    // 204, or a proxy that turns 204 into 200 with an empty body.
+    if (res.status === 204 || res.status === 205) {
       return undefined as T;
     }
-    return res.json() as Promise<T>;
+    const text = await res.text();
+    if (!text) {
+      return undefined as T;
+    }
+    return JSON.parse(text) as T;
   }
 
   // Auth

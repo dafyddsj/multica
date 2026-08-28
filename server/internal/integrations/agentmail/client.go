@@ -159,24 +159,58 @@ func (c liveClient) deleteInbox(ctx context.Context, cred clientCred, inboxID st
 	if inboxID == "" {
 		return errRemoteNotFound
 	}
-	// Hosted (and BYO-pod) inboxes are created under the pod. AgentMail
-	// rejects org-level DELETE /inboxes/{id} for those rows.
-	if cred.podID != "" {
-		err := c.do(ctx, http.MethodDelete, "/pods/"+url.PathEscape(cred.podID)+"/inboxes/"+url.PathEscape(inboxID), cred.apiKey, nil, nil)
+	// AgentMail rejects inbox delete while scoped keys still exist. The
+	// grant path always mints a "multica" inbox key.
+	if err := c.clearInboxKeys(ctx, cred, inboxID); err != nil && !errors.Is(err, errRemoteNotFound) {
+		return err
+	}
+	var last error
+	for _, path := range inboxDeletePaths(cred, inboxID) {
+		err := c.do(ctx, http.MethodDelete, path, cred.apiKey, nil, nil)
 		if err == nil || errors.Is(err, errRemoteNotFound) {
 			return err
 		}
-		fallback := c.do(ctx, http.MethodDelete, "/inboxes/"+url.PathEscape(inboxID), cred.apiKey, nil, nil)
-		if fallback == nil || errors.Is(fallback, errRemoteNotFound) {
-			return fallback
+		last = err
+	}
+	return last
+}
+
+func inboxDeletePaths(cred clientCred, inboxID string) []string {
+	escaped := url.PathEscape(inboxID)
+	paths := make([]string, 0, 4)
+	if cred.podID != "" {
+		paths = append(paths, "/pods/"+url.PathEscape(cred.podID)+"/inboxes/"+escaped)
+	}
+	paths = append(paths, "/inboxes/"+escaped)
+	if escaped != inboxID && !strings.Contains(inboxID, "/") {
+		if cred.podID != "" {
+			paths = append(paths, "/pods/"+url.PathEscape(cred.podID)+"/inboxes/"+inboxID)
 		}
+		paths = append(paths, "/inboxes/"+inboxID)
+	}
+	return paths
+}
+
+func (c liveClient) clearInboxKeys(ctx context.Context, cred clientCred, inboxID string) error {
+	var out apiKeyListResponse
+	err := c.do(ctx, http.MethodGet, "/inboxes/"+url.PathEscape(inboxID)+"/api-keys?limit=100", cred.apiKey, nil, &out)
+	if errors.Is(err, errRemoteNotFound) {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
-	err := c.do(ctx, http.MethodDelete, "/inboxes/"+url.PathEscape(inboxID), cred.apiKey, nil, nil)
-	if errors.Is(err, errRemoteNotFound) {
-		return errRemoteNotFound
+	var last error
+	for _, key := range out.APIKeys {
+		if key.APIKeyID == "" {
+			continue
+		}
+		delErr := c.do(ctx, http.MethodDelete, "/inboxes/"+url.PathEscape(inboxID)+"/api-keys/"+url.PathEscape(key.APIKeyID), cred.apiKey, nil, nil)
+		if delErr != nil && !errors.Is(delErr, errRemoteNotFound) {
+			last = delErr
+		}
 	}
-	return err
+	return last
 }
 
 func (c liveClient) deletePod(ctx context.Context, orgKey, podID string) error {
@@ -420,11 +454,19 @@ func isUnprocessable(err error) bool {
 }
 
 func remoteErrorMessage(err error) string {
-	var remote *remoteAPIError
-	if errors.As(err, &remote) {
-		return remote.Message
+	if msg, ok := RemoteMessage(err); ok {
+		return msg
 	}
 	return err.Error()
+}
+
+// RemoteMessage returns a vendor error string when err is a live AgentMail reply.
+func RemoteMessage(err error) (string, bool) {
+	var remote *remoteAPIError
+	if errors.As(err, &remote) && strings.TrimSpace(remote.Message) != "" {
+		return remote.Message, true
+	}
+	return "", false
 }
 
 func isAuthRejected(err error) bool {
@@ -508,6 +550,12 @@ func (r inboxResponse) ID() string {
 
 type apiKeyResponse struct {
 	APIKey string `json:"api_key"`
+}
+
+type apiKeyListResponse struct {
+	APIKeys []struct {
+		APIKeyID string `json:"api_key_id"`
+	} `json:"api_keys"`
 }
 
 type authMeResponse struct {

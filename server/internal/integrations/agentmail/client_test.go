@@ -152,19 +152,35 @@ func TestLiveClientCreateInboxKeyPermissions(t *testing.T) {
 }
 
 func TestLiveClientDeleteInboxUsesPodPath(t *testing.T) {
-	var path string
+	var paths []string
 	client := newTestLive(t, func(w http.ResponseWriter, r *http.Request) {
-		path = r.URL.Path
-		if r.Method != http.MethodDelete {
-			t.Fatalf("method = %s", r.Method)
+		paths = append(paths, r.Method+" "+r.URL.Path)
+		switch {
+		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/inboxes/") && strings.HasSuffix(r.URL.Path, "/api-keys"):
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"api_keys": []map[string]string{{"api_key_id": "key_1"}},
+			})
+		case r.Method == http.MethodDelete && strings.Contains(r.URL.Path, "/api-keys/"):
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == http.MethodDelete && strings.Contains(r.URL.Path, "/inboxes/"):
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
 		}
-		w.WriteHeader(http.StatusNoContent)
 	})
 	if err := client.deleteInbox(context.Background(), clientCred{apiKey: "am_org", podID: "pod_1"}, "ada@agentmail.to"); err != nil {
 		t.Fatalf("deleteInbox: %v", err)
 	}
-	if path != "/pods/pod_1/inboxes/ada@agentmail.to" && path != "/pods/pod_1/inboxes/ada%40agentmail.to" {
-		t.Fatalf("path = %q", path)
+	joined := strings.Join(paths, "\n")
+	if !strings.Contains(joined, "GET /inboxes/") || !strings.Contains(joined, "/api-keys") {
+		t.Fatalf("did not list inbox keys:\n%s", joined)
+	}
+	if !strings.Contains(joined, "DELETE /inboxes/") || !strings.Contains(joined, "/api-keys/key_1") {
+		t.Fatalf("did not delete inbox keys:\n%s", joined)
+	}
+	if !strings.Contains(joined, "DELETE /pods/pod_1/inboxes/ada@agentmail.to") &&
+		!strings.Contains(joined, "DELETE /pods/pod_1/inboxes/ada%40agentmail.to") {
+		t.Fatalf("did not delete inbox on pod path:\n%s", joined)
 	}
 }
 
