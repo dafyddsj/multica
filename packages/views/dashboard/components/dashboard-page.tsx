@@ -150,24 +150,7 @@ function useDataFreshness(
 }
 
 /**
- * Workspace + project usage dashboard.
- *
- * Lives at `/{slug}/usage`. Three tabs, split by the question the reader arrived
- * with rather than by which rollup feeds them: Usage answers "what did this
- * cost", Budgets answers "what are the caps", Errors answers "what broke". Usage
- * and Errors used to share one scrolling page, where the failure breakdown sat
- * below a leaderboard that could itself run to thirty rows, and the only way to
- * chart failures was to hide spend.
- *
- * Scope is expressed by where a control lives: the toolbar under the header
- * carries the tabs and the spend filters (time range, initiative, project),
- * every card carries its own view switches. Those filters stay off Budgets.
- * All six rollups are fetched for Usage and Errors so switching those tabs
- * stays instant, but the loading and empty states are per tab, so Usage does
- * not wait on the failure queries.
- *
- * Cost math runs client-side via the runtimes utils — keeps the dashboard
- * and the runtime page using one pricing table.
+ * Workspace + project usage dashboard at `/{slug}/usage`.
  */
 export function DashboardPage() {
   const { t, i18n } = useT("usage");
@@ -294,9 +277,6 @@ export function DashboardPage() {
   const waiversQuery = useBudgetWaivers(wsId);
 
   const queryClient = useQueryClient();
-  // Refresh and the header timestamp describe the tab on screen. The six
-  // rollups do not price a budget row, and the budget list is not a spend
-  // series, so one button cannot honestly cover both.
   const isRefreshing =
     tab === "budgets"
       ? budgetsQuery.isFetching || waiversQuery.isFetching
@@ -557,9 +537,7 @@ export function DashboardPage() {
       />
 
       {/* View toolbar, same grammar as the issues surface header: view
-          switching on the left, page-scoped filters on the right. Usage and
-          Errors share the range, initiative, and project filters. Budgets is
-          a UTC-month ledger, so those spend filters stay off that tab. */}
+          switching on the left, page-scoped filters on the right. */}
       <div className={cn("h-12 shrink-0 overflow-x-auto border-b [-webkit-overflow-scrolling:touch]", PAGE_GUTTER)}>
         <div className="flex h-full w-max min-w-full items-center justify-between gap-2">
           <TabsList variant="line" className="gap-0 p-0 group-data-horizontal/tabs:h-full">
