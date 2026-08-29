@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/multica-ai/multica/server/internal/integrations/agentmail"
@@ -64,12 +65,25 @@ type connectAgentMailRequest struct {
 }
 
 type grantAgentMailRequest struct {
+	Mode     string `json:"mode"`
 	Username string `json:"username"`
 	Domain   string `json:"domain"`
+	InboxID  string `json:"inbox_id"`
 }
 
 type AgentMailDomainListResponse struct {
 	Domains []string `json:"domains"`
+}
+
+type AgentMailAccountInboxResponse struct {
+	InboxID     string `json:"inbox_id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name,omitempty"`
+	Linked      bool   `json:"linked"`
+}
+
+type AgentMailAccountInboxListResponse struct {
+	Inboxes []AgentMailAccountInboxResponse `json:"inboxes"`
 }
 
 type AgentMailFolderListResponse struct {
@@ -145,6 +159,33 @@ func (h *Handler) ListAgentMailDomains(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, AgentMailDomainListResponse{Domains: nonNilStrings(domains)})
+}
+
+func (h *Handler) ListAgentMailAccountInboxes(w http.ResponseWriter, r *http.Request) {
+	workspaceID := chi.URLParam(r, "id")
+	member, ok := h.workspaceMember(w, r, workspaceID)
+	if !ok {
+		return
+	}
+	if h.AgentMail == nil || !h.AgentMail.Available() {
+		writeJSON(w, http.StatusOK, AgentMailAccountInboxListResponse{Inboxes: []AgentMailAccountInboxResponse{}})
+		return
+	}
+	listed, err := h.AgentMail.ListAccountInboxes(r.Context(), member.WorkspaceID)
+	if err != nil {
+		writeAgentMailError(w, err)
+		return
+	}
+	resp := AgentMailAccountInboxListResponse{Inboxes: make([]AgentMailAccountInboxResponse, 0, len(listed))}
+	for _, inbox := range listed {
+		resp.Inboxes = append(resp.Inboxes, AgentMailAccountInboxResponse{
+			InboxID:     inbox.ID,
+			Email:       inbox.Address,
+			DisplayName: inbox.DisplayName,
+			Linked:      inbox.Linked,
+		})
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (h *Handler) ConnectAgentMail(w http.ResponseWriter, r *http.Request) {
@@ -259,10 +300,28 @@ func (h *Handler) GrantAgentMailInbox(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	inbox, err := h.AgentMail.GrantInbox(r.Context(), agent.WorkspaceID, agent.ID, parseUUID(requestUserID(r)), agent.Name, agentmail.InboxAddress{
-		Username: req.Username,
-		Domain:   req.Domain,
-	})
+	mode := strings.ToLower(strings.TrimSpace(req.Mode))
+	if mode == "" {
+		if strings.TrimSpace(req.InboxID) != "" {
+			mode = "link"
+		} else {
+			mode = "create"
+		}
+	}
+	var inbox agentmail.Inbox
+	var err error
+	switch mode {
+	case "create":
+		inbox, err = h.AgentMail.GrantInbox(r.Context(), agent.WorkspaceID, agent.ID, parseUUID(requestUserID(r)), agent.Name, agentmail.InboxAddress{
+			Username: req.Username,
+			Domain:   req.Domain,
+		})
+	case "link":
+		inbox, err = h.AgentMail.LinkInbox(r.Context(), agent.WorkspaceID, agent.ID, parseUUID(requestUserID(r)), agent.Name, req.InboxID)
+	default:
+		writeError(w, http.StatusBadRequest, "unknown grant mode")
+		return
+	}
 	if err != nil {
 		writeAgentMailError(w, err)
 		return
@@ -369,7 +428,11 @@ func (h *Handler) RevokeAgentMailInbox(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "agentmail not configured")
 		return
 	}
-	if err := h.AgentMail.RevokeInbox(r.Context(), agent.WorkspaceID, agent.ID); err != nil {
+	deleteRemote := true
+	if raw := strings.TrimSpace(r.URL.Query().Get("delete_remote")); raw != "" {
+		deleteRemote = raw == "true" || raw == "1"
+	}
+	if err := h.AgentMail.RevokeInbox(r.Context(), agent.WorkspaceID, agent.ID, deleteRemote); err != nil {
 		writeAgentMailError(w, err)
 		return
 	}
@@ -518,6 +581,10 @@ func writeAgentMailError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "choose a valid email username and domain")
 	case errors.Is(err, agentmail.ErrAddressTaken):
 		writeError(w, http.StatusConflict, "that email address is taken")
+	case errors.Is(err, agentmail.ErrBadInbox):
+		writeError(w, http.StatusBadRequest, "choose an inbox to link")
+	case errors.Is(err, agentmail.ErrInboxInUse):
+		writeError(w, http.StatusConflict, "that inbox is already linked")
 	case errors.Is(err, agentmail.ErrBadMailbox):
 		writeError(w, http.StatusBadRequest, "unknown mailbox section")
 	default:

@@ -23,6 +23,9 @@ const domainsRef = vi.hoisted(() => ({
 const foldersRef = vi.hoisted(() => ({
   current: { folders: ["sales"] },
 }));
+const accountInboxesRef = vi.hoisted(() => ({
+  current: { inboxes: [] as { inbox_id: string; email: string; linked?: boolean }[] },
+}));
 const mailboxRef = vi.hoisted(() => ({
   current: { items: [] as { kind: string; id: string; subject: string }[] },
 }));
@@ -32,6 +35,7 @@ vi.mock("@tanstack/react-query", () => ({
     const key = JSON.stringify(opts.queryKey);
     if (key.includes("mailbox")) return { data: mailboxRef.current, isError: false };
     if (key.includes("folders")) return { data: foldersRef.current, isError: false };
+    if (key.includes("account-inboxes")) return { data: accountInboxesRef.current, isError: false };
     if (key.includes("domains")) return { data: domainsRef.current, isError: false };
     if (key.includes("thread")) return { data: { threads: [], messages: [] }, isError: false };
     if (key.includes("inbox")) return { data: inboxRef.current };
@@ -90,6 +94,7 @@ describe("EmailTab", () => {
     domainsRef.current = { domains: ["agentmail.to", "acme.test"] };
     foldersRef.current = { folders: ["sales"] };
     mailboxRef.current = { items: [] };
+    accountInboxesRef.current = { inboxes: [] };
   });
 
   it("creates an inbox with the chosen username and domain", async () => {
@@ -100,8 +105,23 @@ describe("EmailTab", () => {
     await user.type(username, "ada");
     await user.click(screen.getByRole("button", { name: "Create inbox" }));
     expect(mockGrant).toHaveBeenCalledWith("agent-1", {
+      mode: "create",
       username: "ada",
       domain: "agentmail.to",
+    });
+  });
+
+  it("links an existing inbox from the account", async () => {
+    const user = userEvent.setup();
+    accountInboxesRef.current = {
+      inboxes: [{ inbox_id: "inb_keep", email: "kept@agentmail.to" }],
+    };
+    render(<EmailTab agent={agent} />, { wrapper: I18nWrapper });
+    await user.click(screen.getByRole("tab", { name: "Link existing" }));
+    await user.click(screen.getByRole("button", { name: "Link inbox" }));
+    expect(mockGrant).toHaveBeenCalledWith("agent-1", {
+      mode: "link",
+      inbox_id: "inb_keep",
     });
   });
 
@@ -127,5 +147,23 @@ describe("EmailTab", () => {
       "/acme/settings?tab=agentmail",
     );
     expect(screen.queryByRole("button", { name: "Create inbox" })).not.toBeInTheDocument();
+  });
+
+  it("asks whether to keep or delete the inbox, and delete needs a second confirm", async () => {
+    const user = userEvent.setup();
+    inboxRef.current = { agent_id: "agent-1", enabled: true, address: "ada@agentmail.to" };
+    render(<EmailTab agent={agent} />, { wrapper: I18nWrapper });
+    await user.click(screen.getByRole("switch"));
+    expect(screen.getByRole("heading", { name: "Turn off email?" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Keep inbox" }));
+    expect(mockRevoke).toHaveBeenCalledWith("agent-1", { deleteRemote: false });
+
+    mockRevoke.mockClear();
+    await user.click(screen.getByRole("switch"));
+    await user.click(screen.getByRole("button", { name: "Delete inbox" }));
+    expect(screen.getByRole("heading", { name: "Delete this inbox?" })).toBeInTheDocument();
+    expect(mockRevoke).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Delete inbox" }));
+    expect(mockRevoke).toHaveBeenCalledWith("agent-1", { deleteRemote: true });
   });
 });

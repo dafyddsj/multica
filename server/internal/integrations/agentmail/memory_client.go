@@ -12,6 +12,7 @@ import (
 type memoryClient struct {
 	pods       map[string]string
 	inboxes    map[string]remoteInbox
+	account    map[string]remoteInbox
 	deleted    map[string]struct{}
 	podKeys    map[string]string
 	rejectKeys map[string]struct{}
@@ -28,6 +29,7 @@ func newMemoryClient() *memoryClient {
 	return &memoryClient{
 		pods:       map[string]string{},
 		inboxes:    map[string]remoteInbox{},
+		account:    map[string]remoteInbox{},
 		deleted:    map[string]struct{}{},
 		podKeys:    map[string]string{},
 		rejectKeys: map[string]struct{}{},
@@ -67,8 +69,55 @@ func (f *memoryClient) ensureInbox(_ context.Context, _ clientCred, clientID, _ 
 	}
 	inbox := remoteInbox{id: id, address: address}
 	f.inboxes[clientID] = inbox
+	f.account[id] = inbox
 	delete(f.deleted, id)
 	return inbox, nil
+}
+
+func (f *memoryClient) seedAccountInbox(inbox remoteInbox) {
+	if inbox.id == "" {
+		return
+	}
+	f.account[inbox.id] = inbox
+	delete(f.deleted, inbox.id)
+}
+
+func (f *memoryClient) listInboxes(_ context.Context, _ clientCred) ([]remoteInbox, error) {
+	out := make([]remoteInbox, 0, len(f.account)+len(f.inboxes))
+	seen := map[string]struct{}{}
+	for _, inbox := range f.account {
+		if _, gone := f.deleted[inbox.id]; gone {
+			continue
+		}
+		out = append(out, inbox)
+		seen[inbox.id] = struct{}{}
+	}
+	for _, inbox := range f.inboxes {
+		if _, gone := f.deleted[inbox.id]; gone {
+			continue
+		}
+		if _, ok := seen[inbox.id]; ok {
+			continue
+		}
+		out = append(out, inbox)
+	}
+	return out, nil
+}
+
+func (f *memoryClient) getInbox(_ context.Context, _ clientCred, inboxID string) (remoteInbox, error) {
+	if inboxID == "" {
+		return remoteInbox{}, errRemoteNotFound
+	}
+	listed, err := f.listInboxes(context.Background(), clientCred{})
+	if err != nil {
+		return remoteInbox{}, err
+	}
+	for _, inbox := range listed {
+		if inbox.id == inboxID || inbox.address == inboxID {
+			return inbox, nil
+		}
+	}
+	return remoteInbox{}, errRemoteNotFound
 }
 
 func (f *memoryClient) createInboxKey(_ context.Context, _ clientCred, _ string) (string, error) {
@@ -83,7 +132,11 @@ func (f *memoryClient) deleteInbox(_ context.Context, _ clientCred, inboxID stri
 	if inboxID == "" {
 		return errRemoteNotFound
 	}
-	for _, inbox := range f.inboxes {
+	listed, err := f.listInboxes(context.Background(), clientCred{})
+	if err != nil {
+		return err
+	}
+	for _, inbox := range listed {
 		if inbox.id == inboxID || inbox.address == inboxID {
 			f.deleted[inbox.id] = struct{}{}
 			return nil

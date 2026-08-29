@@ -40,8 +40,9 @@ type clientCred struct {
 }
 
 type remoteInbox struct {
-	id      string
-	address string
+	id          string
+	address     string
+	displayName string
 }
 
 type inspectedKey struct {
@@ -59,6 +60,8 @@ type apiClient interface {
 	validateOrgKey(ctx context.Context, orgKey string) error
 	inspectKey(ctx context.Context, orgKey string) (inspectedKey, error)
 	listDomains(ctx context.Context, cred clientCred) ([]RemoteDomain, error)
+	listInboxes(ctx context.Context, cred clientCred) ([]remoteInbox, error)
+	getInbox(ctx context.Context, cred clientCred, inboxID string) (remoteInbox, error)
 	listThreads(ctx context.Context, inboxKey, inboxID string, query threadQuery) (ThreadPage, error)
 	getThread(ctx context.Context, inboxKey, inboxID, threadID string) (ThreadDetail, error)
 	listDrafts(ctx context.Context, inboxKey, inboxID string, query draftQuery) (DraftPage, error)
@@ -119,7 +122,7 @@ func (c liveClient) ensureInbox(ctx context.Context, cred clientCred, clientID, 
 	err := c.do(ctx, http.MethodPost, path, cred.apiKey, body, &out)
 	if isConflict(err) {
 		if decodeErr := c.decodeConflict(err, &out); decodeErr == nil && out.ID() != "" && out.Email != "" {
-			return remoteInbox{id: out.ID(), address: out.Email}, nil
+			return remoteInbox{id: out.ID(), address: out.Email, displayName: out.DisplayName}, nil
 		}
 		if addr.Username != "" {
 			return remoteInbox{}, fmt.Errorf("%w: %s", ErrAddressTaken, remoteErrorMessage(err))
@@ -134,7 +137,79 @@ func (c liveClient) ensureInbox(ctx context.Context, cred clientCred, clientID, 
 	if out.ID() == "" || out.Email == "" {
 		return remoteInbox{}, errors.New("agentmail: create inbox missing id or email")
 	}
-	return remoteInbox{id: out.ID(), address: out.Email}, nil
+	return remoteInbox{id: out.ID(), address: out.Email, displayName: out.DisplayName}, nil
+}
+
+func (c liveClient) listInboxes(ctx context.Context, cred clientCred) ([]remoteInbox, error) {
+	var all []remoteInbox
+	token := ""
+	for page := 0; page < 10; page++ {
+		values := url.Values{}
+		values.Set("limit", "100")
+		if token != "" {
+			values.Set("page_token", token)
+		}
+		path := "/inboxes?" + values.Encode()
+		if cred.podID != "" {
+			path = "/pods/" + url.PathEscape(cred.podID) + "/inboxes?" + values.Encode()
+		}
+		var out inboxListResponse
+		if err := c.do(ctx, http.MethodGet, path, cred.apiKey, nil, &out); err != nil {
+			return nil, err
+		}
+		for _, row := range out.Inboxes {
+			if row.ID() == "" || row.Email == "" {
+				continue
+			}
+			all = append(all, remoteInbox{id: row.ID(), address: row.Email, displayName: row.DisplayName})
+		}
+		if out.NextPageToken == "" {
+			break
+		}
+		token = out.NextPageToken
+	}
+	return all, nil
+}
+
+func (c liveClient) getInbox(ctx context.Context, cred clientCred, inboxID string) (remoteInbox, error) {
+	if strings.TrimSpace(inboxID) == "" {
+		return remoteInbox{}, errRemoteNotFound
+	}
+	var last error
+	for _, path := range inboxGetPaths(cred, inboxID) {
+		var out inboxResponse
+		err := c.do(ctx, http.MethodGet, path, cred.apiKey, nil, &out)
+		if err == nil && out.ID() != "" && out.Email != "" {
+			return remoteInbox{id: out.ID(), address: out.Email, displayName: out.DisplayName}, nil
+		}
+		if errors.Is(err, errRemoteNotFound) {
+			last = err
+			continue
+		}
+		if err != nil {
+			last = err
+		}
+	}
+	if last != nil {
+		return remoteInbox{}, last
+	}
+	return remoteInbox{}, errRemoteNotFound
+}
+
+func inboxGetPaths(cred clientCred, inboxID string) []string {
+	escaped := url.PathEscape(inboxID)
+	paths := make([]string, 0, 4)
+	if cred.podID != "" {
+		paths = append(paths, "/pods/"+url.PathEscape(cred.podID)+"/inboxes/"+escaped)
+	}
+	paths = append(paths, "/inboxes/"+escaped)
+	if escaped != inboxID && !strings.Contains(inboxID, "/") {
+		if cred.podID != "" {
+			paths = append(paths, "/pods/"+url.PathEscape(cred.podID)+"/inboxes/"+inboxID)
+		}
+		paths = append(paths, "/inboxes/"+inboxID)
+	}
+	return paths
 }
 
 func (c liveClient) createInboxKey(ctx context.Context, cred clientCred, inboxID string) (string, error) {
@@ -540,8 +615,14 @@ type podResponse struct {
 }
 
 type inboxResponse struct {
-	InboxID string `json:"inbox_id"`
-	Email   string `json:"email"`
+	InboxID     string `json:"inbox_id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
+}
+
+type inboxListResponse struct {
+	Inboxes       []inboxResponse `json:"inboxes"`
+	NextPageToken string          `json:"next_page_token"`
 }
 
 func (r inboxResponse) ID() string {

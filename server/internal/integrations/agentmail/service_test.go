@@ -355,7 +355,7 @@ func TestServiceLifecycle(t *testing.T) {
 		if _, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"}); err != nil {
 			t.Fatalf("grant: %v", err)
 		}
-		if err := svc.RevokeInbox(ctx, wsID, agentID); err != nil {
+		if err := svc.RevokeInbox(ctx, wsID, agentID, true); err != nil {
 			t.Fatalf("revoke: %v", err)
 		}
 		overlay, err := svc.ClaimOverlay(ctx, wsID, agentID)
@@ -364,6 +364,95 @@ func TestServiceLifecycle(t *testing.T) {
 		}
 		if overlay != nil {
 			t.Fatalf("overlay = %s, want nil", overlay)
+		}
+	})
+
+	t.Run("link existing inbox then keep leaves it on the account", func(t *testing.T) {
+		fake := newFake()
+		fake.seedAccountInbox(remoteInbox{id: "inb_existing", address: "kept@agentmail.to"})
+		svc := newTestService(t, fake, Config{})
+		wsID, actorID, agentID := newIDs(t)
+		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		got, err := svc.LinkInbox(ctx, wsID, agentID, actorID, "Ada", "inb_existing")
+		if err != nil {
+			t.Fatalf("link: %v", err)
+		}
+		if got.Address != "kept@agentmail.to" || got.State != stateActive {
+			t.Fatalf("linked = %+v", got)
+		}
+		listed, err := svc.ListAccountInboxes(ctx, wsID)
+		if err != nil {
+			t.Fatalf("list: %v", err)
+		}
+		if len(listed) != 1 || !listed[0].Linked || listed[0].ID != "inb_existing" {
+			t.Fatalf("listed while active = %+v", listed)
+		}
+		if err := svc.RevokeInbox(ctx, wsID, agentID, false); err != nil {
+			t.Fatalf("keep: %v", err)
+		}
+		if _, gone := fake.deleted["inb_existing"]; gone {
+			t.Fatal("keep deleted the remote inbox")
+		}
+		overlay, err := svc.ClaimOverlay(ctx, wsID, agentID)
+		if err != nil {
+			t.Fatalf("ClaimOverlay: %v", err)
+		}
+		if overlay != nil {
+			t.Fatalf("overlay after keep = %s, want nil", overlay)
+		}
+		listed, err = svc.ListAccountInboxes(ctx, wsID)
+		if err != nil {
+			t.Fatalf("list after keep: %v", err)
+		}
+		if len(listed) != 1 || listed[0].Linked {
+			t.Fatalf("listed after keep = %+v", listed)
+		}
+	})
+
+	t.Run("delete remote on revoke removes the account inbox", func(t *testing.T) {
+		fake := newFake()
+		svc := newTestService(t, fake, Config{})
+		wsID, actorID, agentID := newIDs(t)
+		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		granted, err := svc.GrantInbox(ctx, wsID, agentID, actorID, "Ada", InboxAddress{Username: "ada"})
+		if err != nil {
+			t.Fatalf("grant: %v", err)
+		}
+		row, err := testQ.GetAgentMailInbox(ctx, db.GetAgentMailInboxParams{WorkspaceID: wsID, AgentID: agentID})
+		if err != nil {
+			t.Fatalf("load inbox: %v", err)
+		}
+		remoteID := textString(row.RemoteInboxID)
+		if remoteID == "" {
+			t.Fatalf("missing remote id for %q", granted.Address)
+		}
+		if err := svc.RevokeInbox(ctx, wsID, agentID, true); err != nil {
+			t.Fatalf("delete: %v", err)
+		}
+		if _, gone := fake.deleted[remoteID]; !gone {
+			t.Fatalf("delete did not remove %s", remoteID)
+		}
+	})
+
+	t.Run("link rejects an inbox already used by another agent", func(t *testing.T) {
+		fake := newFake()
+		fake.seedAccountInbox(remoteInbox{id: "inb_shared", address: "shared@agentmail.to"})
+		svc := newTestService(t, fake, Config{})
+		wsID, actorID, agentA := newIDs(t)
+		agentB := util.MustParseUUID(uuid.NewString())
+		if _, err := svc.Connect(ctx, wsID, actorID, HostedCredential()); err != nil {
+			t.Fatalf("connect: %v", err)
+		}
+		if _, err := svc.LinkInbox(ctx, wsID, agentA, actorID, "Ada", "inb_shared"); err != nil {
+			t.Fatalf("first link: %v", err)
+		}
+		_, err := svc.LinkInbox(ctx, wsID, agentB, actorID, "Bob", "inb_shared")
+		if !errors.Is(err, ErrInboxInUse) {
+			t.Fatalf("got %v, want ErrInboxInUse", err)
 		}
 	})
 

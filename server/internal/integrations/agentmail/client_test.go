@@ -184,6 +184,42 @@ func TestLiveClientDeleteInboxUsesPodPath(t *testing.T) {
 	}
 }
 
+func TestLiveClientListAndGetInbox(t *testing.T) {
+	client := newTestLive(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/pods/pod_1/inboxes":
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"inboxes": []map[string]string{{
+					"inbox_id":     "inb_1",
+					"email":        "ada@agentmail.to",
+					"display_name": "Ada",
+				}},
+			})
+		case r.Method == http.MethodGet && (r.URL.Path == "/pods/pod_1/inboxes/inb_1" || r.URL.Path == "/inboxes/inb_1"):
+			writeJSON(t, w, http.StatusOK, map[string]any{
+				"inbox_id": "inb_1",
+				"email":    "ada@agentmail.to",
+			})
+		default:
+			t.Fatalf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+	})
+	listed, err := client.listInboxes(context.Background(), clientCred{apiKey: "am_org", podID: "pod_1"})
+	if err != nil {
+		t.Fatalf("listInboxes: %v", err)
+	}
+	if len(listed) != 1 || listed[0].id != "inb_1" || listed[0].address != "ada@agentmail.to" {
+		t.Fatalf("listed = %+v", listed)
+	}
+	got, err := client.getInbox(context.Background(), clientCred{apiKey: "am_org", podID: "pod_1"}, "inb_1")
+	if err != nil {
+		t.Fatalf("getInbox: %v", err)
+	}
+	if got.id != "inb_1" || got.address != "ada@agentmail.to" {
+		t.Fatalf("get = %+v", got)
+	}
+}
+
 func TestLiveClientDeleteInboxNotFound(t *testing.T) {
 	client := newTestLive(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

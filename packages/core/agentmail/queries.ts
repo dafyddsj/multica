@@ -5,6 +5,7 @@ export const agentmailKeys = {
   all: (wsId: string) => ["agentmail", wsId] as const,
   workspace: (wsId: string) => [...agentmailKeys.all(wsId), "workspace"] as const,
   domains: (wsId: string) => [...agentmailKeys.all(wsId), "domains"] as const,
+  accountInboxes: (wsId: string) => [...agentmailKeys.all(wsId), "account-inboxes"] as const,
   inbox: (wsId: string, agentId: string) =>
     [...agentmailKeys.all(wsId), "inbox", agentId] as const,
   folders: (wsId: string, agentId: string) =>
@@ -28,6 +29,13 @@ export const agentmailDomainOptions = (wsId: string, enabled: boolean) =>
   queryOptions({
     queryKey: agentmailKeys.domains(wsId),
     queryFn: () => api.listAgentMailDomains(wsId),
+    enabled: enabled && !!wsId,
+  });
+
+export const agentmailAccountInboxOptions = (wsId: string, enabled: boolean) =>
+  queryOptions({
+    queryKey: agentmailKeys.accountInboxes(wsId),
+    queryFn: () => api.listAgentMailAccountInboxes(wsId),
     enabled: enabled && !!wsId,
   });
 

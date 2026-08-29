@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AgentMailAccountInboxListResponseSchema,
   AgentMailDomainListResponseSchema,
   AgentMailMailboxResponseSchema,
   AgentMailThreadListResponseSchema,
@@ -1244,6 +1245,13 @@ describe("AgentMailDomainListResponseSchema malformed", () => {
   it("falls back domains to [] when missing", () => {
     const parsed = AgentMailDomainListResponseSchema.parse({});
     expect(parsed.domains).toEqual([]);
+  });
+});
+
+describe("AgentMailAccountInboxListResponseSchema malformed", () => {
+  it("falls back inboxes to [] when missing", () => {
+    const parsed = AgentMailAccountInboxListResponseSchema.parse({});
+    expect(parsed.inboxes).toEqual([]);
   });
 });
 

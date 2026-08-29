@@ -1576,6 +1576,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Get("/vcs/connections", h.ListVCSConnections)
 					r.Get("/agentmail", h.GetAgentMail)
 					r.Get("/agentmail/domains", h.ListAgentMailDomains)
+					r.Get("/agentmail/account-inboxes", h.ListAgentMailAccountInboxes)
 					// Custom runtime profiles — listing/reading is member-visible
 					// (the Runtime page renders for everyone; create/edit/delete
 					// are admin-gated below).

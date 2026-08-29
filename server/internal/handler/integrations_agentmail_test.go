@@ -166,6 +166,71 @@ func TestAgentMailConnectGrantClaimAndRevoke(t *testing.T) {
 	}
 }
 
+func TestAgentMailLinkExistingAndKeepInbox(t *testing.T) {
+	svc := withAgentMail(t)
+	svc.SeedAccountInbox("inb_keep", "kept@agentmail.to")
+
+	testutil.Call(t, testHandler.ConnectAgentMail, agentMailWorkspaceReq(http.MethodPost, map[string]string{
+		"mode": "hosted",
+	})).Want(http.StatusOK)
+
+	runtimeID := dbfx.Runtime(t, "agentmail link runtime")
+	agentID := dbfx.Agent(t, "Ada Mail", runtimeID)
+	otherID := dbfx.Agent(t, "Bob Mail", runtimeID)
+
+	var listed AgentMailAccountInboxListResponse
+	testutil.Call(t, testHandler.ListAgentMailAccountInboxes, agentMailWorkspaceReq(http.MethodGet, nil)).
+		Want(http.StatusOK).JSON(&listed)
+	if len(listed.Inboxes) != 1 || listed.Inboxes[0].InboxID != "inb_keep" || listed.Inboxes[0].Linked {
+		t.Fatalf("account inboxes before link = %+v", listed.Inboxes)
+	}
+
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{
+		"mode": "link",
+	})).Want(http.StatusBadRequest)
+
+	var inbox AgentMailInboxResponse
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, agentID, map[string]any{
+		"mode":     "link",
+		"inbox_id": "inb_keep",
+	})).Want(http.StatusOK).JSON(&inbox)
+	if !inbox.Enabled || inbox.Address != "kept@agentmail.to" {
+		t.Fatalf("link = %+v", inbox)
+	}
+
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, otherID, map[string]any{
+		"mode":     "link",
+		"inbox_id": "inb_keep",
+	})).Want(http.StatusConflict)
+
+	keepReq := newRequest(http.MethodDelete, "/api/agents/"+agentID+"/agentmail?delete_remote=false", nil)
+	keepReq = withURLParam(keepReq, "id", agentID)
+	testutil.Call(t, testHandler.RevokeAgentMailInbox, keepReq).Want(http.StatusNoContent)
+
+	var afterKeep AgentMailAccountInboxListResponse
+	testutil.Call(t, testHandler.ListAgentMailAccountInboxes, agentMailWorkspaceReq(http.MethodGet, nil)).
+		Want(http.StatusOK).JSON(&afterKeep)
+	if len(afterKeep.Inboxes) != 1 || afterKeep.Inboxes[0].Linked {
+		t.Fatalf("account inboxes after keep = %+v", afterKeep.Inboxes)
+	}
+
+	testutil.Call(t, testHandler.GrantAgentMailInbox, agentMailAgentReq(http.MethodPut, otherID, map[string]any{
+		"mode":     "link",
+		"inbox_id": "inb_keep",
+	})).Want(http.StatusOK)
+
+	deleteReq := newRequest(http.MethodDelete, "/api/agents/"+otherID+"/agentmail?delete_remote=true", nil)
+	deleteReq = withURLParam(deleteReq, "id", otherID)
+	testutil.Call(t, testHandler.RevokeAgentMailInbox, deleteReq).Want(http.StatusNoContent)
+
+	var afterDelete AgentMailAccountInboxListResponse
+	testutil.Call(t, testHandler.ListAgentMailAccountInboxes, agentMailWorkspaceReq(http.MethodGet, nil)).
+		Want(http.StatusOK).JSON(&afterDelete)
+	if len(afterDelete.Inboxes) != 0 {
+		t.Fatalf("account inboxes after delete = %+v", afterDelete.Inboxes)
+	}
+}
+
 func TestConnectAgentMailModeConflict(t *testing.T) {
 	withAgentMail(t)
 

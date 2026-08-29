@@ -126,12 +126,14 @@ hidden falls back to workspace General.
 The agent Email tab is a top-level tab next to Work and Capabilities, not
 an IM Integrations tab. Visible only when `agentmailAvailable && canEdit`.
 `?view=agentmail` still opens it. If the workspace is not connected, the
-tab links to `{paths.settings()}?tab=agentmail`. Grant asks for a username
-and a domain from `GET .../agentmail/domains`. After grant, the tab is a
-mailbox: Inbox, Sent, Drafts, Scheduled, All Mail, Trash, plus extra labels.
+tab links to `{paths.settings()}?tab=agentmail`. Grant is create-new
+(username + domain from `GET .../agentmail/domains`) or link-existing
+(`GET .../agentmail/account-inboxes`). After grant, the tab is a mailbox:
+Inbox, Sent, Drafts, Scheduled, All Mail, Trash, plus extra labels.
 
-Hosted (and BYO-pod) inbox delete uses `DELETE /v0/pods/{pod}/inboxes/{id}`.
-The org-level inbox path is only a fallback.
+Turning Email off asks keep vs delete. Keep disconnects Multica and leaves
+the remote inbox. Delete requires a second confirm, then deletes inbox keys
+and the remote inbox (`DELETE /v0/pods/{pod}/inboxes/{id}`, org path fallback).
 
 Mobile is out of scope. Mobile may import types from `@multica/core` later.
 It does not share this UI.

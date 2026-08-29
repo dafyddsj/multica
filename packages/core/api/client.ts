@@ -284,6 +284,7 @@ import {
   DashboardFailureByAgentListSchema,
   DashboardUsageByAgentListSchema,
   DashboardUsageDailyListSchema,
+  EMPTY_AGENTMAIL_ACCOUNT_INBOXES,
   EMPTY_AGENTMAIL_DOMAINS,
   EMPTY_AGENTMAIL_FOLDERS,
   EMPTY_AGENTMAIL_INBOX,
@@ -317,6 +318,7 @@ import {
   EMPTY_USER,
   EMPTY_LIST_WEBHOOK_DELIVERIES_RESPONSE,
   EMPTY_WEBHOOK_DELIVERY,
+  AgentMailAccountInboxListResponseSchema,
   AgentMailDomainListResponseSchema,
   AgentMailFolderListResponseSchema,
   AgentMailInboxResponseSchema,
@@ -325,6 +327,7 @@ import {
   AgentMailThreadListResponseSchema,
   AgentMailWorkspaceResponseSchema,
   AppConfigSchema,
+  type AgentMailAccountInboxListResponse,
   type AgentMailDomainListResponse,
   type AgentMailFolderListResponse,
   type AgentMailInboxResponse,
@@ -4621,6 +4624,16 @@ export class ApiClient {
     );
   }
 
+  async listAgentMailAccountInboxes(workspaceId: string): Promise<AgentMailAccountInboxListResponse> {
+    const raw = await this.fetch<unknown>(`/api/workspaces/${workspaceId}/agentmail/account-inboxes`);
+    return parseWithFallback(
+      raw,
+      AgentMailAccountInboxListResponseSchema,
+      EMPTY_AGENTMAIL_ACCOUNT_INBOXES,
+      { endpoint: "GET /api/workspaces/:id/agentmail/account-inboxes" },
+    );
+  }
+
   async grantAgentMailInbox(
     agentId: string,
     body: GrantAgentMailInboxRequest,
@@ -4665,8 +4678,12 @@ export class ApiClient {
     );
   }
 
-  async revokeAgentMailInbox(agentId: string): Promise<void> {
-    await this.fetch(`/api/agents/${agentId}/agentmail`, {
+  async revokeAgentMailInbox(
+    agentId: string,
+    opts?: { deleteRemote?: boolean },
+  ): Promise<void> {
+    const deleteRemote = opts?.deleteRemote !== false;
+    await this.fetch(`/api/agents/${agentId}/agentmail?delete_remote=${deleteRemote}`, {
       method: "DELETE",
     });
   }

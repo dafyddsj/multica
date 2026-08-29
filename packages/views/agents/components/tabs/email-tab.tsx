@@ -8,6 +8,7 @@ import { api } from "@multica/core/api";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
 import {
+  agentmailAccountInboxOptions,
   agentmailDomainOptions,
   agentmailFoldersOptions,
   agentmailInboxOptions,
@@ -29,11 +30,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@multica/ui/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@multica/ui/components/ui/alert-dialog";
 import { cn } from "@multica/ui/lib/utils";
 import { AppLink } from "../../../navigation";
 import { useT } from "../../../i18n";
 
 type MailSection = "inbox" | "sent" | "drafts" | "scheduled" | "all" | "trash" | "folder";
+type GrantMode = "create" | "link";
+type RevokeStep = "choose" | "confirm" | null;
 
 const FIXED_SECTIONS: { id: Exclude<MailSection, "folder">; labelKey: Exclude<MailSection, "folder"> }[] = [
   { id: "inbox", labelKey: "inbox" },
@@ -56,16 +69,44 @@ export function EmailTab({ agent }: { agent: Agent }) {
   const enabled = inboxQuery.data?.enabled === true;
   const address = inboxQuery.data?.address ?? "";
   const [pending, setPending] = useState(false);
+  const [grantMode, setGrantMode] = useState<GrantMode>("create");
   const [username, setUsername] = useState(() => suggestedAgentMailUsername(agent.name));
   const [domain, setDomain] = useState("agentmail.to");
-  const domainsQuery = useQuery(agentmailDomainOptions(wsId, connected && !enabled));
+  const [inboxID, setInboxID] = useState("");
+  const [revokeStep, setRevokeStep] = useState<RevokeStep>(null);
+  const domainsQuery = useQuery(agentmailDomainOptions(wsId, connected && !enabled && grantMode === "create"));
+  const accountQuery = useQuery(
+    agentmailAccountInboxOptions(wsId, connected && !enabled && grantMode === "link"),
+  );
   const domains = useMemo(() => {
     const listed = domainsQuery.data?.domains ?? [];
     return listed.length > 0 ? listed : ["agentmail.to"];
   }, [domainsQuery.data?.domains]);
+  const availableInboxes = useMemo(
+    () => (accountQuery.data?.inboxes ?? []).filter((row) => row.linked !== true),
+    [accountQuery.data?.inboxes],
+  );
+  const selectedInbox = inboxID || availableInboxes[0]?.inbox_id || "";
 
   async function grant() {
     if (pending) return;
+    if (grantMode === "link") {
+      if (!selectedInbox) {
+        toast.error(t(($) => $.email.link_empty));
+        return;
+      }
+      setPending(true);
+      try {
+        await api.grantAgentMailInbox(agent.id, { mode: "link", inbox_id: selectedInbox });
+        toast.success(t(($) => $.email.toast_granted));
+        await qc.invalidateQueries({ queryKey: agentmailKeys.all(wsId) });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : t(($) => $.email.toast_failed));
+      } finally {
+        setPending(false);
+      }
+      return;
+    }
     const local = username.trim().toLowerCase();
     if (!isAgentMailUsername(local)) {
       toast.error(t(($) => $.email.username_invalid));
@@ -73,7 +114,7 @@ export function EmailTab({ agent }: { agent: Agent }) {
     }
     setPending(true);
     try {
-      await api.grantAgentMailInbox(agent.id, { username: local, domain });
+      await api.grantAgentMailInbox(agent.id, { mode: "create", username: local, domain });
       toast.success(t(($) => $.email.toast_granted));
       await qc.invalidateQueries({ queryKey: agentmailKeys.all(wsId) });
     } catch (e) {
@@ -83,12 +124,13 @@ export function EmailTab({ agent }: { agent: Agent }) {
     }
   }
 
-  async function revoke() {
+  async function revoke(deleteRemote: boolean) {
     if (pending) return;
+    setRevokeStep(null);
     setPending(true);
     try {
-      await api.revokeAgentMailInbox(agent.id);
-      toast.success(t(($) => $.email.toast_revoked));
+      await api.revokeAgentMailInbox(agent.id, { deleteRemote });
+      toast.success(deleteRemote ? t(($) => $.email.toast_deleted) : t(($) => $.email.toast_kept));
       await qc.invalidateQueries({ queryKey: agentmailKeys.all(wsId) });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t(($) => $.email.toast_failed));
@@ -117,52 +159,119 @@ export function EmailTab({ agent }: { agent: Agent }) {
       ? `${username.trim().toLowerCase()}@${domain}`
       : `…@${domain}`;
     const domainItems = domains.map((value) => ({ value, label: value }));
+    const inboxItems = availableInboxes.map((row) => ({
+      value: row.inbox_id,
+      label: row.email,
+    }));
     return (
       <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
         <p className="text-body text-muted-foreground">{t(($) => $.email.description)}</p>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="agentmail-username" className="text-body font-medium">
-              {t(($) => $.email.username_label)}
-            </Label>
-            <Input
-              id="agentmail-username"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={t(($) => $.email.username_placeholder)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-body font-medium">{t(($) => $.email.domain_label)}</Label>
-            <Select
-              items={domainItems}
-              value={domain}
-              onValueChange={(next) => {
-                if (typeof next === "string" && next) setDomain(next);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="start">
-                {domainItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="text-caption text-muted-foreground">
-            {t(($) => $.email.address_preview)}{" "}
-            <code>{preview}</code>
-          </p>
-          <Button type="button" onClick={() => void grant()} disabled={pending}>
-            {t(($) => $.email.create_inbox)}
-          </Button>
+        <div
+          className="flex gap-1 rounded-lg bg-muted p-1"
+          role="tablist"
+          aria-label={t(($) => $.email.grant_mode_aria)}
+        >
+          {(["create", "link"] as const).map((mode) => {
+            const active = grantMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setGrantMode(mode)}
+                className={cn(
+                  "flex-1 rounded-md px-3 py-1.5 text-caption transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  active
+                    ? "bg-background font-medium text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {mode === "create" ? t(($) => $.email.mode_create) : t(($) => $.email.mode_link)}
+              </button>
+            );
+          })}
         </div>
+        {grantMode === "link" ? (
+          <div className="space-y-4">
+            {inboxItems.length === 0 ? (
+              <p className="text-body text-muted-foreground">{t(($) => $.email.link_empty)}</p>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-body font-medium">{t(($) => $.email.link_label)}</Label>
+                <Select
+                  items={inboxItems}
+                  value={selectedInbox}
+                  onValueChange={(next) => {
+                    if (typeof next === "string" && next) setInboxID(next);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={t(($) => $.email.link_placeholder)} />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    {inboxItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button
+              type="button"
+              onClick={() => void grant()}
+              disabled={pending || inboxItems.length === 0}
+            >
+              {t(($) => $.email.link_inbox)}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="agentmail-username" className="text-body font-medium">
+                {t(($) => $.email.username_label)}
+              </Label>
+              <Input
+                id="agentmail-username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={t(($) => $.email.username_placeholder)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-body font-medium">{t(($) => $.email.domain_label)}</Label>
+              <Select
+                items={domainItems}
+                value={domain}
+                onValueChange={(next) => {
+                  if (typeof next === "string" && next) setDomain(next);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {domainItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-caption text-muted-foreground">
+              {t(($) => $.email.address_preview)}{" "}
+              <code>{preview}</code>
+            </p>
+            <Button type="button" onClick={() => void grant()} disabled={pending}>
+              {t(($) => $.email.create_inbox)}
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
@@ -184,12 +293,58 @@ export function EmailTab({ agent }: { agent: Agent }) {
           id="agentmail-inbox"
           checked
           onCheckedChange={(value) => {
-            if (!value) void revoke();
+            if (!value) setRevokeStep("choose");
           }}
           disabled={pending}
         />
       </div>
       <MailViewer agentId={agent.id} />
+      <AlertDialog
+        open={revokeStep === "choose"}
+        onOpenChange={(open) => {
+          if (!open) setRevokeStep(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t(($) => $.email.revoke_title)}</AlertDialogTitle>
+            <AlertDialogDescription>{t(($) => $.email.revoke_description)}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t(($) => $.email.revoke_cancel)}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void revoke(false)}>
+              {t(($) => $.email.revoke_keep)}
+            </AlertDialogAction>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => setRevokeStep("confirm")}
+            >
+              {t(($) => $.email.revoke_delete)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={revokeStep === "confirm"}
+        onOpenChange={(open) => {
+          if (!open) setRevokeStep(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t(($) => $.email.revoke_delete_title)}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(($) => $.email.revoke_delete_description)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t(($) => $.email.revoke_cancel)}</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => void revoke(true)}>
+              {t(($) => $.email.revoke_delete_confirm)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

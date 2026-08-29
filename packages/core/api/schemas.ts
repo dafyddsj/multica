@@ -3432,10 +3432,9 @@ export interface ConnectAgentMailRequest {
   org_key?: string;
 }
 
-export interface GrantAgentMailInboxRequest {
-  username: string;
-  domain?: string;
-}
+export type GrantAgentMailInboxRequest =
+  | { mode?: "create"; username: string; domain?: string }
+  | { mode: "link"; inbox_id: string };
 
 export const AgentMailDomainListResponseSchema = z.object({
   domains: z.array(z.string()).nullish().transform((rows) => rows ?? []),
@@ -3445,6 +3444,24 @@ export type AgentMailDomainListResponse = z.infer<typeof AgentMailDomainListResp
 
 export const EMPTY_AGENTMAIL_DOMAINS: AgentMailDomainListResponse = {
   domains: [],
+};
+
+export const AgentMailAccountInboxSchema = z.object({
+  inbox_id: z.string(),
+  email: z.string(),
+  display_name: OptionalStringSchema,
+  linked: BooleanWithDefaultSchema(false),
+}).loose();
+
+export const AgentMailAccountInboxListResponseSchema = z.object({
+  inboxes: z.array(AgentMailAccountInboxSchema).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export type AgentMailAccountInbox = z.infer<typeof AgentMailAccountInboxSchema>;
+export type AgentMailAccountInboxListResponse = z.infer<typeof AgentMailAccountInboxListResponseSchema>;
+
+export const EMPTY_AGENTMAIL_ACCOUNT_INBOXES: AgentMailAccountInboxListResponse = {
+  inboxes: [],
 };
 
 export const AgentMailFolderListResponseSchema = z.object({
