@@ -20,12 +20,13 @@ import {
   Blocks,
   CreditCard,
   Server,
+  Mail,
 } from "lucide-react";
 import { GitHubMark } from "./github-mark";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@multica/ui/components/ui/tabs";
 import { useIsMobile } from "@multica/ui/hooks/use-mobile";
 import { useCurrentWorkspace } from "@multica/core/paths";
-import { useFeatureEnabled } from "@multica/core/config";
+import { useConfigStore, useFeatureEnabled } from "@multica/core/config";
 import {
   BILLING_WORKSPACE_SUBSCRIPTIONS_FLAG,
   PLUGINS_V1_FLAG,
@@ -40,6 +41,7 @@ import { WorkspaceTab } from "./workspace-tab";
 import { MembersTab } from "./members-tab";
 import { RepositoriesTab } from "./repositories-tab";
 import { GitHubTab } from "./github-tab";
+import { AgentMailTab } from "./agentmail-tab";
 import { IntegrationsTab } from "./integrations-tab";
 import { LabsTab } from "./labs-tab";
 import { NotificationsTab } from "./notifications-tab";
@@ -69,6 +71,7 @@ const WORKSPACE_TAB_KEYS = [
   "general",
   "repositories",
   "github",
+  "agentmail",
   "integrations",
   "labs",
   "members",
@@ -84,6 +87,7 @@ const WORKSPACE_TAB_VALUES = {
   general: "workspace",
   repositories: "repositories",
   github: "github",
+  agentmail: "agentmail",
   integrations: "integrations",
   labs: "labs",
   members: "members",
@@ -99,6 +103,7 @@ const WORKSPACE_TAB_ICONS = {
   general: Settings,
   repositories: FolderGit2,
   github: GitHubMark,
+  agentmail: Mail,
   integrations: Plug,
   labs: FlaskConical,
   members: Users,
@@ -148,15 +153,17 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
     BILLING_WORKSPACE_SUBSCRIPTIONS_FLAG,
     false,
   );
+  const agentmailAvailable = useConfigStore((s) => s.agentmailAvailable);
 
   const visibleWorkspaceTabKeys = React.useMemo(
     () =>
       WORKSPACE_TAB_KEYS.filter(
         (key) =>
           (key !== "plugins" || pluginsEnabled) &&
-          (key !== "billing" || billingEnabled),
+          (key !== "billing" || billingEnabled) &&
+          (key !== "agentmail" || agentmailAvailable),
       ),
-    [billingEnabled, pluginsEnabled],
+    [agentmailAvailable, billingEnabled, pluginsEnabled],
   );
 
   // Whitelist of valid tab values; unknown ?tab=… values silently fall back to
@@ -176,7 +183,9 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
   const candidateTab = tabFromUrl
     ? tabFromUrl === "billing" && !billingEnabled
       ? "workspace"
-      : LEGACY_WORKSPACE_TAB_REDIRECTS[tabFromUrl] ?? tabFromUrl
+      : tabFromUrl === "agentmail" && !agentmailAvailable
+        ? "workspace"
+        : LEGACY_WORKSPACE_TAB_REDIRECTS[tabFromUrl] ?? tabFromUrl
     : null;
   const activeTab =
     candidateTab && validTabs.has(candidateTab) ? candidateTab : DEFAULT_TAB;
@@ -278,6 +287,9 @@ export function SettingsPage({ extraAccountTabs }: SettingsPageProps = {}) {
           <TabsContent value="workspace"><WorkspaceTab /></TabsContent>
           <TabsContent value="repositories"><RepositoriesTab /></TabsContent>
           <TabsContent value="github"><GitHubTab /></TabsContent>
+          {agentmailAvailable ? (
+            <TabsContent value="agentmail"><AgentMailTab /></TabsContent>
+          ) : null}
           <TabsContent value="integrations"><IntegrationsTab /></TabsContent>
           <TabsContent value="labs"><LabsTab /></TabsContent>
           <TabsContent value="members"><MembersTab /></TabsContent>

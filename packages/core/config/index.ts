@@ -21,6 +21,8 @@ interface ConfigState {
   // section is hidden. Defaults to false so unknown / older servers and the
   // managed cloud (which omits the field) keep it hidden.
   vcsIntegrationAvailable: boolean;
+  agentmailAvailable: boolean;
+  agentmailHostedAvailable: boolean;
   featureFlags: Record<string, boolean>;
   // The running API build version, surfaced in the Help popover so
   // self-hosted operators can confirm what's deployed. Empty for dev builds
@@ -44,6 +46,8 @@ interface ConfigState {
     clerkPublishableKey?: string;
     workspaceCreationDisabled?: boolean;
     vcsIntegrationAvailable?: boolean;
+    agentmailAvailable?: boolean;
+    agentmailHostedAvailable?: boolean;
   }) => void;
   setDaemonConfig: (config: {
     daemonServerUrl?: string;
@@ -65,6 +69,8 @@ export const configStore = createStore<ConfigState>((set) => ({
   daemonAppUrl: "",
   workspaceCreationDisabled: false,
   vcsIntegrationAvailable: false,
+  agentmailAvailable: false,
+  agentmailHostedAvailable: false,
   featureFlags: {},
   serverVersion: "",
   localWorktreeSupported: false,
@@ -76,6 +82,8 @@ export const configStore = createStore<ConfigState>((set) => ({
     clerkPublishableKey = "",
     workspaceCreationDisabled = false,
     vcsIntegrationAvailable = false,
+    agentmailAvailable = false,
+    agentmailHostedAvailable = false,
   }) =>
     set({
       allowSignup,
@@ -83,6 +91,8 @@ export const configStore = createStore<ConfigState>((set) => ({
       clerkPublishableKey,
       workspaceCreationDisabled,
       vcsIntegrationAvailable,
+      agentmailAvailable,
+      agentmailHostedAvailable,
     }),
   setDaemonConfig: ({ daemonServerUrl = "", daemonAppUrl = "" }) =>
     set({ daemonServerUrl, daemonAppUrl }),

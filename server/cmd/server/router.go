@@ -27,6 +27,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/events"
 	"github.com/multica-ai/multica/server/internal/featureflags"
 	"github.com/multica-ai/multica/server/internal/handler"
+	agentmailinteg "github.com/multica-ai/multica/server/internal/integrations/agentmail"
 	"github.com/multica-ai/multica/server/internal/integrations/channel"
 	"github.com/multica-ai/multica/server/internal/integrations/channel/engine"
 	composiointeg "github.com/multica-ai/multica/server/internal/integrations/composio"
@@ -1128,6 +1129,34 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		slog.Info("vcs integration disabled (MULTICA_VCS_SECRET_KEY not set)")
 	}
 
+	// AgentMail: always construct so workspace delete can sweep product rows
+	// and write the purge ledger. Connect/grant/claim stay closed until the
+	// dedicated box is set. Hosted org key stays in process env only.
+	hostedOrgKey := os.Getenv("MULTICA_AGENTMAIL_ORG_KEY")
+	if hostedOrgKey == "" {
+		hostedOrgKey = os.Getenv("AGENTMAIL_ORG_API_KEY")
+	}
+	agentMailCfg := agentmailinteg.Config{
+		HostedOrgKey: hostedOrgKey,
+		APIBaseURL:   strings.TrimSpace(os.Getenv("MULTICA_AGENTMAIL_API_BASE")),
+	}
+	if key, err := secretbox.LoadKey("MULTICA_AGENTMAIL_SECRET_KEY"); err == nil {
+		box, err := secretbox.New(key)
+		if err != nil {
+			slog.Error("agentmail: secretbox.New failed; connect/grant disabled", "error", err)
+		} else {
+			agentMailCfg.Box = box
+			slog.Info("agentmail secret encryption enabled")
+		}
+	} else {
+		slog.Info("agentmail connect disabled (MULTICA_AGENTMAIL_SECRET_KEY not set)")
+	}
+	if svc, err := agentmailinteg.New(agentMailCfg, queries); err != nil {
+		slog.Error("agentmail: service init failed", "error", err)
+	} else {
+		h.AgentMail = svc
+	}
+
 	// Plugin secrets use a dedicated deployment key. Keeping this separate from
 	// VCS and channel secrets gives operators an isolated rotation and blast
 	// radius; without it, saving a `secret` config field fails closed rather
@@ -1545,6 +1574,9 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					// for the same reason as GitHub installations; connect /
 					// disconnect are admin-gated in the group below.
 					r.Get("/vcs/connections", h.ListVCSConnections)
+					r.Get("/agentmail", h.GetAgentMail)
+					r.Get("/agentmail/domains", h.ListAgentMailDomains)
+					r.Get("/agentmail/account-inboxes", h.ListAgentMailAccountInboxes)
 					// Custom runtime profiles — listing/reading is member-visible
 					// (the Runtime page renders for everyone; create/edit/delete
 					// are admin-gated below).
@@ -1632,6 +1664,8 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Post("/vcs/connections", h.ConnectVCS)
 					r.Post("/vcs/connections/{connectionId}/rotate-webhook", h.RotateVCSConnectionWebhook)
 					r.Delete("/vcs/connections/{connectionId}", h.DeleteVCSConnection)
+					r.With(handler.RequireHumanActor).Post("/agentmail", h.ConnectAgentMail)
+					r.With(handler.RequireHumanActor).Delete("/agentmail", h.DisconnectAgentMail)
 				})
 
 				// Lark integration. Every endpoint here only requires
@@ -2109,6 +2143,13 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					// internal/handler/agent_env.go.
 					r.Get("/env", h.GetAgentEnv)
 					r.Put("/env", h.UpdateAgentEnv)
+					r.Get("/agentmail", h.GetAgentMailInbox)
+					r.Get("/agentmail/mailbox", h.ListAgentMailMailbox)
+					r.Get("/agentmail/folders", h.ListAgentMailFolders)
+					r.Get("/agentmail/threads", h.ListAgentMailThreads)
+					r.Get("/agentmail/threads/{threadId}", h.GetAgentMailThread)
+					r.With(handler.RequireHumanActor).Put("/agentmail", h.GrantAgentMailInbox)
+					r.With(handler.RequireHumanActor).Delete("/agentmail", h.RevokeAgentMailInbox)
 				})
 			})
 

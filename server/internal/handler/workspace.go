@@ -1356,6 +1356,18 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 			run:  func() error { return qtx.DeleteWorkspacePullRequests(ctx, requester.WorkspaceID) },
 		},
 		{
+			name: "delete agentmail",
+			run: func() error {
+				if h.AgentMail != nil {
+					return h.AgentMail.SweepWorkspace(ctx, qtx, requester.WorkspaceID)
+				}
+				if err := qtx.DeleteAgentMailInboxesByWorkspace(ctx, requester.WorkspaceID); err != nil {
+					return err
+				}
+				return qtx.DeleteAgentMailConnectionByWorkspace(ctx, requester.WorkspaceID)
+			},
+		},
+		{
 			name: "delete integrations",
 			run:  func() error { return qtx.DeleteWorkspaceConnections(ctx, requester.WorkspaceID) },
 		},
