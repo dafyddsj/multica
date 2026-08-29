@@ -23,4 +23,6 @@ type OrgDirectory interface {
 	RemoveMember(ctx context.Context, orgID, clerkUserID string) error
 	AddMember(ctx context.Context, orgID, clerkUserID, role string) error
 	UpdateMember(ctx context.Context, orgID, clerkUserID, role string) error
+	UpdateLogo(ctx context.Context, orgID, uploaderUserID string, file ImageFile) error
+	DeleteLogo(ctx context.Context, orgID string) error
 }

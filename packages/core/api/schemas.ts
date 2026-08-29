@@ -793,6 +793,10 @@ export interface AppConfigResponse {
    * (self-host only; off on the managed cloud). Absent/false hides the whole
    * Settings → Integrations "Git providers" section. */
   vcs_integration_available?: boolean;
+  /** Whether this process can seal AgentMail keys. Absent/false hides Email. */
+  agentmail_available?: boolean;
+  /** Whether hosted AgentMail connect is offered (process-env org key). */
+  agentmail_hosted_available?: boolean;
   feature_flags?: Record<string, boolean>;
   /** Whether this server understands local_directory `execution_mode` and
    * gates worktree mode at save time. Absent on every server that predates this
@@ -1000,6 +1004,8 @@ export const AppConfigSchema = z.object({
   daemon_app_url: OptionalStringSchema,
   workspace_creation_disabled: BooleanWithDefaultSchema(false).optional(),
   vcs_integration_available: BooleanWithDefaultSchema(false).optional(),
+  agentmail_available: BooleanWithDefaultSchema(false),
+  agentmail_hosted_available: BooleanWithDefaultSchema(false),
   feature_flags: FeatureFlagsSchema,
   local_worktree_supported: BooleanWithDefaultSchema(false),
   agent_conversation_starters_supported: BooleanWithDefaultSchema(false),
@@ -1016,6 +1022,8 @@ export const EMPTY_APP_CONFIG: AppConfigResponse = {
   daemon_app_url: "",
   workspace_creation_disabled: false,
   vcs_integration_available: false,
+  agentmail_available: false,
+  agentmail_hosted_available: false,
   // Fail closed: an unreadable config must not look like a server that
   // validates execution_mode.
   local_worktree_supported: false,
@@ -3398,4 +3406,191 @@ export const EMPTY_JOIN_SHARE_LINK_RESPONSE: {
   },
   workspace_id: "",
   workspace_slug: "",
+};
+
+export interface AgentMailInboxResponse {
+  agent_id: string;
+  enabled: boolean;
+  state?: string;
+  address?: string;
+  display_name?: string;
+}
+
+export interface AgentMailWorkspaceResponse {
+  available: boolean;
+  hosted_available: boolean;
+  connected: boolean;
+  source?: string;
+  state?: string;
+  domain?: string;
+  can_manage: boolean;
+  inboxes: AgentMailInboxResponse[];
+}
+
+export interface ConnectAgentMailRequest {
+  mode: "hosted" | "bring_your_own";
+  org_key?: string;
+}
+
+export type GrantAgentMailInboxRequest =
+  | { mode?: "create"; username: string; domain?: string }
+  | { mode: "link"; inbox_id: string };
+
+export const AgentMailDomainListResponseSchema = z.object({
+  domains: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export type AgentMailDomainListResponse = z.infer<typeof AgentMailDomainListResponseSchema>;
+
+export const EMPTY_AGENTMAIL_DOMAINS: AgentMailDomainListResponse = {
+  domains: [],
+};
+
+export const AgentMailAccountInboxSchema = z.object({
+  inbox_id: z.string(),
+  email: z.string(),
+  display_name: OptionalStringSchema,
+  linked: BooleanWithDefaultSchema(false),
+}).loose();
+
+export const AgentMailAccountInboxListResponseSchema = z.object({
+  inboxes: z.array(AgentMailAccountInboxSchema).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export type AgentMailAccountInbox = z.infer<typeof AgentMailAccountInboxSchema>;
+export type AgentMailAccountInboxListResponse = z.infer<typeof AgentMailAccountInboxListResponseSchema>;
+
+export const EMPTY_AGENTMAIL_ACCOUNT_INBOXES: AgentMailAccountInboxListResponse = {
+  inboxes: [],
+};
+
+export const AgentMailFolderListResponseSchema = z.object({
+  folders: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export type AgentMailFolderListResponse = z.infer<typeof AgentMailFolderListResponseSchema>;
+
+export const EMPTY_AGENTMAIL_FOLDERS: AgentMailFolderListResponse = {
+  folders: [],
+};
+
+export const AgentMailMailboxItemSchema = z.object({
+  kind: z.string(),
+  id: z.string(),
+  subject: OptionalStringSchema,
+  preview: OptionalStringSchema,
+  participants: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+  timestamp: OptionalStringSchema,
+}).loose();
+
+export const AgentMailMailboxResponseSchema = z.object({
+  items: z.array(AgentMailMailboxItemSchema).nullish().transform((rows) => rows ?? []),
+  next_page_token: OptionalStringSchema,
+}).loose();
+
+export type AgentMailMailboxItem = z.infer<typeof AgentMailMailboxItemSchema>;
+export type AgentMailMailboxResponse = z.infer<typeof AgentMailMailboxResponseSchema>;
+
+export const EMPTY_AGENTMAIL_MAILBOX: AgentMailMailboxResponse = {
+  items: [],
+};
+
+export const AgentMailInboxResponseSchema = z.object({
+  agent_id: z.string(),
+  enabled: BooleanWithDefaultSchema(false),
+  state: OptionalStringSchema,
+  address: OptionalStringSchema,
+  display_name: OptionalStringSchema,
+}).loose();
+
+export const AgentMailWorkspaceResponseSchema = z.object({
+  available: BooleanWithDefaultSchema(false),
+  hosted_available: BooleanWithDefaultSchema(false),
+  connected: BooleanWithDefaultSchema(false),
+  source: OptionalStringSchema,
+  state: OptionalStringSchema,
+  domain: OptionalStringSchema,
+  can_manage: BooleanWithDefaultSchema(false),
+  inboxes: z.array(AgentMailInboxResponseSchema).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export const EMPTY_AGENTMAIL_INBOX: AgentMailInboxResponse = {
+  agent_id: "",
+  enabled: false,
+};
+
+export const EMPTY_AGENTMAIL_WORKSPACE: AgentMailWorkspaceResponse = {
+  available: false,
+  hosted_available: false,
+  connected: false,
+  can_manage: false,
+  inboxes: [],
+};
+
+export interface AgentMailThreadResponse {
+  thread_id: string;
+  subject?: string;
+  preview?: string;
+  senders: string[];
+  recipients: string[];
+  timestamp?: string;
+  message_count: number;
+}
+
+export interface AgentMailThreadListResponse {
+  threads: AgentMailThreadResponse[];
+  next_page_token?: string;
+}
+
+export interface AgentMailMessageResponse {
+  message_id: string;
+  from: string;
+  to: string[];
+  timestamp?: string;
+  subject?: string;
+  text: string;
+}
+
+export interface AgentMailThreadDetailResponse extends AgentMailThreadResponse {
+  messages: AgentMailMessageResponse[];
+}
+
+export const AgentMailThreadResponseSchema = z.object({
+  thread_id: z.string(),
+  subject: OptionalStringSchema,
+  preview: OptionalStringSchema,
+  senders: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+  recipients: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+  timestamp: OptionalStringSchema,
+  message_count: z.number().int().nonnegative().catch(0),
+}).loose();
+
+export const AgentMailThreadListResponseSchema = z.object({
+  threads: z.array(AgentMailThreadResponseSchema).nullish().transform((rows) => rows ?? []),
+  next_page_token: OptionalStringSchema,
+}).loose();
+
+export const AgentMailMessageResponseSchema = z.object({
+  message_id: z.string(),
+  from: z.string(),
+  to: z.array(z.string()).nullish().transform((rows) => rows ?? []),
+  timestamp: OptionalStringSchema,
+  subject: OptionalStringSchema,
+  text: z.string().catch(""),
+}).loose();
+
+export const AgentMailThreadDetailResponseSchema = AgentMailThreadResponseSchema.extend({
+  messages: z.array(AgentMailMessageResponseSchema).nullish().transform((rows) => rows ?? []),
+}).loose();
+
+export const EMPTY_AGENTMAIL_THREAD_LIST: AgentMailThreadListResponse = {
+  threads: [],
+};
+
+export const EMPTY_AGENTMAIL_THREAD: AgentMailThreadDetailResponse = {
+  thread_id: "",
+  senders: [],
+  recipients: [],
+  message_count: 0,
+  messages: [],
 };

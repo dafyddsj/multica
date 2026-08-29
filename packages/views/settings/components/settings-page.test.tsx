@@ -23,6 +23,7 @@ vi.mock("./workspace-tab", stub("WorkspaceTab"));
 vi.mock("./members-tab", stub("MembersTab"));
 vi.mock("./repositories-tab", stub("RepositoriesTab"));
 vi.mock("./github-tab", stub("GitHubTab"));
+vi.mock("./agentmail-tab", stub("AgentMailTab"));
 vi.mock("./integrations-tab", stub("IntegrationsTab"));
 vi.mock("./labs-tab", stub("LabsTab"));
 vi.mock("./notifications-tab", stub("NotificationsTab"));
@@ -72,6 +73,10 @@ beforeEach(() => {
   layout.compact = true;
   navigationState.search = "";
   configStore.getState().setFeatureFlags({});
+  configStore.getState().setAuthConfig({
+    allowSignup: true,
+    agentmailAvailable: false,
+  });
   replace.mockClear();
 });
 
@@ -150,6 +155,31 @@ describe("SettingsPage statuses tab", () => {
       "data-active",
     );
     expect(screen.getByText("StatusesTab")).toBeInTheDocument();
+  });
+});
+
+describe("SettingsPage AgentMail availability", () => {
+  it("hides Email and falls back to Workspace General from a direct URL", () => {
+    navigationState.search = "tab=agentmail";
+
+    renderWithI18n(<SettingsPage />);
+
+    expect(screen.queryByRole("tab", { name: "Email" })).not.toBeInTheDocument();
+    expect(screen.queryByText("AgentMailTab")).not.toBeInTheDocument();
+    expect(screen.getByText("WorkspaceTab")).toBeInTheDocument();
+  });
+
+  it("shows and mounts Email when the deployment has AgentMail", () => {
+    navigationState.search = "tab=agentmail";
+    configStore.getState().setAuthConfig({
+      allowSignup: true,
+      agentmailAvailable: true,
+    });
+
+    renderWithI18n(<SettingsPage />);
+
+    expect(screen.getByRole("tab", { name: "Email" })).toBeInTheDocument();
+    expect(screen.getByText("AgentMailTab")).toBeInTheDocument();
   });
 });
 

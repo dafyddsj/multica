@@ -20,6 +20,15 @@ WHERE id = $1
   AND (clerk_user_id IS NULL OR clerk_user_id = $2)
 RETURNING *;
 
+-- name: UpdateUserEmail :one
+-- Copies the current Clerk primary email onto a bound Multica user.
+-- Name and avatar stay Multica-owned after first bind.
+UPDATE "user" SET
+    email = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
+
 -- name: GetUsersByIDs :many
 -- Batch lookup from the GLOBAL user table (not gated on membership, so departed
 -- members still render). Used to enrich attribution initiator / originator refs on

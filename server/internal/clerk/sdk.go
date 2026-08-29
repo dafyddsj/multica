@@ -12,6 +12,20 @@ import (
 	clerkuser "github.com/clerk/clerk-sdk-go/v2/user"
 )
 
+type sdkImages struct{}
+
+func (sdkImages) UpdateProfileImage(ctx context.Context, clerkUserID string, file ImageFile) error {
+	_, err := clerkuser.UpdateProfileImage(ctx, clerkUserID, &clerkuser.UpdateProfileImageParams{
+		File: file.File(),
+	})
+	return err
+}
+
+func (sdkImages) DeleteProfileImage(ctx context.Context, clerkUserID string) error {
+	_, err := clerkuser.DeleteProfileImage(ctx, clerkUserID)
+	return err
+}
+
 func configureSDK(secretKey string) {
 	clerksdk.SetKey(secretKey)
 }
@@ -171,5 +185,19 @@ func (sdkOrgs) UpdateMember(ctx context.Context, orgID, clerkUserID, role string
 		UserID:         clerkUserID,
 		Role:           &role,
 	})
+	return err
+}
+
+func (sdkOrgs) UpdateLogo(ctx context.Context, orgID, uploaderUserID string, file ImageFile) error {
+	params := &clerkorg.UpdateLogoParams{File: file.File()}
+	if uploaderUserID != "" {
+		params.UploaderUserID = &uploaderUserID
+	}
+	_, err := clerkorg.UpdateLogo(ctx, orgID, params)
+	return err
+}
+
+func (sdkOrgs) DeleteLogo(ctx context.Context, orgID string) error {
+	_, err := clerkorg.DeleteLogo(ctx, orgID)
 	return err
 }

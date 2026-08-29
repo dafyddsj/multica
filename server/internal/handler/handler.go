@@ -25,6 +25,7 @@ import (
 	"github.com/multica-ai/multica/server/internal/daemonws"
 	"github.com/multica-ai/multica/server/internal/entitlement"
 	"github.com/multica-ai/multica/server/internal/events"
+	agentmail "github.com/multica-ai/multica/server/internal/integrations/agentmail"
 	"github.com/multica-ai/multica/server/internal/integrations/channel/engine"
 	composio "github.com/multica-ai/multica/server/internal/integrations/composio"
 	"github.com/multica-ai/multica/server/internal/integrations/dingtalk"
@@ -269,6 +270,11 @@ type Handler struct {
 	// the composio HTTP handlers return 503 in that case. Wired in
 	// cmd/server/router.go after handler.New.
 	Composio *composio.Service
+	// AgentMail is the workspace email connection. Always constructed at
+	// boot so workspace delete can sweep product rows and write the purge
+	// ledger even when MULTICA_AGENTMAIL_SECRET_KEY is unset. Available()
+	// is false until the box is wired; connect/grant/claim then 503.
+	AgentMail *agentmail.Service
 	// ChannelSupervisor owns the per-installation supervisor goroutines
 	// that hold the §4.4 WS lease and drive each channel.Channel
 	// (MUL-3620 generalized the Feishu-only Hub into this channel-agnostic

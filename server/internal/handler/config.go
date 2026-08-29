@@ -51,6 +51,14 @@ type AppConfig struct {
 	// defaults absent to false (hidden).
 	VCSIntegrationAvailable bool `json:"vcs_integration_available,omitempty"`
 
+	// AgentMailAvailable is true when this process can seal AgentMail keys
+	// (MULTICA_AGENTMAIL_SECRET_KEY). Omitted when false so older clients and
+	// unconfigured deployments keep the Settings Email tab hidden.
+	AgentMailAvailable bool `json:"agentmail_available,omitempty"`
+	// AgentMailHostedAvailable is true when a process-env org key is set, so
+	// the UI can offer hosted connect without asking for a BYO key.
+	AgentMailHostedAvailable bool `json:"agentmail_hosted_available,omitempty"`
+
 	// PostHog public config for the frontend. The key is the same Project
 	// API Key the backend uses; returning it here (instead of baking it
 	// into the frontend bundle via NEXT_PUBLIC_*) means self-hosted
@@ -115,6 +123,10 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	config.CdnSigned = h.CFSigner != nil
 	config.DaemonServerURL, config.DaemonAppURL = daemonSetupURLsFromEnv()
 	config.VCSIntegrationAvailable = h.cfg.VCSIntegrationEnabled
+	if h.AgentMail != nil {
+		config.AgentMailAvailable = h.AgentMail.Available()
+		config.AgentMailHostedAvailable = h.AgentMail.HostedAvailable()
+	}
 	config.FeatureFlags = featureflags.EvaluateFrontendPublicFlags(r.Context(), h.FeatureFlags)
 	// Only surface the build version on self-hosted deployments. The managed
 	// cloud is continuously deployed and its users can't choose the build, so

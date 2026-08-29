@@ -180,6 +180,44 @@ func TestGetConfigHonorsVCSIntegrationSwitch(t *testing.T) {
 	}
 }
 
+func TestGetConfigExposesAgentMailAvailability(t *testing.T) {
+	orig := testHandler.AgentMail
+	t.Cleanup(func() { testHandler.AgentMail = orig })
+
+	fetch := func() map[string]json.RawMessage {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+		w := httptest.NewRecorder()
+		testHandler.GetConfig(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GetConfig: expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var cfg map[string]json.RawMessage
+		if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+			t.Fatalf("decode config: %v", err)
+		}
+		return cfg
+	}
+
+	testHandler.AgentMail = nil
+	raw := fetch()
+	if _, ok := raw["agentmail_available"]; ok {
+		t.Fatal("agentmail_available must be omitted when the service is unset")
+	}
+	if _, ok := raw["agentmail_hosted_available"]; ok {
+		t.Fatal("agentmail_hosted_available must be omitted when the service is unset")
+	}
+
+	withAgentMail(t)
+	raw = fetch()
+	if string(raw["agentmail_available"]) != "true" {
+		t.Fatalf("agentmail_available: want true, got %s", raw["agentmail_available"])
+	}
+	if string(raw["agentmail_hosted_available"]) != "true" {
+		t.Fatalf("agentmail_hosted_available: want true, got %s", raw["agentmail_hosted_available"])
+	}
+}
+
 func TestGetConfigUsesAppURLForSameOriginDaemonSetup(t *testing.T) {
 	t.Setenv("MULTICA_DAEMON_SERVER_URL", "")
 	t.Setenv("MULTICA_PUBLIC_URL", "")

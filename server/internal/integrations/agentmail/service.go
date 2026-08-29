@@ -1,0 +1,1141 @@
+package agentmail
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"regexp"
+	"sort"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/multica-ai/multica/server/internal/util"
+	"github.com/multica-ai/multica/server/internal/util/secretbox"
+	db "github.com/multica-ai/multica/server/pkg/db/generated"
+)
+
+const (
+	sourceHosted = "hosted"
+	sourceBYO    = "bring_your_own"
+
+	stateProvisioning = "provisioning"
+	stateMintingKey   = "minting_key"
+	stateActive       = "active"
+	stateDisabling    = "disabling"
+	stateDisabled     = "disabled"
+
+	authorityHostedOrg = "hosted_org"
+	authorityBYOOrg    = "byo_org"
+	authorityBYOPod    = "byo_pod"
+
+	defaultInboxLimit  = 5
+	defaultMCPURL      = "https://mcp.agentmail.to/mcp"
+	defaultInboxDomain = "agentmail.to"
+
+	grantCreate = "create"
+	grantLink   = "link"
+)
+
+var (
+	ErrUnavailable       = errors.New("agentmail: unavailable")
+	ErrNotConnected      = errors.New("agentmail: workspace not connected")
+	ErrModeConflict      = errors.New("agentmail: disconnect before switching mode")
+	ErrInboxQuota        = errors.New("agentmail: workspace inbox limit reached")
+	ErrHostedUnavailable = errors.New("agentmail: hosted mode not configured")
+	ErrBadOrgKey         = errors.New("agentmail: organization key rejected")
+	ErrInboxNotActive    = errors.New("agentmail: inbox not active")
+	ErrBadAddress        = errors.New("agentmail: invalid address")
+	ErrAddressTaken      = errors.New("agentmail: address taken")
+	ErrBadMailbox        = errors.New("agentmail: unknown mailbox section")
+	ErrBadInbox          = errors.New("agentmail: choose an inbox to link")
+	ErrInboxInUse        = errors.New("agentmail: inbox already linked")
+)
+
+// WorkspaceCredential is a closed connect input. Hosted cannot carry a key.
+type WorkspaceCredential interface {
+	workspaceCredential()
+}
+
+type hostedCredential struct{}
+
+type byoCredential struct {
+	orgKey string
+}
+
+func (hostedCredential) workspaceCredential() {}
+func (byoCredential) workspaceCredential()    {}
+
+func HostedCredential() WorkspaceCredential {
+	return hostedCredential{}
+}
+
+func ParseBYOCredential(raw string) (WorkspaceCredential, error) {
+	key := strings.TrimSpace(raw)
+	if key == "" {
+		return nil, ErrBadOrgKey
+	}
+	return byoCredential{orgKey: key}, nil
+}
+
+type Config struct {
+	Box                 *secretbox.Box
+	HostedOrgKey        string
+	WorkspaceInboxLimit int
+	MCPURL              string
+	APIBaseURL          string
+	HTTPClient          *http.Client
+}
+
+type WorkspaceStatus struct {
+	Source string
+	State  string
+	Domain string
+}
+
+type Inbox struct {
+	AgentID     string
+	State       string
+	Address     string
+	DisplayName string
+}
+
+type InboxAddress struct {
+	Username string
+	Domain   string
+}
+
+type AccountInbox struct {
+	ID          string
+	Address     string
+	DisplayName string
+	Linked      bool
+}
+
+type RemoteDomain struct {
+	Name              string
+	SubdomainsEnabled bool
+}
+
+type Thread struct {
+	ID           string
+	Subject      string
+	Preview      string
+	Senders      []string
+	Recipients   []string
+	Timestamp    string
+	MessageCount int
+	Labels       []string
+}
+
+type threadQuery struct {
+	PageToken    string
+	Labels       []string
+	IncludeTrash bool
+}
+
+type draftQuery struct {
+	PageToken string
+	Labels    []string
+}
+
+type Draft struct {
+	ID        string
+	Subject   string
+	Preview   string
+	To        []string
+	Timestamp string
+	SendAt    string
+	Labels    []string
+}
+
+type DraftPage struct {
+	Drafts        []Draft
+	NextPageToken string
+}
+
+type MailboxItem struct {
+	Kind         string
+	ID           string
+	Subject      string
+	Preview      string
+	Participants []string
+	Timestamp    string
+}
+
+type MailboxPage struct {
+	Items         []MailboxItem
+	NextPageToken string
+}
+
+type ThreadPage struct {
+	Threads       []Thread
+	NextPageToken string
+}
+
+type Message struct {
+	ID        string
+	From      string
+	To        []string
+	Timestamp string
+	Subject   string
+	Text      string
+}
+
+type ThreadDetail struct {
+	Thread
+	Messages []Message
+}
+
+type Service struct {
+	cfg Config
+	q   *db.Queries
+	api apiClient
+
+	failPersistActiveOnce bool
+}
+
+func New(cfg Config, q *db.Queries) (*Service, error) {
+	return newService(cfg, q, newLiveClient(cfg.HTTPClient, cfg.APIBaseURL))
+}
+
+// NewMemory builds a service backed by an in-process remote. Production uses New.
+func NewMemory(cfg Config, q *db.Queries) (*Service, error) {
+	return newService(cfg, q, newMemoryClient())
+}
+
+func newService(cfg Config, q *db.Queries, api apiClient) (*Service, error) {
+	if q == nil {
+		return nil, errors.New("agentmail: queries required")
+	}
+	if cfg.WorkspaceInboxLimit <= 0 {
+		cfg.WorkspaceInboxLimit = defaultInboxLimit
+	}
+	if cfg.MCPURL == "" {
+		cfg.MCPURL = defaultMCPURL
+	}
+	return &Service{cfg: cfg, q: q, api: api}, nil
+}
+
+func (s *Service) HostedAvailable() bool {
+	return strings.TrimSpace(s.cfg.HostedOrgKey) != ""
+}
+
+func (s *Service) Available() bool {
+	return s.cfg.Box != nil
+}
+
+func (s *Service) GetWorkspace(ctx context.Context, wsID pgtype.UUID) (WorkspaceStatus, error) {
+	row, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) {
+		return WorkspaceStatus{}, nil
+	}
+	if err != nil {
+		return WorkspaceStatus{}, err
+	}
+	return connectionStatus(row), nil
+}
+
+func (s *Service) Connect(ctx context.Context, wsID, actorID pgtype.UUID, cred WorkspaceCredential) (WorkspaceStatus, error) {
+	if !s.Available() {
+		return WorkspaceStatus{}, ErrUnavailable
+	}
+	switch c := cred.(type) {
+	case hostedCredential:
+		return s.connectHosted(ctx, wsID, actorID)
+	case byoCredential:
+		return s.connectBYO(ctx, wsID, actorID, c.orgKey)
+	default:
+		return WorkspaceStatus{}, ErrUnavailable
+	}
+}
+
+func (s *Service) connectHosted(ctx context.Context, wsID, actorID pgtype.UUID) (WorkspaceStatus, error) {
+	if !s.HostedAvailable() {
+		return WorkspaceStatus{}, ErrHostedUnavailable
+	}
+	existing, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if err != nil && !isNoRows(err) {
+		return WorkspaceStatus{}, err
+	}
+	if err == nil && existing.State == stateActive {
+		if existing.Source == sourceHosted {
+			return connectionStatus(existing), nil
+		}
+		return WorkspaceStatus{}, ErrModeConflict
+	}
+
+	clientID := util.UUIDToString(wsID)
+	_, err = s.q.UpsertAgentMailConnection(ctx, db.UpsertAgentMailConnectionParams{
+		WorkspaceID:   wsID,
+		Source:        sourceHosted,
+		State:         stateProvisioning,
+		AuthorityKind: authorityHostedOrg,
+		PodClientID:   clientID,
+		ConnectedByID: actorID,
+	})
+	if err != nil {
+		return WorkspaceStatus{}, err
+	}
+
+	podID, err := s.api.ensurePod(ctx, s.cfg.HostedOrgKey, clientID)
+	if err != nil {
+		return WorkspaceStatus{}, err
+	}
+	row, err := s.q.UpsertAgentMailConnection(ctx, db.UpsertAgentMailConnectionParams{
+		WorkspaceID:   wsID,
+		Source:        sourceHosted,
+		State:         stateActive,
+		AuthorityKind: authorityHostedOrg,
+		PodID:         textValue(podID),
+		PodClientID:   clientID,
+		ConnectedByID: actorID,
+	})
+	if err != nil {
+		return WorkspaceStatus{}, err
+	}
+	return connectionStatus(row), nil
+}
+
+func (s *Service) connectBYO(ctx context.Context, wsID, actorID pgtype.UUID, orgKey string) (WorkspaceStatus, error) {
+	info, err := s.api.inspectKey(ctx, orgKey)
+	if err != nil {
+		if errors.Is(err, ErrBadOrgKey) {
+			return WorkspaceStatus{}, err
+		}
+		return WorkspaceStatus{}, ErrBadOrgKey
+	}
+
+	existing, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if err != nil && !isNoRows(err) {
+		return WorkspaceStatus{}, err
+	}
+	if err == nil && existing.State == stateActive {
+		if existing.Source == sourceBYO {
+			return connectionStatus(existing), nil
+		}
+		return WorkspaceStatus{}, ErrModeConflict
+	}
+
+	sealed, err := sealOrgKey(s.cfg.Box, orgKey)
+	if err != nil {
+		return WorkspaceStatus{}, err
+	}
+	kind := info.authorityKind
+	if kind == "" {
+		kind = authorityBYOOrg
+	}
+	row, err := s.q.UpsertAgentMailConnection(ctx, db.UpsertAgentMailConnectionParams{
+		WorkspaceID:     wsID,
+		Source:          sourceBYO,
+		State:           stateActive,
+		AuthorityKind:   kind,
+		PodID:           textValue(info.podID),
+		OrgKeyEncrypted: textValue(sealed),
+		PodClientID:     util.UUIDToString(wsID),
+		Domain:          info.domain,
+		ConnectedByID:   actorID,
+	})
+	if err != nil {
+		return WorkspaceStatus{}, err
+	}
+	return connectionStatus(row), nil
+}
+
+func (s *Service) Disconnect(ctx context.Context, wsID pgtype.UUID) error {
+	if !s.Available() {
+		return ErrUnavailable
+	}
+	conn, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if conn.State == stateDisabled {
+		return nil
+	}
+
+	inboxes, err := s.q.ListAgentMailInboxesByWorkspace(ctx, wsID)
+	if err != nil {
+		return err
+	}
+	for _, inbox := range inboxes {
+		if err := s.revokeInbox(ctx, s.q, conn, inbox, true); err != nil {
+			return err
+		}
+	}
+
+	if conn.Source == sourceHosted && textString(conn.PodID) != "" {
+		if err := s.insertPurge(ctx, s.q, wsID, "pod", textString(conn.PodID), conn); err != nil {
+			return err
+		}
+		if err := s.api.deletePod(ctx, s.cfg.HostedOrgKey, textString(conn.PodID)); err != nil && !errors.Is(err, errRemoteNotFound) {
+			return err
+		}
+	}
+
+	_, err = s.q.UpsertAgentMailConnection(ctx, db.UpsertAgentMailConnectionParams{
+		WorkspaceID:   wsID,
+		Source:        conn.Source,
+		State:         stateDisabled,
+		AuthorityKind: conn.AuthorityKind,
+		PodID:         conn.PodID,
+		PodClientID:   conn.PodClientID,
+		Domain:        conn.Domain,
+		ConnectedByID: conn.ConnectedByID,
+	})
+	return err
+}
+
+func (s *Service) GetInbox(ctx context.Context, wsID, agentID pgtype.UUID) (*Inbox, error) {
+	row, err := s.q.GetAgentMailInbox(ctx, db.GetAgentMailInboxParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+	})
+	if isNoRows(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	view := inboxView(row)
+	return &view, nil
+}
+
+func (s *Service) ListInboxes(ctx context.Context, wsID pgtype.UUID) ([]Inbox, error) {
+	rows, err := s.q.ListAgentMailInboxesByWorkspace(ctx, wsID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Inbox, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, inboxView(row))
+	}
+	return out, nil
+}
+
+func (s *Service) GrantInbox(ctx context.Context, wsID, agentID, actorID pgtype.UUID, agentName string, addr InboxAddress) (Inbox, error) {
+	return s.grantInbox(ctx, wsID, agentID, actorID, agentName, grantCreate, addr, "")
+}
+
+func (s *Service) LinkInbox(ctx context.Context, wsID, agentID, actorID pgtype.UUID, agentName, inboxID string) (Inbox, error) {
+	return s.grantInbox(ctx, wsID, agentID, actorID, agentName, grantLink, InboxAddress{}, inboxID)
+}
+
+func (s *Service) grantInbox(ctx context.Context, wsID, agentID, actorID pgtype.UUID, agentName, kind string, addr InboxAddress, inboxID string) (Inbox, error) {
+	if !s.Available() {
+		return Inbox{}, ErrUnavailable
+	}
+	conn, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) || (err == nil && conn.State != stateActive) {
+		return Inbox{}, ErrNotConnected
+	}
+	if err != nil {
+		return Inbox{}, err
+	}
+
+	existing, err := s.q.GetAgentMailInbox(ctx, db.GetAgentMailInboxParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+	})
+	hasRow := err == nil
+	if err != nil && !isNoRows(err) {
+		return Inbox{}, err
+	}
+	if hasRow && existing.State == stateActive {
+		return inboxView(existing), nil
+	}
+
+	if conn.Source == sourceHosted {
+		used, err := s.q.CountAgentMailInboxesInFlight(ctx, wsID)
+		if err != nil {
+			return Inbox{}, err
+		}
+		inFlight := hasRow && isInFlight(existing.State)
+		if used >= int64(s.cfg.WorkspaceInboxLimit) && !inFlight {
+			return Inbox{}, ErrInboxQuota
+		}
+	}
+
+	clientID := util.UUIDToString(agentID)
+	if hasRow && existing.ClientID != "" {
+		clientID = existing.ClientID
+	}
+
+	cred, err := s.authority(conn)
+	if err != nil {
+		return Inbox{}, err
+	}
+
+	var remote remoteInbox
+	if kind == grantLink {
+		id := strings.TrimSpace(inboxID)
+		if id == "" {
+			return Inbox{}, ErrBadInbox
+		}
+		got, err := s.api.getInbox(ctx, cred, id)
+		if err != nil {
+			return Inbox{}, err
+		}
+		if s.remoteInboxTaken(ctx, wsID, agentID, got) {
+			return Inbox{}, ErrInboxInUse
+		}
+		remote = got
+	} else {
+		normalized, err := normalizeInboxAddress(addr)
+		if err != nil {
+			return Inbox{}, err
+		}
+		addr = normalized
+	}
+
+	// Create-path crash recovery deletes the half-minted remote. Linked
+	// inboxes already existed on the account — never delete those.
+	if kind == grantCreate && hasRow && existing.State == stateMintingKey && textString(existing.RemoteInboxID) != "" {
+		if err := s.api.deleteInbox(ctx, cred, textString(existing.RemoteInboxID)); err != nil && !errors.Is(err, errRemoteNotFound) {
+			return Inbox{}, err
+		}
+	}
+
+	_, err = s.q.UpsertAgentMailInbox(ctx, db.UpsertAgentMailInboxParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+		ClientID:    clientID,
+		State:       stateProvisioning,
+		DisplayName: agentName,
+		CreatedByID: actorID,
+	})
+	if err != nil {
+		return Inbox{}, err
+	}
+
+	if kind == grantCreate {
+		created, err := s.api.ensureInbox(ctx, cred, clientID, agentName, addr)
+		if err != nil {
+			return Inbox{}, err
+		}
+		remote = created
+	}
+
+	attempt := util.MustParseUUID(uuid.NewString())
+	_, err = s.q.UpsertAgentMailInbox(ctx, db.UpsertAgentMailInboxParams{
+		WorkspaceID:   wsID,
+		AgentID:       agentID,
+		ClientID:      clientID,
+		State:         stateMintingKey,
+		RemoteInboxID: textValue(remote.id),
+		Address:       textValue(remote.address),
+		DisplayName:   firstNonEmpty(agentName, remote.displayName),
+		KeyAttemptID:  attempt,
+		CreatedByID:   actorID,
+	})
+	if err != nil {
+		return Inbox{}, err
+	}
+
+	plainKey, err := s.api.createInboxKey(ctx, cred, remote.id)
+	if err != nil {
+		return Inbox{}, err
+	}
+	if s.failPersistActiveOnce {
+		s.failPersistActiveOnce = false
+		return Inbox{}, errors.New("agentmail: persist active failed")
+	}
+
+	sealed, err := sealInboxKey(s.cfg.Box, plainKey)
+	if err != nil {
+		return Inbox{}, err
+	}
+	if remote.id == "" || remote.address == "" || sealed == "" {
+		return Inbox{}, errors.New("agentmail: persist active missing fields")
+	}
+	row, err := s.q.UpsertAgentMailInbox(ctx, db.UpsertAgentMailInboxParams{
+		WorkspaceID:       wsID,
+		AgentID:           agentID,
+		ClientID:          clientID,
+		State:             stateActive,
+		RemoteInboxID:     textValue(remote.id),
+		Address:           textValue(remote.address),
+		DisplayName:       firstNonEmpty(agentName, remote.displayName),
+		InboxKeyEncrypted: textValue(sealed),
+		CreatedByID:       actorID,
+	})
+	if err != nil {
+		return Inbox{}, err
+	}
+	return inboxView(row), nil
+}
+
+func (s *Service) ListAccountInboxes(ctx context.Context, wsID pgtype.UUID) ([]AccountInbox, error) {
+	if !s.Available() {
+		return nil, ErrUnavailable
+	}
+	conn, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) || (err == nil && conn.State != stateActive) {
+		return nil, ErrNotConnected
+	}
+	if err != nil {
+		return nil, err
+	}
+	cred, err := s.authority(conn)
+	if err != nil {
+		return nil, err
+	}
+	remotes, err := s.api.listInboxes(ctx, cred)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.q.ListAgentMailInboxesByWorkspace(ctx, wsID)
+	if err != nil {
+		return nil, err
+	}
+	taken := map[string]struct{}{}
+	for _, row := range rows {
+		if !isInFlight(row.State) {
+			continue
+		}
+		if id := textString(row.RemoteInboxID); id != "" {
+			taken[id] = struct{}{}
+		}
+		if address := textString(row.Address); address != "" {
+			taken[strings.ToLower(address)] = struct{}{}
+		}
+	}
+	out := make([]AccountInbox, 0, len(remotes))
+	for _, remote := range remotes {
+		_, linked := taken[remote.id]
+		if !linked && remote.address != "" {
+			_, linked = taken[strings.ToLower(remote.address)]
+		}
+		out = append(out, AccountInbox{
+			ID:          remote.id,
+			Address:     remote.address,
+			DisplayName: remote.displayName,
+			Linked:      linked,
+		})
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Address < out[j].Address
+	})
+	return out, nil
+}
+
+func (s *Service) remoteInboxTaken(ctx context.Context, wsID, exceptAgent pgtype.UUID, remote remoteInbox) bool {
+	rows, err := s.q.ListAgentMailInboxesByWorkspace(ctx, wsID)
+	if err != nil {
+		return false
+	}
+	for _, row := range rows {
+		if !isInFlight(row.State) {
+			continue
+		}
+		if row.AgentID == exceptAgent {
+			continue
+		}
+		if textString(row.RemoteInboxID) == remote.id {
+			return true
+		}
+		if remote.address != "" && strings.EqualFold(textString(row.Address), remote.address) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) SeedAccountInbox(id, email string) {
+	mem, ok := s.api.(*memoryClient)
+	if !ok {
+		return
+	}
+	mem.seedAccountInbox(remoteInbox{id: strings.TrimSpace(id), address: strings.TrimSpace(email)})
+}
+
+func (s *Service) RevokeInbox(ctx context.Context, wsID, agentID pgtype.UUID, deleteRemote bool) error {
+	if !s.Available() {
+		return ErrUnavailable
+	}
+	conn, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	inbox, err := s.q.GetAgentMailInbox(ctx, db.GetAgentMailInboxParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+	})
+	if isNoRows(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return s.revokeInbox(ctx, s.q, conn, inbox, deleteRemote)
+}
+
+func (s *Service) ClaimOverlay(ctx context.Context, wsID, agentID pgtype.UUID) (json.RawMessage, error) {
+	if !s.Available() {
+		return nil, ErrUnavailable
+	}
+	enc, err := s.q.GetAgentMailActiveInboxKey(ctx, db.GetAgentMailActiveInboxKeyParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+	})
+	if isNoRows(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !enc.Valid || enc.String == "" {
+		return nil, nil
+	}
+	key, err := openInboxKey(s.cfg.Box, enc.String)
+	if err != nil {
+		return nil, err
+	}
+	return claimOverlayJSON(s.cfg.MCPURL, key)
+}
+
+func (s *Service) ListThreads(ctx context.Context, wsID, agentID pgtype.UUID, pageToken string) (ThreadPage, error) {
+	inboxID, key, err := s.activeInboxAccess(ctx, wsID, agentID)
+	if err != nil {
+		return ThreadPage{}, err
+	}
+	return s.api.listThreads(ctx, key, inboxID, threadQuery{PageToken: pageToken})
+}
+
+func (s *Service) ListDomains(ctx context.Context, wsID pgtype.UUID) ([]string, error) {
+	if !s.Available() {
+		return nil, ErrUnavailable
+	}
+	conn, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) || (err == nil && conn.State != stateActive) {
+		return []string{defaultInboxDomain}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	cred, err := s.authority(conn)
+	if err != nil {
+		return nil, err
+	}
+	listed, err := s.api.listDomains(ctx, cred)
+	if err != nil {
+		return nil, err
+	}
+	return mergeDomainNames(listed), nil
+}
+
+func (s *Service) ListFolders(ctx context.Context, wsID, agentID pgtype.UUID) ([]string, error) {
+	inboxID, key, err := s.activeInboxAccess(ctx, wsID, agentID)
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]struct{}{}
+	threads, err := s.api.listThreads(ctx, key, inboxID, threadQuery{IncludeTrash: true})
+	if err != nil {
+		return nil, err
+	}
+	for _, thread := range threads.Threads {
+		collectCustomLabels(seen, thread.Labels)
+	}
+	drafts, err := s.api.listDrafts(ctx, key, inboxID, draftQuery{})
+	if err != nil {
+		return nil, err
+	}
+	for _, draft := range drafts.Drafts {
+		collectCustomLabels(seen, draft.Labels)
+	}
+	folders := make([]string, 0, len(seen))
+	for name := range seen {
+		folders = append(folders, name)
+	}
+	sort.Strings(folders)
+	return folders, nil
+}
+
+func (s *Service) ListMailbox(ctx context.Context, wsID, agentID pgtype.UUID, section, label, pageToken string) (MailboxPage, error) {
+	inboxID, key, err := s.activeInboxAccess(ctx, wsID, agentID)
+	if err != nil {
+		return MailboxPage{}, err
+	}
+	section = strings.ToLower(strings.TrimSpace(section))
+	if section == "" {
+		section = "inbox"
+	}
+	label = strings.TrimSpace(label)
+	switch section {
+	case "drafts", "scheduled":
+		query := draftQuery{PageToken: pageToken}
+		if section == "scheduled" {
+			query.Labels = []string{"scheduled"}
+		}
+		page, err := s.api.listDrafts(ctx, key, inboxID, query)
+		if err != nil {
+			return MailboxPage{}, err
+		}
+		items := make([]MailboxItem, 0, len(page.Drafts))
+		for _, draft := range page.Drafts {
+			items = append(items, MailboxItem{
+				Kind:         "draft",
+				ID:           draft.ID,
+				Subject:      draft.Subject,
+				Preview:      draft.Preview,
+				Participants: draft.To,
+				Timestamp:    draft.Timestamp,
+			})
+		}
+		return MailboxPage{Items: items, NextPageToken: page.NextPageToken}, nil
+	case "inbox", "sent", "trash", "all", "folder":
+		query := threadQuery{PageToken: pageToken}
+		switch section {
+		case "inbox":
+			query.Labels = []string{"inbox"}
+		case "sent":
+			query.Labels = []string{"sent"}
+		case "trash":
+			query.Labels = []string{"trash"}
+			query.IncludeTrash = true
+		case "folder":
+			if label == "" {
+				return MailboxPage{}, ErrBadMailbox
+			}
+			query.Labels = []string{label}
+			query.IncludeTrash = true
+		}
+		page, err := s.api.listThreads(ctx, key, inboxID, query)
+		if err != nil {
+			return MailboxPage{}, err
+		}
+		items := make([]MailboxItem, 0, len(page.Threads))
+		for _, thread := range page.Threads {
+			items = append(items, MailboxItem{
+				Kind:         "thread",
+				ID:           thread.ID,
+				Subject:      thread.Subject,
+				Preview:      thread.Preview,
+				Participants: firstNonEmptySlice(thread.Senders, thread.Recipients),
+				Timestamp:    thread.Timestamp,
+			})
+		}
+		return MailboxPage{Items: items, NextPageToken: page.NextPageToken}, nil
+	default:
+		return MailboxPage{}, ErrBadMailbox
+	}
+}
+
+func (s *Service) GetThread(ctx context.Context, wsID, agentID pgtype.UUID, threadID string) (ThreadDetail, error) {
+	if strings.TrimSpace(threadID) == "" {
+		return ThreadDetail{}, errRemoteNotFound
+	}
+	inboxID, key, err := s.activeInboxAccess(ctx, wsID, agentID)
+	if err != nil {
+		return ThreadDetail{}, err
+	}
+	return s.api.getThread(ctx, key, inboxID, threadID)
+}
+
+func (s *Service) activeInboxAccess(ctx context.Context, wsID, agentID pgtype.UUID) (string, string, error) {
+	if !s.Available() {
+		return "", "", ErrUnavailable
+	}
+	conn, err := s.q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	if isNoRows(err) || (err == nil && conn.State != stateActive) {
+		return "", "", ErrNotConnected
+	}
+	if err != nil {
+		return "", "", err
+	}
+	row, err := s.q.GetAgentMailInbox(ctx, db.GetAgentMailInboxParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+	})
+	if isNoRows(err) || (err == nil && row.State != stateActive) {
+		return "", "", ErrInboxNotActive
+	}
+	if err != nil {
+		return "", "", err
+	}
+	remote := textString(row.RemoteInboxID)
+	if remote == "" || !row.InboxKeyEncrypted.Valid || row.InboxKeyEncrypted.String == "" {
+		return "", "", ErrInboxNotActive
+	}
+	key, err := openInboxKey(s.cfg.Box, row.InboxKeyEncrypted.String)
+	if err != nil {
+		return "", "", err
+	}
+	return remote, key, nil
+}
+
+func (s *Service) SweepWorkspace(ctx context.Context, qtx *db.Queries, wsID pgtype.UUID) error {
+	q := s.store(qtx)
+	conn, err := q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+	hasConn := err == nil
+	if err != nil && !isNoRows(err) {
+		return err
+	}
+	inboxes, err := q.ListAgentMailInboxesByWorkspace(ctx, wsID)
+	if err != nil {
+		return err
+	}
+	for _, inbox := range inboxes {
+		if remote := textString(inbox.RemoteInboxID); remote != "" && hasConn {
+			if err := s.insertPurge(ctx, q, wsID, "inbox", remote, conn); err != nil {
+				return err
+			}
+		}
+	}
+	if hasConn && conn.Source == sourceHosted && textString(conn.PodID) != "" {
+		if err := s.insertPurge(ctx, q, wsID, "pod", textString(conn.PodID), conn); err != nil {
+			return err
+		}
+	}
+	if err := q.DeleteAgentMailInboxesByWorkspace(ctx, wsID); err != nil {
+		return err
+	}
+	return q.DeleteAgentMailConnectionByWorkspace(ctx, wsID)
+}
+
+func (s *Service) SweepAgent(ctx context.Context, qtx *db.Queries, wsID, agentID pgtype.UUID) error {
+	q := s.store(qtx)
+	inbox, err := q.GetAgentMailInbox(ctx, db.GetAgentMailInboxParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+	})
+	if isNoRows(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if remote := textString(inbox.RemoteInboxID); remote != "" {
+		conn, cerr := q.GetAgentMailConnectionByWorkspace(ctx, wsID)
+		if cerr != nil && !isNoRows(cerr) {
+			return cerr
+		}
+		if cerr == nil {
+			if err := s.insertPurge(ctx, q, wsID, "inbox", remote, conn); err != nil {
+				return err
+			}
+		}
+	}
+	return q.DeleteAgentMailInbox(ctx, db.DeleteAgentMailInboxParams{
+		WorkspaceID: wsID,
+		AgentID:     agentID,
+	})
+}
+
+func (s *Service) revokeInbox(ctx context.Context, q *db.Queries, conn db.AgentmailConnection, inbox db.AgentmailInbox, deleteRemote bool) error {
+	if inbox.State == stateDisabled {
+		return nil
+	}
+	_, err := q.UpsertAgentMailInbox(ctx, db.UpsertAgentMailInboxParams{
+		WorkspaceID:   inbox.WorkspaceID,
+		AgentID:       inbox.AgentID,
+		ClientID:      inbox.ClientID,
+		State:         stateDisabling,
+		RemoteInboxID: inbox.RemoteInboxID,
+		Address:       inbox.Address,
+		DisplayName:   inbox.DisplayName,
+		CreatedByID:   inbox.CreatedByID,
+	})
+	if err != nil {
+		return err
+	}
+
+	if remote := textString(inbox.RemoteInboxID); remote != "" && deleteRemote {
+		if err := s.insertPurge(ctx, q, inbox.WorkspaceID, "inbox", remote, conn); err != nil {
+			return err
+		}
+		cred, err := s.authority(conn)
+		if err != nil {
+			return err
+		}
+		if err := s.deleteRemoteInbox(ctx, cred, remote, textString(inbox.Address)); err != nil {
+			return err
+		}
+	}
+
+	_, err = q.UpsertAgentMailInbox(ctx, db.UpsertAgentMailInboxParams{
+		WorkspaceID:   inbox.WorkspaceID,
+		AgentID:       inbox.AgentID,
+		ClientID:      inbox.ClientID,
+		State:         stateDisabled,
+		RemoteInboxID: inbox.RemoteInboxID,
+		Address:       inbox.Address,
+		DisplayName:   inbox.DisplayName,
+		CreatedByID:   inbox.CreatedByID,
+	})
+	return err
+}
+
+func (s *Service) deleteRemoteInbox(ctx context.Context, cred clientCred, remoteID, address string) error {
+	var last error
+	seen := map[string]struct{}{}
+	for _, id := range []string{remoteID, address} {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		err := s.api.deleteInbox(ctx, cred, id)
+		if err == nil || errors.Is(err, errRemoteNotFound) {
+			return nil
+		}
+		last = err
+	}
+	return last
+}
+
+func (s *Service) insertPurge(ctx context.Context, q *db.Queries, wsID pgtype.UUID, kind, remoteID string, conn db.AgentmailConnection) error {
+	var sealed pgtype.Text
+	if conn.Source == sourceBYO {
+		sealed = conn.OrgKeyEncrypted
+	}
+	_, err := q.InsertAgentMailPurge(ctx, db.InsertAgentMailPurgeParams{
+		WorkspaceID:     wsID,
+		Kind:            kind,
+		RemoteID:        remoteID,
+		Source:          conn.Source,
+		OrgKeyEncrypted: sealed,
+	})
+	return err
+}
+
+func (s *Service) authority(conn db.AgentmailConnection) (clientCred, error) {
+	if conn.Source == sourceHosted {
+		return clientCred{apiKey: s.cfg.HostedOrgKey, podID: textString(conn.PodID)}, nil
+	}
+	if !conn.OrgKeyEncrypted.Valid || conn.OrgKeyEncrypted.String == "" {
+		return clientCred{}, ErrNotConnected
+	}
+	key, err := openOrgKey(s.cfg.Box, conn.OrgKeyEncrypted.String)
+	if err != nil {
+		return clientCred{}, err
+	}
+	return clientCred{apiKey: key, podID: textString(conn.PodID)}, nil
+}
+
+func (s *Service) store(qtx *db.Queries) *db.Queries {
+	if qtx != nil {
+		return qtx
+	}
+	return s.q
+}
+
+func connectionStatus(row db.AgentmailConnection) WorkspaceStatus {
+	return WorkspaceStatus{Source: row.Source, State: row.State, Domain: row.Domain}
+}
+
+func inboxView(row db.AgentmailInbox) Inbox {
+	return Inbox{
+		AgentID:     util.UUIDToString(row.AgentID),
+		State:       row.State,
+		Address:     textString(row.Address),
+		DisplayName: row.DisplayName,
+	}
+}
+
+func isInFlight(state string) bool {
+	switch state {
+	case stateProvisioning, stateMintingKey, stateActive, stateDisabling:
+		return true
+	default:
+		return false
+	}
+}
+
+func isNoRows(err error) bool {
+	return errors.Is(err, pgx.ErrNoRows)
+}
+
+func textString(t pgtype.Text) string {
+	if !t.Valid {
+		return ""
+	}
+	return t.String
+}
+
+func textValue(s string) pgtype.Text {
+	if s == "" {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: s, Valid: true}
+}
+
+var (
+	usernamePattern = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$`)
+	domainPattern   = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$`)
+)
+
+var systemMailLabels = map[string]struct{}{
+	"inbox": {}, "sent": {}, "trash": {}, "spam": {}, "draft": {}, "drafts": {},
+	"scheduled": {}, "unread": {}, "read": {}, "unreplied": {}, "replied": {},
+	"blocked": {}, "unauthenticated": {},
+}
+
+func normalizeInboxAddress(addr InboxAddress) (InboxAddress, error) {
+	username := strings.ToLower(strings.TrimSpace(addr.Username))
+	domain := strings.ToLower(strings.TrimSpace(addr.Domain))
+	if username == "" {
+		return InboxAddress{}, ErrBadAddress
+	}
+	if !usernamePattern.MatchString(username) {
+		return InboxAddress{}, ErrBadAddress
+	}
+	if domain == "" {
+		domain = defaultInboxDomain
+	}
+	if !domainPattern.MatchString(domain) {
+		return InboxAddress{}, ErrBadAddress
+	}
+	return InboxAddress{Username: username, Domain: domain}, nil
+}
+
+func mergeDomainNames(listed []RemoteDomain) []string {
+	seen := map[string]struct{}{defaultInboxDomain: {}}
+	out := []string{defaultInboxDomain}
+	for _, domain := range listed {
+		name := strings.ToLower(strings.TrimSpace(domain.Name))
+		if name == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		out = append(out, name)
+	}
+	return out
+}
+
+func collectCustomLabels(seen map[string]struct{}, labels []string) {
+	for _, label := range labels {
+		name := strings.TrimSpace(label)
+		if name == "" {
+			continue
+		}
+		if _, system := systemMailLabels[strings.ToLower(name)]; system {
+			continue
+		}
+		seen[name] = struct{}{}
+	}
+}
+
+func firstNonEmptySlice(values ...[]string) []string {
+	for _, value := range values {
+		if len(value) > 0 {
+			return value
+		}
+	}
+	return []string{}
+}

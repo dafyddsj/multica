@@ -491,6 +491,10 @@ func (h *Handler) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.AvatarURL != nil {
+		h.pushClerkOrgLogo(r.Context(), ws, requestUserID(r), params.AvatarUrl.String)
+	}
+
 	slog.Info("workspace updated", append(logger.RequestAttrs(r), "workspace_id", id)...)
 	userID := requestUserID(r)
 	h.publish(protocol.EventWorkspaceUpdated, uuidToString(ws.ID), "member", userID, map[string]any{"workspace": h.workspaceToResponse(ws)})
@@ -1354,6 +1358,18 @@ func (h *Handler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
 		{
 			name: "delete pull requests",
 			run:  func() error { return qtx.DeleteWorkspacePullRequests(ctx, requester.WorkspaceID) },
+		},
+		{
+			name: "delete agentmail",
+			run: func() error {
+				if h.AgentMail != nil {
+					return h.AgentMail.SweepWorkspace(ctx, qtx, requester.WorkspaceID)
+				}
+				if err := qtx.DeleteAgentMailInboxesByWorkspace(ctx, requester.WorkspaceID); err != nil {
+					return err
+				}
+				return qtx.DeleteAgentMailConnectionByWorkspace(ctx, requester.WorkspaceID)
+			},
 		},
 		{
 			name: "delete integrations",

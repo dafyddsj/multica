@@ -192,6 +192,47 @@ type AgentToLabel struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type AgentmailConnection struct {
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	Source          string             `json:"source"`
+	State           string             `json:"state"`
+	AuthorityKind   string             `json:"authority_kind"`
+	PodID           pgtype.Text        `json:"pod_id"`
+	OrgKeyEncrypted pgtype.Text        `json:"org_key_encrypted"`
+	PodClientID     string             `json:"pod_client_id"`
+	Domain          string             `json:"domain"`
+	ConnectedByID   pgtype.UUID        `json:"connected_by_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AgentmailInbox struct {
+	ID                pgtype.UUID        `json:"id"`
+	WorkspaceID       pgtype.UUID        `json:"workspace_id"`
+	AgentID           pgtype.UUID        `json:"agent_id"`
+	ClientID          string             `json:"client_id"`
+	State             string             `json:"state"`
+	RemoteInboxID     pgtype.Text        `json:"remote_inbox_id"`
+	Address           pgtype.Text        `json:"address"`
+	DisplayName       string             `json:"display_name"`
+	InboxKeyEncrypted pgtype.Text        `json:"inbox_key_encrypted"`
+	KeyAttemptID      pgtype.UUID        `json:"key_attempt_id"`
+	CreatedByID       pgtype.UUID        `json:"created_by_id"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AgentmailPurge struct {
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	Kind            string             `json:"kind"`
+	RemoteID        string             `json:"remote_id"`
+	Source          string             `json:"source"`
+	OrgKeyEncrypted pgtype.Text        `json:"org_key_encrypted"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
 type Attachment struct {
 	ID              pgtype.UUID        `json:"id"`
 	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
