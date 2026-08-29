@@ -124,7 +124,7 @@
     "create": "创建",
     "limit_label": "每月上限（USD）",
     "scope_label": "范围",
-    "owner_label": "对象",
+    "applies_to": "适用于",
     "scope": {
       "project": "项目",
       "initiative": "专项",
@@ -146,7 +146,7 @@
       "softened": "已降档",
       "exhausted": "已达上限",
       "pricing_incomplete": "部分用量尚未定价。在每条记录都有费率之前，暂停会保持关闭。",
-      "unattributed": "还没有可归属的消耗。在 task 带上这个对象之前，进度条会保持空白。",
+      "unattributed": "还没有可归属的消耗。在 task 归到这里之前，进度条会保持空白。",
       "allow_over": "本月允许超支"
     },
     "waiver": {

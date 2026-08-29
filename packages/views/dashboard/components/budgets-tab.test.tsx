@@ -126,9 +126,10 @@ describe("BudgetsTab", () => {
     ];
     renderTab();
 
+    expect(screen.getByText("Applies to")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "No spend can be attributed yet. The bar stays empty until tasks carry this owner.",
+        "No spend can be attributed yet. The bar stays empty until tasks are attributed here.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();

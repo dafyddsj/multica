@@ -124,7 +124,7 @@
     "create": "Create",
     "limit_label": "Monthly limit (USD)",
     "scope_label": "Scope",
-    "owner_label": "Owner",
+    "applies_to": "Applies to",
     "scope": {
       "project": "Project",
       "initiative": "Initiative",
@@ -146,7 +146,7 @@
       "softened": "Softened",
       "exhausted": "At limit",
       "pricing_incomplete": "Some usage is unpriced. Pause stays closed until every line has a rate.",
-      "unattributed": "No spend can be attributed yet. The bar stays empty until tasks carry this owner.",
+      "unattributed": "No spend can be attributed yet. The bar stays empty until tasks are attributed here.",
       "allow_over": "May exceed this month"
     },
     "waiver": {

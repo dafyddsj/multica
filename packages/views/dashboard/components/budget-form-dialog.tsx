@@ -120,15 +120,17 @@ export function BudgetFormDialog({
     [editing, lists, scope, takenByScope],
   );
 
+  const scopeLabels: Record<BudgetScope, string> = {
+    project: t(($) => $.budgets.scope.project),
+    initiative: t(($) => $.budgets.scope.initiative),
+    agent: t(($) => $.budgets.scope.agent),
+    squad: t(($) => $.budgets.scope.squad),
+  };
   const scopeItems = SCOPES.map((value) => ({
     value,
-    label: scopeLabel(value, {
-      project: t(($) => $.budgets.scope.project),
-      initiative: t(($) => $.budgets.scope.initiative),
-      agent: t(($) => $.budgets.scope.agent),
-      squad: t(($) => $.budgets.scope.squad),
-    }),
+    label: scopeLabel(value, scopeLabels),
   }));
+  const targetLabel = scopeLabels[scope];
   const ownerItems = owners.map((row) => ({ value: row.id, label: row.label }));
   const overLimitItems = [
     { value: "pause", label: t(($) => $.budgets.over_limit_pause) },
@@ -212,7 +214,7 @@ export function BudgetFormDialog({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="budget-owner">{t(($) => $.budgets.owner_label)}</Label>
+            <Label htmlFor="budget-owner">{targetLabel}</Label>
             <Select
               items={ownerItems}
               value={ownerId || null}
@@ -221,7 +223,7 @@ export function BudgetFormDialog({
               }}
               disabled={editing}
             >
-              <SelectTrigger id="budget-owner" className="w-full" aria-label={t(($) => $.budgets.owner_label)}>
+              <SelectTrigger id="budget-owner" className="w-full" aria-label={targetLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

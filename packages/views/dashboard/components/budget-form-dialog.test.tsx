@@ -54,6 +54,17 @@ function renderDialog({
 }
 
 describe("BudgetFormDialog", () => {
+  it("labels the target picker with the selected scope", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    expect(screen.getByRole("combobox", { name: "Project" })).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "Scope" }));
+    await user.click(await screen.findByRole("option", { name: "Agent" }));
+    expect(screen.getByRole("combobox", { name: "Agent" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Project" })).not.toBeInTheDocument();
+  });
+
   it("defaults soften to 80 percent", () => {
     renderDialog();
     expect(screen.getByRole("switch", { name: "Soften at threshold" })).toBeChecked();
@@ -67,7 +78,7 @@ describe("BudgetFormDialog", () => {
     const user = userEvent.setup();
     const { onSubmit } = renderDialog();
 
-    await user.click(screen.getByRole("combobox", { name: "Owner" }));
+    await user.click(screen.getByRole("combobox", { name: "Project" }));
     await user.click(await screen.findByRole("option", { name: "Alpha" }));
     await user.type(screen.getByLabelText("Monthly limit (USD)"), "50");
     await user.click(screen.getByRole("button", { name: "Create" }));
@@ -88,7 +99,7 @@ describe("BudgetFormDialog", () => {
     const user = userEvent.setup();
     const { onSubmit } = renderDialog();
 
-    await user.click(screen.getByRole("combobox", { name: "Owner" }));
+    await user.click(screen.getByRole("combobox", { name: "Project" }));
     await user.click(await screen.findByRole("option", { name: "Alpha" }));
     await user.type(screen.getByLabelText("Monthly limit (USD)"), "50");
     await user.click(screen.getByRole("switch", { name: "Soften at threshold" }));

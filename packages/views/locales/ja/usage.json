@@ -124,7 +124,7 @@
     "create": "作成",
     "limit_label": "月次上限（USD）",
     "scope_label": "対象種別",
-    "owner_label": "対象",
+    "applies_to": "対象",
     "scope": {
       "project": "プロジェクト",
       "initiative": "イニシアチブ",
@@ -146,7 +146,7 @@
       "softened": "緩和中",
       "exhausted": "上限到達",
       "pricing_incomplete": "一部の使用量に価格がありません。すべての行にレートが付くまで停止は閉じたままです。",
-      "unattributed": "帰属できる使用量はまだありません。作業がこの対象を持つまでバーは空のままです。",
+      "unattributed": "帰属できる使用量はまだありません。作業がここに紐づくまでバーは空のままです。",
       "allow_over": "今月は超過できます"
     },
     "waiver": {

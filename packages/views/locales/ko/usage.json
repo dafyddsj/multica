@@ -124,7 +124,7 @@
     "create": "만들기",
     "limit_label": "월간 한도(USD)",
     "scope_label": "범위",
-    "owner_label": "대상",
+    "applies_to": "적용 대상",
     "scope": {
       "project": "프로젝트",
       "initiative": "이니셔티브",
@@ -146,7 +146,7 @@
       "softened": "완화됨",
       "exhausted": "한도 도달",
       "pricing_incomplete": "일부 사용량에 가격이 없습니다. 모든 행에 요율이 생길 때까지 일시 중지는 닫힌 상태로 유지됩니다.",
-      "unattributed": "아직 귀속할 사용량이 없습니다. 작업이 이 대상을 가질 때까지 막대는 비어 있습니다.",
+      "unattributed": "아직 귀속할 사용량이 없습니다. 작업이 여기에 귀속될 때까지 막대는 비어 있습니다.",
       "allow_over": "이번 달 초과 가능"
     },
     "waiver": {

@@ -204,7 +204,7 @@ export function BudgetsTab({
           <div
             className={`${BUDGET_GRID} border-b px-4 py-2 text-caption font-medium text-muted-foreground`}
           >
-            <span>{t(($) => $.budgets.owner_label)}</span>
+            <span>{t(($) => $.budgets.applies_to)}</span>
             <span className="text-right">{t(($) => $.budgets.header_spent)}</span>
             <span />
           </div>
