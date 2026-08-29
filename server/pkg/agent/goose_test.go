@@ -80,6 +80,16 @@ func TestBuildGooseArgsFreshAndResume(t *testing.T) {
 		t.Fatalf("fresh with model missing --model gpt-4o: %v", withModel)
 	}
 
+	withProvider := buildGooseArgs("", ExecOptions{GooseProvider: "ollama", Model: "llama3.2"}, slog.Default())
+	if !strings.Contains(strings.Join(withProvider, " "), "--provider ollama --model llama3.2") {
+		t.Fatalf("fresh with provider missing --provider ollama --model llama3.2: %v", withProvider)
+	}
+
+	emptyProvider := buildGooseArgs("", ExecOptions{GooseProvider: "  ", Model: "llama3.2"}, slog.Default())
+	if strings.Contains(strings.Join(emptyProvider, " "), "--provider") {
+		t.Fatalf("empty GooseProvider must omit --provider: %v", emptyProvider)
+	}
+
 	resume := buildGooseArgs(gooseSessionID(gooseFixtureSession), ExecOptions{}, slog.Default())
 	wantResume := []string{"run", "-i", "-", "--output-format", "stream-json", "--resume", "--session-id", gooseFixtureSession}
 	if !reflect.DeepEqual(resume, wantResume) {
@@ -103,6 +113,7 @@ func TestBuildGooseArgsKeepsProtocolManaged(t *testing.T) {
 			"--output-format", "text", "--resume", "--session-id", gooseFixtureSession,
 			"--no-session", "-s", "--interactive", "--recipe", "demo.yaml",
 			"--acp", "acp", "serve", "--instructions", "file.md", "--max-turns", "8",
+			"--provider", "openai",
 		},
 	}, slog.Default())
 	joined := strings.Join(args, " ")
@@ -124,6 +135,27 @@ func TestBuildGooseArgsKeepsProtocolManaged(t *testing.T) {
 	}
 	if !strings.Contains(joined, "--debug") || !strings.Contains(joined, "--max-turns") {
 		t.Fatalf("non-managed custom args missing from %v", args)
+	}
+	if strings.Contains(joined, "--provider") || strings.Contains(joined, "openai") {
+		t.Fatalf("custom --provider leaked into %v", args)
+	}
+}
+
+func TestBuildGooseArgsBlocksProviderInExtraArgs(t *testing.T) {
+	t.Parallel()
+	args := buildGooseArgs("", ExecOptions{
+		GooseProvider: "ollama",
+		ExtraArgs:     []string{"--provider", "openai", "--debug"},
+	}, slog.Default())
+	joined := strings.Join(args, " ")
+	if strings.Contains(joined, "openai") {
+		t.Fatalf("ExtraArgs --provider leaked into %v", args)
+	}
+	if !strings.Contains(joined, "--provider ollama") {
+		t.Fatalf("first-class GooseProvider missing from %v", args)
+	}
+	if !strings.Contains(joined, "--debug") {
+		t.Fatalf("non-managed ExtraArgs missing from %v", args)
 	}
 }
 

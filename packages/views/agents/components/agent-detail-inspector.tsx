@@ -11,6 +11,8 @@ import {
   AGENT_DESCRIPTION_MAX_LENGTH,
   AGENT_MAX_CONCURRENT_TASKS_MAX,
   AGENT_MAX_CONCURRENT_TASKS_MIN,
+  applyGooseProvider,
+  parseGooseRuntimeConfig,
 } from "@multica/core/agents";
 import {
   isRuntimeUsableForUser,
@@ -292,6 +294,10 @@ export function AgentDetailInspector({
                 const inheritFailover =
                   !agent.failover_runtime_id ||
                   agent.failover_runtime_id === agent.runtime_id;
+                const nextRuntime = runtimes.find((item) => item.id === id);
+                const dropGooseProvider =
+                  runtime?.provider === "goose" &&
+                  nextRuntime?.provider !== "goose";
                 update({
                   runtime_id: id,
                   model: "",
@@ -305,6 +311,14 @@ export function AgentDetailInspector({
                         failover_model: "",
                         failover_thinking_level: "",
                         failover_service_tier: "",
+                      }
+                    : {}),
+                  ...(dropGooseProvider
+                    ? {
+                        runtime_config: applyGooseProvider(
+                          agent.runtime_config,
+                          "",
+                        ),
                       }
                     : {}),
                 });
@@ -325,6 +339,28 @@ export function AgentDetailInspector({
               onChange={handleModelChange}
             />
           </SettingsRow>
+          {runtime?.provider === "goose" ? (
+            <SettingsRow
+              label={t(($) => $.inspector.prop_goose_provider)}
+              description={t(($) => $.inspector.prop_goose_provider_hint)}
+              size="text"
+            >
+              <GooseProviderField
+                value={
+                  parseGooseRuntimeConfig(agent.runtime_config).provider ?? ""
+                }
+                canEdit={canEdit}
+                onSave={(next) =>
+                  update({
+                    runtime_config: applyGooseProvider(
+                      agent.runtime_config,
+                      next,
+                    ),
+                  })
+                }
+              />
+            </SettingsRow>
+          ) : null}
           <ThinkingSettingField
             label={t(($) => $.inspector.prop_thinking)}
             runtimeId={agent.runtime_id}
@@ -439,6 +475,52 @@ export function AgentDetailInspector({
         </SettingsCard>
       </SettingsSection>
     </div>
+  );
+}
+
+function GooseProviderField({
+  value,
+  canEdit,
+  onSave,
+}: {
+  value: string;
+  canEdit: boolean;
+  onSave: (next: string) => Promise<void>;
+}) {
+  const { t } = useT("agents");
+  const [draft, setDraft] = useState(value);
+
+  useEffect(() => setDraft(value), [value]);
+
+  const commit = () => {
+    const next = draft.trim();
+    if (next === value) {
+      setDraft(value);
+      return;
+    }
+    void onSave(next);
+  };
+
+  return (
+    <Input
+      type="text"
+      name="agent-goose-provider"
+      autoComplete="off"
+      aria-label={t(($) => $.inspector.prop_goose_provider)}
+      value={draft}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (isImeComposing(event)) return;
+        if (event.key === "Enter") {
+          event.preventDefault();
+          commit();
+        }
+      }}
+      disabled={!canEdit}
+      placeholder={t(($) => $.inspector.prop_goose_provider_placeholder)}
+      className="min-h-10"
+    />
   );
 }
 

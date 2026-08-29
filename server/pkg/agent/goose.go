@@ -57,6 +57,7 @@ var gooseBlockedArgs = map[string]blockedArgMode{
 	"--acp":           blockedStandalone,
 	"acp":             blockedStandalone,
 	"serve":           blockedStandalone,
+	"--provider":      blockedWithValue,
 }
 
 func filterGooseRuntimeArgs(args []string, logger *slog.Logger) []string {
@@ -67,6 +68,9 @@ func buildGooseArgs(resume gooseSessionID, opts ExecOptions, logger *slog.Logger
 	args := []string{"run", "-i", "-", "--output-format", "stream-json"}
 	if resume != "" {
 		args = append(args, "--resume", "--session-id", string(resume))
+	}
+	if provider := strings.TrimSpace(opts.GooseProvider); provider != "" {
+		args = append(args, "--provider", provider)
 	}
 	if model := strings.TrimSpace(opts.Model); model != "" {
 		args = append(args, "--model", model)

@@ -118,6 +118,9 @@ type ExecOptions struct {
 	// through Claude Code's --settings flag. It currently carries restrictive
 	// runtime-skill overrides only; other providers ignore it.
 	ClaudeSettingsPath string
+	// GooseProvider is the Goose --provider value (for example "ollama").
+	// Empty means inherit Goose config. Other backends ignore this field.
+	GooseProvider string
 }
 
 // runContext derives the execution context for an agent subprocess from the

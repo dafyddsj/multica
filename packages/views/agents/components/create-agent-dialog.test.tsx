@@ -265,6 +265,57 @@ describe("CreateAgentDialog runtime visibility gate", () => {
     expect(onCreate.mock.calls[0]?.[0].runtime_id).toBe("rt-mine");
   });
 
+  it("keeps a copied goose_provider on duplicate and omits the field for other runtimes", async () => {
+    const goose = makeRuntime({
+      id: "rt-goose",
+      name: "Goose Runtime",
+      provider: "goose",
+      owner_id: ME,
+    });
+    const claude = makeRuntime({
+      id: "rt-claude",
+      name: "Claude Runtime",
+      provider: "claude",
+      owner_id: ME,
+    });
+    const source = makeDuplicateSource("rt-goose");
+    source.runtime_config = { goose_provider: "ollama", mode: "local" };
+    source.name = "Goose Agent";
+
+    const { onCreate } = renderDialog([goose, claude], source);
+
+    expect(screen.getByLabelText("Goose provider")).toHaveValue("ollama");
+
+    fireEvent.change(screen.getByPlaceholderText("e.g. Deep Research Agent"), {
+      target: { value: "Goose Agent copy" },
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onCreate.mock.calls[0]?.[0].runtime_config).toEqual({
+      goose_provider: "ollama",
+      mode: "local",
+    });
+  });
+
+  it("does not show or submit goose_provider for a Claude runtime", async () => {
+    const claude = makeRuntime({
+      id: "rt-claude",
+      name: "Claude Runtime",
+      provider: "claude",
+      owner_id: ME,
+    });
+    const { onCreate } = renderDialog([claude]);
+
+    expect(screen.queryByLabelText("Goose provider")).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText("e.g. Deep Research Agent"), {
+      target: { value: "Claude Agent" },
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(onCreate.mock.calls[0]?.[0].runtime_config).toBeUndefined();
+  });
+
   it("disables Create when the selected runtime is locked (duplicate source + no usable fallback)", () => {
     // Edge case: the source agent points at a locked runtime AND the workspace
     // has no usable alternatives in scope. The defense-in-depth gate on

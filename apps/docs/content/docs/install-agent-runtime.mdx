@@ -54,7 +54,7 @@ For QwenPaw, choose the provider and model in QwenPaw's own configuration. Multi
 
 For Amp, sign in with `amp login` or set `AMP_API_KEY`. Amp picks its own model; Multica does not send `--model`.
 
-For Goose, run `goose configure` and set `GOOSE_PROVIDER`, `GOOSE_MODEL`, and the vendor API key for that provider. Multica does not act as a Goose identity provider. Type a model id in Multica to send `--model`. Leave the field empty to use Goose's configured default.
+For Goose, run `goose configure` and set `GOOSE_PROVIDER`, `GOOSE_MODEL`, and the vendor API key for that provider. Multica does not act as a Goose identity provider. Type a model id in Multica to send `--model`. Leave the field empty to use Goose's configured default. Type a Goose provider id (`openrouter`, `ollama`, …) to send `--provider`, or leave it empty to use `GOOSE_PROVIDER`.
 
 For MiniMax Code, install a supported Node.js release (`>=22.19 <23` or `>=24 <27`) and run `npm install --global @minimax-ai/code@latest`. A global npm install places `mcode` on npm's global binary path; if `command -v mcode` or `Get-Command mcode` cannot find it, add that path to `PATH`. Then run `mcode login`. MiniMax Code owns the model selection; Multica cannot override it through ACP.
 
