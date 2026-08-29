@@ -284,6 +284,10 @@ func ListModels(ctx context.Context, providerType string, runtimeCmd Command) (C
 		return cachedDiscovery(discoveryCacheKey(providerType, runtimeCmd), func() (Catalog, error) {
 			return discoverDevinModels(ctx, runtimeCmd)
 		})
+	case "goose":
+		// Goose has no account-independent headless model catalog. An
+		// empty list keeps the runtime default and manual model entry available.
+		return Catalog{Models: []Model{}}, nil
 	default:
 		return Catalog{}, fmt.Errorf("unknown agent type: %q", providerType)
 	}

@@ -134,6 +134,7 @@ You also need at least one AI agent CLI installed:
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh` on PATH with the Multica runtime profile installed; set `DEEPSEEK_API_KEY`)
 - [Amp](https://ampcode.com) (`amp` on PATH; sign in with `amp login` or set `AMP_API_KEY`)
 - [Devin](https://docs.devin.ai/cli) (`devin` on PATH; sign in with `devin auth login`; local CLI, not Devin Cloud)
+- [Goose](https://github.com/block/goose) (`goose` on PATH; run `goose configure` and set `GOOSE_PROVIDER` / `GOOSE_MODEL` plus the vendor key)
 
 ### b) One-command setup
 

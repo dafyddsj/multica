@@ -160,6 +160,7 @@ var allFileBasedProviders = []string{
 	"zeroclaw",
 	"amp",
 	"devin",
+	"goose",
 	"kiro",
 	"antigravity",
 	"qwen",
@@ -247,6 +248,7 @@ func TestPrepareThenCleanupSidecarsPreservesUserSkillSibling(t *testing.T) {
 		{"antigravity", filepath.Join(".agents", "skills", "my-own"), "SKILL.md"},
 		{"amp", filepath.Join(".agents", "skills", "my-own"), "SKILL.md"},
 		{"devin", filepath.Join(".devin", "skills", "my-own"), "SKILL.md"},
+		{"goose", filepath.Join(".agents", "skills", "my-own"), "SKILL.md"},
 		{"qwen", filepath.Join(".qwen", "skills", "my-own"), "SKILL.md"},
 		{"hermes", filepath.Join(".agent_context", "skills", "my-own"), "SKILL.md"},
 	}
@@ -648,6 +650,7 @@ var sameSlugSkillProviderCases = []struct {
 	{"antigravity", filepath.Join(".agents", "skills", "issue-review")},
 	{"amp", filepath.Join(".agents", "skills", "issue-review")},
 	{"devin", filepath.Join(".devin", "skills", "issue-review")},
+	{"goose", filepath.Join(".agents", "skills", "issue-review")},
 	{"qwen", filepath.Join(".qwen", "skills", "issue-review")},
 	{"hermes", filepath.Join(".agent_context", "skills", "issue-review")},
 }

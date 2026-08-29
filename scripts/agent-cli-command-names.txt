@@ -9,6 +9,7 @@ deveco
 devin
 dim
 dsh
+goose
 grok
 hermes
 kimi

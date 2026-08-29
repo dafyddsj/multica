@@ -450,6 +450,10 @@ func skillsDirPath(workDir, provider string) string {
 		// .devin/skills/. .agents/skills/ is also scanned and is shared
 		// with Amp and Goose, so Multica-managed Devin skills stay here.
 		return filepath.Join(workDir, ".devin", "skills")
+	case "goose":
+		// Goose 1.48.0 `goose skills list` names the project path as
+		// .agents/skills/.
+		return filepath.Join(workDir, ".agents", "skills")
 	case "grok":
 		// Grok Build CLI discovers project-level skills from .grok/skills/
 		// (and also scans .agents/skills/). Prefer the native .grok tree.

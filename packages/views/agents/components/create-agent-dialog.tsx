@@ -40,6 +40,8 @@ import {
   AGENT_DESCRIPTION_MAX_LENGTH,
   VISIBILITY_DESCRIPTION,
   VISIBILITY_LABEL,
+  applyGooseProvider,
+  parseGooseRuntimeConfig,
 } from "@multica/core/agents";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { CharCounter } from "./char-counter";
@@ -141,6 +143,9 @@ export function CreateAgentDialog({
     }));
 
   const [model, setModel] = useState(template?.model ?? "");
+  const [gooseProvider, setGooseProvider] = useState(
+    () => parseGooseRuntimeConfig(template?.runtime_config).provider ?? "",
+  );
   const [instructions, setInstructions] = useState(template?.instructions ?? "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(template?.avatar_url ?? null);
   const [selectedSkillIds, setSelectedSkillIds] = useState<Set<string>>(
@@ -271,6 +276,15 @@ export function CreateAgentDialog({
         if (template.custom_args.length) data.custom_args = template.custom_args;
         if (template.max_concurrent_tasks) {
           data.max_concurrent_tasks = template.max_concurrent_tasks;
+        }
+      }
+      if (selectedRuntime.provider === "goose") {
+        const runtimeConfig = applyGooseProvider(
+          template?.runtime_config,
+          gooseProvider,
+        );
+        if (Object.keys(runtimeConfig).length > 0) {
+          data.runtime_config = runtimeConfig;
         }
       }
       const createdAgent = await onCreate(data);
@@ -427,7 +441,11 @@ export function CreateAgentDialog({
               onSelect={(id) => {
                 // Models are per-runtime; a value picked for the old runtime
                 // may not exist on the new one, so drop it on runtime change.
-                if (id !== selectedRuntimeId) setModel("");
+                if (id !== selectedRuntimeId) {
+                  setModel("");
+                  const nextRuntime = runtimes.find((item) => item.id === id);
+                  if (nextRuntime?.provider !== "goose") setGooseProvider("");
+                }
                 setSelectedRuntimeId(id);
               }}
             />
@@ -439,6 +457,29 @@ export function CreateAgentDialog({
               onChange={setModel}
               disabled={!selectedRuntime}
             />
+
+            {selectedRuntime?.provider === "goose" ? (
+              <div>
+                <Label className="text-caption text-muted-foreground">
+                  {t(($) => $.create_dialog.goose_provider_label)}
+                </Label>
+                <Input
+                  type="text"
+                  name="create-agent-goose-provider"
+                  autoComplete="off"
+                  value={gooseProvider}
+                  onChange={(event) => setGooseProvider(event.target.value)}
+                  placeholder={t(
+                    ($) => $.create_dialog.goose_provider_placeholder,
+                  )}
+                  className="mt-1 min-h-10 w-full"
+                  aria-label={t(($) => $.create_dialog.goose_provider_label)}
+                />
+                <p className="mt-1 text-caption text-muted-foreground">
+                  {t(($) => $.create_dialog.goose_provider_hint)}
+                </p>
+              </div>
+            ) : null}
 
             {/* --- Optional sections (instructions / skills) ---
                 Collapsed by default so quick-create stays fast.

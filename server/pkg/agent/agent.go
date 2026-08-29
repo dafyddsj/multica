@@ -118,6 +118,9 @@ type ExecOptions struct {
 	// through Claude Code's --settings flag. It currently carries restrictive
 	// runtime-skill overrides only; other providers ignore it.
 	ClaudeSettingsPath string
+	// GooseProvider is the Goose --provider value (for example "ollama").
+	// Empty means inherit Goose config. Other backends ignore this field.
+	GooseProvider string
 }
 
 // runContext derives the execution context for an agent subprocess from the
@@ -288,7 +291,7 @@ type Config struct {
 // migration 242 to add qoderclicn, migration 253 to add qwenpaw,
 // migration 254 to add reasonix, migration 313 to add dsh, migration 327 to
 // add mcode, migration 370 to add dim, migration 403 to add zeroclaw,
-// migration 459 to add amp, migration 463 to add devin): a
+// migration 459 to add amp, migration 463 to add devin, migration 464 to add goose): a
 // custom runtime profile may only
 // be based on a backend Multica officially supports.
 // qoder and qoderclicn share the same ACP backend; keeping both provider keys
@@ -325,6 +328,7 @@ var SupportedTypes = []string{
 	"zeroclaw",
 	"amp",
 	"devin",
+	"goose",
 }
 
 // IsSupportedType reports whether agentType is in the SupportedTypes whitelist.
@@ -431,6 +435,8 @@ func New(agentType string, cfg Config) (Backend, error) {
 		return &ampBackend{cfg: cfg}, nil
 	case "devin":
 		return &devinBackend{cfg: cfg}, nil
+	case "goose":
+		return &gooseBackend{cfg: cfg}, nil
 	default:
 		return nil, fmt.Errorf("unknown agent type: %q (supported: %s)", agentType, strings.Join(SupportedTypes, ", "))
 	}
@@ -479,6 +485,7 @@ var launchHeaders = map[string]string{
 	"zeroclaw":    "zeroclaw acp",
 	"amp":         "amp -x (stream-json)",
 	"devin":       "devin --print",
+	"goose":       "goose run (stream-json)",
 }
 
 // LaunchHeader returns the user-visible launch skeleton for agentType, or an

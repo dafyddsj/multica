@@ -133,4 +133,16 @@ describe("ProviderLogo", () => {
     expect(logo?.querySelectorAll("path").length).toBe(3);
     expect(logo?.classList.contains("runtime-logo")).toBe(true);
   });
+
+  it("renders the Goose letter mark instead of the generic fallback", () => {
+    const { container } = render(
+      <ProviderLogo provider="goose" className="runtime-logo" />,
+    );
+
+    const logo = container.querySelector("svg");
+    expect(logo?.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(logo?.getAttribute("stroke")).toBe("currentColor");
+    expect(logo?.querySelectorAll("path").length).toBe(2);
+    expect(logo?.classList.contains("runtime-logo")).toBe(true);
+  });
 });

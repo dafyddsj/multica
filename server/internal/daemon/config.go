@@ -148,6 +148,7 @@ type Config struct {
 	QwenpawArgs                     []string
 	AmpArgs                         []string
 	DevinArgs                       []string
+	GooseArgs                       []string
 
 	// ProfileCommandOverrides maps a custom runtime profile_id -> the absolute
 	// executable path to use for that profile on THIS machine (MUL-3284).
@@ -255,7 +256,7 @@ func LoadConfig(overrides Overrides) (Config, error) {
 	// can re-run the same discovery on a live daemon (MUL-5439).
 	agents := probeAgentCLIs()
 	if len(agents) == 0 && !overrides.AllowNoAgents {
-		return Config{}, fmt.Errorf("no agent CLI found: install claude, codebuddy, codex, copilot, opencode, deveco, openclaw, hermes, pi, omp, cursor-agent, kimi, reasonix, dsh, kiro-cli, agy, qodercli, qoderclicn, traecli, grok, qwen, qwenpaw, mcode, dim, zeroclaw, or amp and ensure it is on PATH")
+		return Config{}, fmt.Errorf("no agent CLI found: install claude, codebuddy, codex, copilot, opencode, deveco, openclaw, hermes, pi, omp, cursor-agent, kimi, reasonix, dsh, kiro-cli, agy, qodercli, qoderclicn, traecli, grok, qwen, qwenpaw, mcode, dim, zeroclaw, amp, or goose and ensure it is on PATH")
 	}
 
 	claudeArgs, err := shellArgsFromEnv("MULTICA_CLAUDE_ARGS")
@@ -283,6 +284,10 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		return Config{}, err
 	}
 	devinArgs, err := shellArgsFromEnv("MULTICA_DEVIN_ARGS")
+	if err != nil {
+		return Config{}, err
+	}
+	gooseArgs, err := shellArgsFromEnv("MULTICA_GOOSE_ARGS")
 	if err != nil {
 		return Config{}, err
 	}
@@ -586,6 +591,7 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		QwenpawArgs:                     qwenpawArgs,
 		AmpArgs:                         ampArgs,
 		DevinArgs:                       devinArgs,
+		GooseArgs:                       gooseArgs,
 		ProfileCommandOverrides:         profileCommandOverrides,
 	}, nil
 }
@@ -892,7 +898,7 @@ func isExecutableFile(path string) bool {
 // doesn't require editing this list by hand.
 var defaultAgentCommandNames = append([]string{
 	"claude", "codex", "opencode", "deveco", "openclaw", "hermes",
-	"pi", "cursor-agent", "copilot", "kimi", "reasonix", "dsh", "kiro-cli", "codebuddy", "agy", "qodercli", "qoderclicn", "traecli", "grok", "qwen", "qwenpaw", "mcode", "dim", "zeroclaw", "amp", "devin",
+	"pi", "cursor-agent", "copilot", "kimi", "reasonix", "dsh", "kiro-cli", "codebuddy", "agy", "qodercli", "qoderclicn", "traecli", "grok", "qwen", "qwenpaw", "mcode", "dim", "zeroclaw", "amp", "devin", "goose",
 }, agent.BuiltinRuntimeCommands()...)
 
 // codexDesktopAppBundlePaths returns candidate macOS app-bundle locations for

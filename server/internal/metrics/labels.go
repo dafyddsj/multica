@@ -146,6 +146,7 @@ var (
 		"cursor":        "cursor",
 		"dsh":           "dsh",
 		"gemini":        "gemini",
+		"goose":         "goose",
 		"grok":          "grok",
 		"hermes":        "hermes",
 		"kiro":          "kiro",
