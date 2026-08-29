@@ -277,7 +277,7 @@ func (h *Handler) CreateBudgetWaiver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !roleAllowed(member.Role, "owner", "admin") {
-		writeError(w, http.StatusForbidden, "only a workspace owner or admin can waive budget teeth")
+		writeError(w, http.StatusForbidden, "only a workspace owner or admin can waive budget limits")
 		return
 	}
 	var req CreateBudgetWaiverRequest
@@ -346,7 +346,7 @@ func (h *Handler) DeleteBudgetWaiver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !roleAllowed(member.Role, "owner", "admin") {
-		writeError(w, http.StatusForbidden, "only a workspace owner or admin can waive budget teeth")
+		writeError(w, http.StatusForbidden, "only a workspace owner or admin can waive budget limits")
 		return
 	}
 	waiverID, ok := parseUUIDOrBadRequest(w, chi.URLParam(r, "id"), "id")
