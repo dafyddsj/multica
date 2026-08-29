@@ -8,6 +8,18 @@ import (
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
+func (h *Handler) syncClerkProfile(ctx context.Context, user db.User) db.User {
+	if h == nil || h.Clerk == nil {
+		return user
+	}
+	next, err := h.Clerk.SyncProfile(ctx, user, h.Queries)
+	if err != nil {
+		slog.Warn("clerk profile sync failed", "error", err, "user_id", uuidToString(user.ID))
+		return user
+	}
+	return next
+}
+
 func (h *Handler) syncClerkOrgs(ctx context.Context, user db.User) error {
 	if h == nil || h.Clerk == nil {
 		return nil

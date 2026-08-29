@@ -39,6 +39,7 @@ type Client struct {
 	PublishableKey string
 	Verifier       Verifier
 	Profiles       ProfileFetcher
+	Images         UserImages
 	Orgs           OrgDirectory
 }
 
@@ -50,6 +51,7 @@ func New(secretKey, publishableKey string) *Client {
 		PublishableKey: publishableKey,
 		Verifier:       sdkVerifier{},
 		Profiles:       sdkProfiles{},
+		Images:         sdkImages{},
 		Orgs:           sdkOrgs{},
 	}
 }
