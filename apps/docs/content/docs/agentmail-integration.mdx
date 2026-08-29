@@ -16,8 +16,8 @@ Mail lives at AgentMail. Multica stores connection and inbox metadata plus seale
 ## What you get
 
 - A workspace-wide connection: **hosted** (process env org key) or **bring your own** (your org or pod-scoped key).
-- A per-agent Email tab on the agent page. Creating an inbox asks for a username and a domain from the AgentMail account, including custom domains.
-- Turning Email off deletes the remote inbox so hosted quota can return.
+- A per-agent Email tab on the agent page. Grant can create a new address (username + a domain on the AgentMail account, including custom domains) or link an inbox that already exists on the account.
+- Turning Email off asks whether to keep that inbox on the account or delete it. Delete asks a second confirm.
 - At [task](/tasks) claim, Multica injects an inbox-scoped MCP server. The agent can read, send, and draft. It cannot create or delete inboxes, pods, domains, or API keys.
 - A text-only mailbox on the agent Email tab (Inbox, Sent, Drafts, Scheduled, All Mail, Trash, and any extra folders) for the agent owner and workspace owners/admins.
 
@@ -58,11 +58,11 @@ Disconnect revokes every agent inbox, then deletes the hosted pod when the works
 ## Grant an agent inbox
 
 1. Open the agent → **Email**.
-2. Choose a username and a domain (`agentmail.to` or a custom domain on the AgentMail account).
-3. Create the inbox. Multica creates that address and seals a narrowed key.
-4. The address appears under the switch and on the workspace Email roster. The Email tab becomes a mailbox.
+2. Choose **Create new** or **Link existing**.
+3. Create new: pick a username and a domain (`agentmail.to` or a custom domain on the AgentMail account). Link existing: pick an unused inbox already on the account.
+4. Multica seals a narrowed key. The address appears under the switch and on the workspace Email roster. The Email tab becomes a mailbox.
 
-Revoke deletes the remote inbox. Granting again reuses the same `client_id` (the agent UUID) so the address can return.
+Turning Email off asks **Keep inbox** or **Delete inbox**. Keep disconnects the agent and leaves the inbox on the AgentMail account so it can be linked again. Delete requires a second confirm, then removes the remote inbox and its mail. Creating again reuses the same `client_id` (the agent UUID).
 
 Archiving an agent does not revoke its inbox. Restore keeps the address.
 

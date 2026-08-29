@@ -20,6 +20,10 @@ first reader of that id.
 Grant, revoke, claim, and the viewer all go through
 `UNIQUE (workspace_id, agent_id)`. They do not need this index.
 
+Link-existing already rejects another **in-flight** row in the **same**
+workspace (`ErrInboxInUse`). That is application code, not a unique index,
+and it does not see another workspace that shares a BYO key.
+
 A webhook payload names AgentMail's inbox id (`inb_…`, sometimes the
 address). The invert is `WHERE remote_inbox_id = $1`. A unique index makes
 that a key lookup and enforces one AgentMail inbox to one Multica row. Two
@@ -30,10 +34,10 @@ Do not add a naive `UNIQUE (remote_inbox_id)` on the whole column.
 
 - `remote_inbox_id` is NULL in `provisioning`. Postgres treats NULLs as
   distinct, so empty rows are fine.
-- A `disabled` row may still hold the old id after revoke. A full-table
-  unique index would block a *different* agent from taking that id if
-  AgentMail reused it. Re-grant of the *same* agent is an upsert of the same
-  `(workspace_id, agent_id)` row, so that path is fine.
+- A `disabled` row still holds the old id after keep or delete. Keep needs
+  that breadcrumb; delete leaves it too. A full-table unique index would
+  block a *different* agent from linking that id. Re-grant of the *same*
+  agent is an upsert of the same `(workspace_id, agent_id)` row.
 
 The index that matches the webhook invariant is partial:
 
@@ -53,8 +57,11 @@ breadcrumb for the last known remote id and fights a full unique constraint.
 
 Out of this work. The later rule, if we keep it, is keep the address and drop
 only the claim overlay while the agent is paused. Do not revoke on pause.
-Revoke deletes the remote inbox and spends hosted quota to get the address
-back.
+
+Agent-level turn-off can already **keep** the remote inbox. That is not
+pause: keep clears the sealed key and the claim overlay, and the Email tab
+goes back to grant. Pause, if it ships, must leave the inbox `active` and
+only drop the overlay.
 
 ## Archive
 
@@ -89,3 +96,5 @@ not by forking the service.
 1. Hosted when the org key is set. BYO is still accepted on `Connect`.
 2. Hosted per-workspace inbox cap is 5.
 3. Pause is out of scope, as above.
+4. Grant is create-new or link-existing. Turn-off is keep or delete, with a
+   second confirm on delete. Do not reopen those product choices.

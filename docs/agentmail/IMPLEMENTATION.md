@@ -28,7 +28,7 @@ server/internal/integrations/agentmail/      service, live client, secrets, over
 server/internal/handler/integrations_agentmail.go
 server/internal/handler/daemon.go            ClaimOverlay after Composio merge
 server/internal/handler/workspace.go         delete step "delete agentmail"
-packages/core/agentmail/                     query keys
+packages/core/agentmail/                     query keys, username helper
 packages/core/api/{client,schemas}.ts        parseWithFallback
 packages/views/settings/components/agentmail-tab.tsx
 packages/views/agents/components/tabs/email-tab.tsx
@@ -56,9 +56,10 @@ on the inbox. Secondary indexes are concurrent, one statement per file
 
 Inbox states: `provisioning`, `minting_key`, `active`, `disabling`,
 `disabled`. `active` requires address, remote id, and a sealed inbox key.
-`minting_key` owns the one-shot key crash. The next Grant deletes the
+`minting_key` owns the one-shot key crash. A **create** retry deletes the
 unpublished remote inbox, recreates it with the same `client_id`, and mints
-again.
+again. A **link** retry never deletes the remote inbox — it was already on
+the account.
 
 ## Credentials
 
@@ -86,6 +87,7 @@ Workspace (any member can GET. Writes are owner/admin plus human actor):
 
 - `GET /api/workspaces/{id}/agentmail`
 - `GET /api/workspaces/{id}/agentmail/domains`
+- `GET /api/workspaces/{id}/agentmail/account-inboxes`
 - `POST /api/workspaces/{id}/agentmail` body `{ "mode": "hosted" or "bring_your_own", "org_key"? }`
 - `DELETE /api/workspaces/{id}/agentmail`
 
@@ -93,8 +95,8 @@ Agent (GET needs `canViewAgentSecrets`. Writes need `canManageAgent` plus
 human. Agents are denied):
 
 - `GET /api/agents/{id}/agentmail`
-- `PUT /api/agents/{id}/agentmail` body `{ "username", "domain"? }`
-- `DELETE /api/agents/{id}/agentmail`
+- `PUT /api/agents/{id}/agentmail` create `{ "mode": "create"?, "username", "domain"? }` or link `{ "mode": "link", "inbox_id" }`. Missing `mode` with `inbox_id` is link; otherwise create.
+- `DELETE /api/agents/{id}/agentmail?delete_remote=true|false` (default `true`)
 - `GET /api/agents/{id}/agentmail/mailbox?section=&label=`
 - `GET /api/agents/{id}/agentmail/folders`
 - `GET /api/agents/{id}/agentmail/threads`
@@ -106,6 +108,35 @@ Thread responses carry text, not HTML. The live client drops `html` and
 
 Members see roster addresses on Settings GET. They do not see the agent
 Email tab.
+
+## Grant and revoke
+
+**Create** POSTs `username` + `domain` on `POST /v0/pods/{pod}/inboxes` or
+`POST /v0/inboxes`, then mints a `"multica"` inbox-scoped key.
+
+**Link** GETs that inbox on the account (`GET /v0/pods/{pod}/inboxes/{id}`
+or `GET /v0/inboxes/{id}`), rejects it when another in-flight Multica row in
+this workspace already holds that remote id or address (`ErrInboxInUse`),
+then mints the same scoped key. It does not create a second remote inbox.
+Link still consumes a hosted in-flight slot.
+
+`GET .../account-inboxes` lists AgentMail inboxes on the connected authority
+(`GET /v0/pods/{pod}/inboxes` or `GET /v0/inboxes`) and sets `linked` when
+an in-flight Multica row owns that id or address. Disabled rows do not
+count, so a kept inbox can be linked again.
+
+**Keep** (`delete_remote=false`) writes `disabling` then `disabled`, clears
+the sealed key, and skips purge and remote delete. The disabled row keeps
+`remote_inbox_id` and `address` as a breadcrumb.
+
+**Delete** (`delete_remote=true`, and workspace disconnect) inserts a purge
+row, lists and deletes inbox-scoped keys, then DELETEs the inbox on the pod
+path with an org-path fallback, trying both stored remote id and address.
+`errRemoteNotFound` is success. The client treats `204` and an empty `200`
+as success so a proxy cannot toast a JSON parse error.
+
+Workspace disconnect always deletes remotes. Agent delete sweeps the row
+and writes purge; it does not call live delete.
 
 ## Claim
 
@@ -143,9 +174,8 @@ It does not share this UI.
 ```bash
 cd server && go test ./internal/integrations/agentmail/ -count=1
 cd server && go test ./internal/handler/ -count=1 -run 'AgentMail|GetConfigExposesAgentMail|DeleteWorkspace_SweepsAgentMail|ClaimTaskByRuntime_CarriesAgentMail'
-pnpm exec vitest run api/schemas.test.ts
-pnpm exec vitest run settings/components/settings-page.test.tsx settings/components/agentmail-tab.test.tsx
-pnpm exec vitest run agents/components/agent-overview-pane.test.tsx agents/components/tabs/email-tab.test.tsx
+cd packages/core && pnpm exec vitest run api/schemas.test.ts api/client.test.ts agentmail/address.test.ts
+cd packages/views && pnpm exec vitest run settings/components/settings-page.test.tsx settings/components/agentmail-tab.test.tsx agents/components/agent-overview-pane.test.tsx agents/components/tabs/email-tab.test.tsx
 ```
 
 Service tests use `NewMemory`. Production `New` attaches `liveClient`.

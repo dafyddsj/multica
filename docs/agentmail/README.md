@@ -13,8 +13,8 @@ This folder is the implementation record. Product copy lives in
 - HTTP under `/api/workspaces/{id}/agentmail` and `/api/agents/{id}/agentmail`
 - Config flags `agentmail_available` and `agentmail_hosted_available`
 - Settings → Email (`?tab=agentmail`) and a first-class agent Email tab
-- Chosen username + AgentMail domain (including custom domains) at grant, or link an existing account inbox
-- Keep or delete the remote inbox when turning Email off
+- Grant is create-new (username + domain, including custom domains) or link-existing
+- Turn-off asks keep vs delete; delete requires a second confirm
 - Text-only mailbox on the agent Email tab (live fetch, no Postgres mail)
 - Claim-time overlay `mcpServers.agentmail` with an inbox-scoped `x-api-key`
 - Workspace delete sweep of product rows. Purge rows stay
@@ -29,12 +29,14 @@ This folder is the implementation record. Product copy lives in
 
 ## Waiting
 
-Inbound webhooks, a partial unique index on `remote_inbox_id`, pause (keep the address, drop only the overlay), mobile, and landing-page copy. See `NEXT.md`.
+Inbound webhooks, a partial unique index on `remote_inbox_id`, pause (keep the
+address, drop only the overlay), mobile, and landing-page copy. See `NEXT.md`.
+Create-vs-link and keep-vs-delete already shipped. Do not reopen them.
 
 ## Names
 
 | In the product | Meaning |
 | --- | --- |
-| Email | The Settings tab and the agent capability tab |
+| Email | The Settings tab and the first-class agent tab (sibling of Work) |
 | AgentMail | The vendor. Stays English in every locale |
 | Inbox / 收件箱 | The notification Inbox. Do not reuse that word for mail |
