@@ -2494,34 +2494,27 @@ func (h *Handler) PauseAgent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "agent is already archived")
 		return
 	}
-	if agent.SystemKey.Valid && agent.SystemKey.String != "" {
+
+	userID := requestUserID(r)
+	wsID := uuidToString(agent.WorkspaceID)
+	actorType, actorID := h.resolveActor(r, userID, wsID)
+	paused, err := h.AgentPause.Pause(r.Context(), agent, service.PausedByUser(parseUUID(userID)), actorType, actorID)
+	if errors.Is(err, service.ErrSystemAgent) {
 		writeError(w, http.StatusBadRequest, "this agent is built into Multica and cannot be paused")
 		return
 	}
-
-	alreadyPaused := agent.PausedAt.Valid
-	userID := requestUserID(r)
-	paused, err := h.Queries.PauseAgent(r.Context(), db.PauseAgentParams{
-		ID:       agent.ID,
-		PausedBy: parseUUID(userID),
-	})
 	if err != nil {
 		slog.Warn("pause agent failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 		writeError(w, http.StatusInternalServerError, "failed to pause agent")
 		return
 	}
 
-	wsID := uuidToString(paused.WorkspaceID)
 	slog.Info("agent paused", append(logger.RequestAttrs(r), "agent_id", id, "workspace_id", wsID)...)
 	resp := h.agentToResponse(paused)
 	if err := h.attachAgentSkills(r.Context(), &resp, paused.ID); err != nil {
 		slog.Warn("load agent skills after pause failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 		writeError(w, http.StatusInternalServerError, "failed to load agent skills")
 		return
-	}
-	actorType, actorID := h.resolveActor(r, userID, wsID)
-	if !alreadyPaused {
-		h.publish(protocol.EventAgentPaused, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
 	}
 	redactAgentResponseForActor(&resp, actorType)
 	writeJSON(w, http.StatusOK, resp)
@@ -2572,35 +2565,31 @@ func (h *Handler) ResumeAgent(w http.ResponseWriter, r *http.Request) {
 	if !h.canManageAgent(w, r, agent) {
 		return
 	}
-	if agent.SystemKey.Valid && agent.SystemKey.String != "" {
-		writeError(w, http.StatusBadRequest, "this agent is built into Multica and cannot be resumed")
-		return
-	}
 	if agent.ArchivedAt.Valid {
 		writeError(w, http.StatusConflict, "cannot resume an archived agent")
 		return
 	}
 
-	alreadyActive := !agent.PausedAt.Valid
-	resumed, err := h.Queries.ResumeAgent(r.Context(), agent.ID)
+	userID := requestUserID(r)
+	wsID := uuidToString(agent.WorkspaceID)
+	actorType, actorID := h.resolveActor(r, userID, wsID)
+	resumed, err := h.AgentPause.Resume(r.Context(), agent, actorType, actorID)
+	if errors.Is(err, service.ErrSystemAgent) {
+		writeError(w, http.StatusBadRequest, "this agent is built into Multica and cannot be resumed")
+		return
+	}
 	if err != nil {
 		slog.Warn("resume agent failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 		writeError(w, http.StatusInternalServerError, "failed to resume agent")
 		return
 	}
 
-	wsID := uuidToString(resumed.WorkspaceID)
 	slog.Info("agent resumed", append(logger.RequestAttrs(r), "agent_id", id, "workspace_id", wsID)...)
 	resp := h.agentToResponse(resumed)
 	if err := h.attachAgentSkills(r.Context(), &resp, resumed.ID); err != nil {
 		slog.Warn("load agent skills after resume failed", append(logger.RequestAttrs(r), "error", err, "agent_id", id)...)
 		writeError(w, http.StatusInternalServerError, "failed to load agent skills")
 		return
-	}
-	userID := requestUserID(r)
-	actorType, actorID := h.resolveActor(r, userID, wsID)
-	if !alreadyActive {
-		h.publish(protocol.EventAgentResumed, wsID, actorType, actorID, map[string]any{"agent": broadcastAgentResponse(resp)})
 	}
 	redactAgentResponseForActor(&resp, actorType)
 	writeJSON(w, http.StatusOK, resp)

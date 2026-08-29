@@ -15,6 +15,20 @@ export type {
   UpdateEntityStatusRequest,
 } from "./entity-status";
 export type {
+  BudgetScope,
+  BudgetOverLimit,
+  BudgetAccountState,
+  WaiverScope,
+  BudgetPeriod,
+  Budget,
+  BudgetWaiver,
+  ListBudgetsResponse,
+  ListBudgetWaiversResponse,
+  CreateBudgetRequest,
+  UpdateBudgetRequest,
+  CreateBudgetWaiverRequest,
+} from "./budget";
+export type {
   Agent,
   AgentConversationStarter,
   AgentStatus,

@@ -23,10 +23,6 @@ const (
 	// gate pinned Task/Run execution: disabling discovery and management must not
 	// mutate an immutable execution manifest that is already in flight.
 	PluginsV1 = "plugins_v1"
-	// AgentExecutionLanes gates lightweight and failover model slots on an
-	// agent, plus the enqueue/retry hop that uses them. Off (default) keeps
-	// today's single-model dispatch.
-	AgentExecutionLanes = "agent_execution_lanes"
 	// MemoryV1 gates the Multica-owned memory API, CLI, Labs toggle, and
 	// claim-time recall. Off by default. A workspace still needs its Labs
 	// setting memory_enabled before any row is readable.
@@ -46,13 +42,16 @@ const (
 	// gate remained in every such client and fails closed (default false) if
 	// the key stops being published.
 	resourceLabelsCompat = "settings_resource_labels"
+	// executionLanesCompat is no longer a release flag. Keep publishing the
+	// key as enabled so installed desktop clients that still hide lightweight
+	// and failover fields on this config decision receive the shipped UI.
+	executionLanesCompat = "agent_execution_lanes"
 )
 
 var frontendPublicFlags = []string{
 	BillingWorkspaceSubscriptions,
 	ComposioMCPApps,
 	PluginsV1,
-	AgentExecutionLanes,
 	MemoryV1,
 }
 
@@ -68,21 +67,18 @@ func PluginsV1Enabled(ctx context.Context, flags *featureflag.Service) bool {
 	return flags.IsEnabled(ctx, PluginsV1, false)
 }
 
-func AgentExecutionLanesEnabled(ctx context.Context, flags *featureflag.Service) bool {
-	return flags.IsEnabled(ctx, AgentExecutionLanes, false)
-}
-
 func MemoryV1Enabled(ctx context.Context, flags *featureflag.Service) bool {
 	return flags.IsEnabled(ctx, MemoryV1, false)
 }
 
 func EvaluateFrontendPublicFlags(ctx context.Context, flags *featureflag.Service) map[string]bool {
-	out := make(map[string]bool, len(frontendPublicFlags)+3)
+	out := make(map[string]bool, len(frontendPublicFlags)+4)
 	for _, key := range frontendPublicFlags {
 		out[key] = flags.IsEnabled(ctx, key, false)
 	}
 	out[agentBuilderCompat] = true
 	out[agentSkillTogglesCompat] = true
 	out[resourceLabelsCompat] = true
+	out[executionLanesCompat] = true
 	return out
 }

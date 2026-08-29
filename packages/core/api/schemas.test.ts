@@ -87,6 +87,10 @@ import {
   EntityStatusEntrySchema,
   EMPTY_LIST_ENTITY_STATUSES_RESPONSE,
   EMPTY_ENTITY_STATUS_ENTRY,
+  BudgetSchema,
+  BudgetWaiverSchema,
+  EMPTY_BUDGET,
+  EMPTY_BUDGET_WAIVER,
 } from "./schemas";
 import { parseWithFallback } from "./schema";
 
@@ -2242,5 +2246,67 @@ describe("InitiativeDetailSchema", () => {
     );
     expect(parsed).not.toBeNull();
     expect(parsed?.issue_prefix).toBeNull();
+  });
+});
+
+describe("BudgetSchema", () => {
+  const valid = {
+    id: "11111111-1111-1111-1111-111111111111",
+    scope: "project",
+    owner_id: "22222222-2222-2222-2222-222222222222",
+    limit_usd_ticks: 2_000_000_000_000,
+    soften_at_percent: 80,
+    over_limit: "pause",
+    current_period: {
+      period_start: "2026-08-01T00:00:00Z",
+      period_end: "2026-09-01T00:00:00Z",
+      spent_usd_ticks: 0,
+      unpriced_line_count: 0,
+      state: "ok",
+    },
+  };
+
+  it("falls back when current_period is missing", () => {
+    const { current_period: _missing, ...withoutPeriod } = valid;
+    expect(parseWithFallback(withoutPeriod, BudgetSchema, EMPTY_BUDGET, {
+      endpoint: "GET /api/budgets",
+    })).toEqual(EMPTY_BUDGET);
+  });
+
+  it("falls back on an unknown over_limit", () => {
+    expect(parseWithFallback({ ...valid, over_limit: "stop" }, BudgetSchema, EMPTY_BUDGET, {
+      endpoint: "GET /api/budgets",
+    })).toEqual(EMPTY_BUDGET);
+  });
+
+  it("falls back on a non-positive limit", () => {
+    expect(parseWithFallback({ ...valid, limit_usd_ticks: 0 }, BudgetSchema, EMPTY_BUDGET, {
+      endpoint: "GET /api/budgets",
+    })).toEqual(EMPTY_BUDGET);
+  });
+
+  it("keeps extra fields on a valid budget", () => {
+    const parsed = BudgetSchema.parse({ ...valid, future_flag: true });
+    expect(parsed.id).toBe(valid.id);
+    expect((parsed as { future_flag?: boolean }).future_flag).toBe(true);
+  });
+});
+
+describe("BudgetWaiverSchema", () => {
+  const valid = {
+    id: "11111111-1111-1111-1111-111111111111",
+    scope: "project",
+    owner_id: "22222222-2222-2222-2222-222222222222",
+    starts_at: "2026-08-01T00:00:00Z",
+    ends_at: "2026-09-01T00:00:00Z",
+    created_by: "33333333-3333-3333-3333-333333333333",
+    reason: "launch week",
+  };
+
+  it("rejects a waiver scoped to an agent", () => {
+    expect(BudgetWaiverSchema.safeParse({ ...valid, scope: "agent" }).success).toBe(false);
+    expect(parseWithFallback({ ...valid, scope: "agent" }, BudgetWaiverSchema, EMPTY_BUDGET_WAIVER, {
+      endpoint: "POST /api/budgets/waivers",
+    })).toEqual(EMPTY_BUDGET_WAIVER);
   });
 });

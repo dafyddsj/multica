@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/executionlane"
-	"github.com/multica-ai/multica/server/internal/featureflags"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 )
 
@@ -33,51 +32,19 @@ func TestTaskRuntimeMatchesAgent(t *testing.T) {
 	if !taskRuntimeMatchesAgent(hop, agent) {
 		t.Fatal("stamped failover child on failover_runtime_id must match")
 	}
-	if applyClaimLaneSelection(db.Agent{Model: pgtype.Text{String: "opus", Valid: true}}, hop, false).Model != "opus" {
-		t.Fatal("disabled flag must keep the primary model")
+	if got := applyClaimLaneSelection(db.Agent{
+		Model:         pgtype.Text{String: "opus", Valid: true},
+		FailoverModel: pgtype.Text{String: "sonnet", Valid: true},
+	}, hop); got.Model != "sonnet" {
+		t.Fatalf("unstamped failover hop must use the failover model, got %+v", got)
 	}
 	_ = executionlane.LaneFailover
-}
-
-func TestCreateAgent_ExecutionLanesFlagOffIgnoresFields(t *testing.T) {
-	if testHandler == nil {
-		t.Skip("database not available")
-	}
-	withFeatureFlag(t, testHandler, featureflags.AgentExecutionLanes, false)
-	runtimeID := createClaudeProviderRuntime(t)
-	t.Cleanup(func() {
-		testPool.Exec(context.Background(),
-			`DELETE FROM agent WHERE workspace_id = $1 AND name LIKE 'lanes-off-%'`,
-			testWorkspaceID,
-		)
-	})
-	w := httptest.NewRecorder()
-	testHandler.CreateAgent(w, newRequest(http.MethodPost, "/api/agents", map[string]any{
-		"name":              "lanes-off-create",
-		"runtime_id":        runtimeID,
-		"visibility":        "private",
-		"lightweight_model": "haiku",
-		"start_lightweight": true,
-		"failover_model":    "sonnet",
-	}))
-	if w.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
-	}
-	var resp map[string]any
-	_ = json.NewDecoder(w.Body).Decode(&resp)
-	if resp["lightweight_model"] != "" {
-		t.Fatalf("flag off must ignore lightweight_model, got %v", resp["lightweight_model"])
-	}
-	if resp["failover_model"] != "" {
-		t.Fatalf("flag off must ignore failover_model, got %v", resp["failover_model"])
-	}
 }
 
 func TestCreateAndUpdateAgent_ExecutionLanes(t *testing.T) {
 	if testHandler == nil {
 		t.Skip("database not available")
 	}
-	withFeatureFlag(t, testHandler, featureflags.AgentExecutionLanes, true)
 	runtimeID := createClaudeProviderRuntime(t)
 	t.Cleanup(func() {
 		testPool.Exec(context.Background(),
@@ -133,7 +100,6 @@ func TestCreateAgent_ExecutionLanesRejectsInvalidThinking(t *testing.T) {
 	if testHandler == nil {
 		t.Skip("database not available")
 	}
-	withFeatureFlag(t, testHandler, featureflags.AgentExecutionLanes, true)
 	runtimeID := createClaudeProviderRuntime(t)
 	w := httptest.NewRecorder()
 	testHandler.CreateAgent(w, newRequest(http.MethodPost, "/api/agents", map[string]any{

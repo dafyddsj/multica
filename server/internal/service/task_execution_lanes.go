@@ -5,7 +5,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/multica-ai/multica/server/internal/executionlane"
-	"github.com/multica-ai/multica/server/internal/featureflags"
 	"github.com/multica-ai/multica/server/internal/util"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/dbid"
@@ -33,7 +32,7 @@ type laneStamp struct {
 }
 
 func (s *TaskService) initialLaneStamp(ctx context.Context, agent db.Agent) laneStamp {
-	sel := executionlane.Initial(agentLanes(agent), featureflags.AgentExecutionLanesEnabled(ctx, s.FeatureFlags))
+	sel := executionlane.Initial(agentLanes(agent))
 	stamp := laneStamp{
 		Lane:              pgtype.Text{String: string(sel.Lane), Valid: true},
 		ForceFreshSession: sel.ForceFreshSession,
@@ -59,7 +58,6 @@ func (s *TaskService) nextLaneHop(ctx context.Context, parent db.AgentTaskQueue,
 		agentLanes(agent),
 		executionlane.ParseLane(parent.ExecutionLane),
 		reason,
-		featureflags.AgentExecutionLanesEnabled(ctx, s.FeatureFlags),
 	)
 }
 

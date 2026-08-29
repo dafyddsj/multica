@@ -14,6 +14,7 @@ import type { NavigationAdapter } from "../../navigation";
 // Capture every queryKey passed to useQuery. queryOptions() inside the
 // dashboard options builders runs for real, so the key is the production key.
 const queryKeys = vi.hoisted(() => [] as unknown[][]);
+const invalidateQueries = vi.hoisted(() => vi.fn());
 const dashboardDataRef = vi.hoisted(() => ({ current: false }));
 const scopeFixturesRef = vi.hoisted(() => ({
   current: {
@@ -77,7 +78,7 @@ vi.mock("@tanstack/react-query", async () => {
     ...actual,
     // The page reads the client only to invalidate the dashboard keys from
     // the refresh button; there is no provider in these renders.
-    useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+    useQueryClient: () => ({ invalidateQueries }),
     useQuery: (opts: { queryKey: unknown[] }) => {
       queryKeys.push(opts.queryKey);
       if (opts.queryKey[0] === "initiatives") {
@@ -90,6 +91,14 @@ vi.mock("@tanstack/react-query", async () => {
       if (opts.queryKey[0] === "projects") {
         return {
           data: scopeFixturesRef.current.projects,
+          isLoading: false,
+          isSuccess: true,
+        };
+      }
+      if (opts.queryKey[0] === "budgets") {
+        return {
+          data:
+            opts.queryKey[2] === "waivers" ? { waivers: [] } : { budgets: [] },
           isLoading: false,
           isSuccess: true,
         };
@@ -237,6 +246,41 @@ vi.mock("@multica/core/hooks", () => ({
   useWorkspaceId: () => "ws-1",
 }));
 
+vi.mock("@multica/core/permissions", () => ({
+  useCurrentMember: () => ({
+    userId: "user-1",
+    role: "member",
+    member: null,
+    isLoading: false,
+  }),
+}));
+
+vi.mock("@multica/core/budgets", () => ({
+  budgetKeys: {
+    all: (wsId: string) => ["budgets", wsId],
+    waivers: (wsId: string) => ["budgets", wsId, "waivers"],
+  },
+  useBudgets: () => ({
+    data: { budgets: [] },
+    isLoading: false,
+    isSuccess: true,
+    isFetching: false,
+    dataUpdatedAt: 0,
+  }),
+  useBudgetWaivers: () => ({
+    data: { waivers: [] },
+    isLoading: false,
+    isSuccess: true,
+    isFetching: false,
+    dataUpdatedAt: 0,
+  }),
+  useCreateBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateBudgetWaiver: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteBudgetWaiver: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
 // The leaderboard renders ActorAvatar, which resolves avatar URLs through
 // the api singleton. Only the base-URL read is exercised here.
 vi.mock("@multica/core/api", () => ({
@@ -318,6 +362,10 @@ function renderDashboard(initialSearch = "") {
  *  wants it has to go there first — exactly as a reader does. */
 async function openErrorsTab(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("tab", { name: /Errors/ }));
+}
+
+async function openBudgetsTab(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("tab", { name: /Budgets/ }));
 }
 
 // The offender ranking control. Named rather than reached through the DOM
@@ -590,8 +638,8 @@ describe("DashboardPage — the Errors list never exposes an agent the viewer ca
   });
 });
 
-// The page answers two questions — "what did this cost" and "what broke" —
-// and used to answer both on one scroll, where the failure breakdown sat
+// The page answers three questions — cost, caps, breakage — and used to
+// answer cost and breakage on one scroll, where the failure breakdown sat
 // below a leaderboard that can itself run to thirty rows (MUL-5759).
 describe("DashboardPage — the two questions are separate tabs", () => {
   beforeEach(() => {
@@ -600,6 +648,7 @@ describe("DashboardPage — the two questions are separate tabs", () => {
     manyAgentsRef.current = false;
     tzRef.current = "UTC";
     replaceSpy.mockClear();
+    invalidateQueries.mockClear();
     cleanup();
   });
 
@@ -645,6 +694,81 @@ describe("DashboardPage — the two questions are separate tabs", () => {
     renderDashboard("tab=nonsense");
 
     expect(screen.getByRole("list", { name: "Leaderboard" })).toBeInTheDocument();
+  });
+
+  it("lists tabs as Usage, Budgets, Errors", () => {
+    renderDashboard();
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Usage",
+      "Budgets",
+      "Errors",
+    ]);
+  });
+
+  it("keeps budgets off the Usage view and reaches them on their own tab", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    expect(screen.getByRole("list", { name: "Leaderboard" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add budget" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Budgets" })).not.toBeInTheDocument();
+
+    await openBudgetsTab(user);
+
+    expect(screen.getByRole("button", { name: "Add budget" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Leaderboard" })).not.toBeInTheDocument();
+  });
+
+  it("puts the Budgets tab in the URL so a caps view can be linked", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    await openBudgetsTab(user);
+    expect(replaceSpy).toHaveBeenLastCalledWith("/acme/usage?tab=budgets");
+
+    await user.click(screen.getByRole("tab", { name: "Usage" }));
+    expect(replaceSpy).toHaveBeenLastCalledWith("/acme/usage");
+  });
+
+  it("opens straight onto Budgets when the URL asks for it", () => {
+    renderDashboard("tab=budgets");
+
+    expect(screen.getByRole("button", { name: "Add budget" })).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Leaderboard" })).not.toBeInTheDocument();
+  });
+
+  it("refreshes budget queries from the Budgets tab, not the spend rollups", async () => {
+    const user = userEvent.setup();
+    renderDashboard("tab=budgets");
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["budgets", "ws-1"] });
+    expect(invalidateQueries).not.toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: expect.arrayContaining(["dashboard"]) }),
+    );
+  });
+
+  it("hides spend filters on Budgets and keeps them on Usage and Errors", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    expect(screen.getByRole("button", { name: "Period" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Initiative" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Project" })).toBeInTheDocument();
+
+    await openBudgetsTab(user);
+
+    expect(screen.queryByRole("button", { name: "Period" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Initiative" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Project" })).not.toBeInTheDocument();
+
+    await openErrorsTab(user);
+
+    expect(screen.getByRole("button", { name: "Period" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Initiative" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Project" })).toBeInTheDocument();
   });
 
   it("caps the offender list and expands it on demand", async () => {

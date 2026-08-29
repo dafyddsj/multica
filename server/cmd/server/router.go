@@ -1962,6 +1962,19 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
+			// Workspace spend caps. List is open to any member. Writes follow
+			// per-scope ACL inside the handlers. Waiver routes sit before
+			// /{id} so "waivers" is not parsed as a budget id.
+			r.Route("/api/budgets", func(r chi.Router) {
+				r.Get("/", h.ListBudgets)
+				r.Post("/", h.CreateBudget)
+				r.Get("/waivers", h.ListBudgetWaivers)
+				r.Post("/waivers", h.CreateBudgetWaiver)
+				r.Delete("/waivers/{id}", h.DeleteBudgetWaiver)
+				r.Patch("/{id}", h.PatchBudget)
+				r.Delete("/{id}", h.DeleteBudget)
+			})
+
 			// Initiative and project status catalogs. Reads are open to any
 			// member; writes are gated to owner/admin inside the handlers.
 			r.Route("/api/entity-statuses", func(r chi.Router) {

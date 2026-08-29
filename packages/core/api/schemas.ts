@@ -70,6 +70,10 @@ import type {
   ListIssueStatusesResponse,
   EntityStatusEntry,
   ListEntityStatusesResponse,
+  Budget,
+  BudgetWaiver,
+  ListBudgetsResponse,
+  ListBudgetWaiversResponse,
   NotificationPreferenceResponse,
   PluginInstallation,
   PluginInstallationListResponse,
@@ -568,6 +572,70 @@ export const EMPTY_LIST_ENTITY_STATUSES_RESPONSE: ListEntityStatusesResponse = {
   resource_type: "",
   categories: ["planned", "in_progress", "paused", "completed", "cancelled"],
   total: 0,
+};
+
+export const BudgetPeriodSchema = z.object({
+  period_start: z.string(),
+  period_end: z.string(),
+  spent_usd_ticks: z.number(),
+  unpriced_line_count: z.number().int().nonnegative(),
+  state: z.string(),
+}).loose();
+
+export const BudgetSchema = z.object({
+  id: z.string(),
+  scope: z.enum(["agent", "squad", "project", "initiative"]),
+  owner_id: z.string(),
+  limit_usd_ticks: z.number().positive(),
+  soften_at_percent: z.number().int().min(1).max(100).nullable(),
+  over_limit: z.enum(["pause", "allow"]),
+  current_period: BudgetPeriodSchema.nullable(),
+}).loose();
+
+export const EMPTY_BUDGET: Budget = {
+  id: "",
+  scope: "project",
+  owner_id: "",
+  limit_usd_ticks: 1,
+  soften_at_percent: null,
+  over_limit: "allow",
+  current_period: null,
+};
+
+export const ListBudgetsResponseSchema = z.object({
+  budgets: z.array(BudgetSchema).default([]),
+}).loose();
+
+export const EMPTY_LIST_BUDGETS_RESPONSE: ListBudgetsResponse = {
+  budgets: [],
+};
+
+export const BudgetWaiverSchema = z.object({
+  id: z.string(),
+  scope: z.enum(["project", "initiative"]),
+  owner_id: z.string(),
+  starts_at: z.string(),
+  ends_at: z.string(),
+  created_by: z.string(),
+  reason: z.string().nullable(),
+}).loose();
+
+export const EMPTY_BUDGET_WAIVER: BudgetWaiver = {
+  id: "",
+  scope: "project",
+  owner_id: "",
+  starts_at: "",
+  ends_at: "",
+  created_by: "",
+  reason: null,
+};
+
+export const ListBudgetWaiversResponseSchema = z.object({
+  waivers: z.array(BudgetWaiverSchema).default([]),
+}).loose();
+
+export const EMPTY_LIST_BUDGET_WAIVERS_RESPONSE: ListBudgetWaiversResponse = {
+  waivers: [],
 };
 
 export const ResourceLabelsResponseSchema = z.object({

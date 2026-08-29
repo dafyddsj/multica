@@ -466,6 +466,18 @@ deleted_lark_user_bindings AS (
 ),
 deleted_lark_binding_tokens AS (
     DELETE FROM lark_binding_token WHERE workspace_id = $1
+),
+deleted_budget_debits AS (
+    DELETE FROM budget_debit WHERE workspace_id = $1
+),
+deleted_budget_waivers AS (
+    DELETE FROM budget_waiver WHERE workspace_id = $1
+),
+deleted_budget_periods AS (
+    DELETE FROM budget_period WHERE workspace_id = $1
+),
+deleted_budgets AS (
+    DELETE FROM budget WHERE workspace_id = $1
 )
 UPDATE channel_media_pending_object
 SET state = CASE

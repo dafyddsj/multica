@@ -1,6 +1,7 @@
 {
   "title": "분석",
   "tab_usage": "사용량",
+  "tab_budgets": "예산",
   "header": {
     "timezone_and_updated": "{{tz}} · {{time}} 업데이트",
     "refresh": "새로고침"
@@ -106,5 +107,56 @@
   },
   "duration": {
     "less_than_minute": "1분 미만"
+  },
+  "budgets": {
+    "title": "예산",
+    "caption": "한도는 새 작업에만 적용됩니다. 이미 실행 중인 작업은 그대로 끝날 수 있습니다.",
+    "add": "예산 추가",
+    "empty": "아직 예산이 없습니다.",
+    "month_caption": "{{month}} UTC",
+    "header_spent": "사용액",
+    "edit": "편집",
+    "delete": "삭제",
+    "delete_confirm_title": "이 예산을 삭제할까요?",
+    "delete_confirm_body": "이후 새 작업은 이 한도의 적용을 받지 않습니다.",
+    "cancel": "취소",
+    "save": "저장",
+    "create": "만들기",
+    "limit_label": "월간 한도(USD)",
+    "scope_label": "범위",
+    "applies_to": "적용 대상",
+    "scope": {
+      "project": "프로젝트",
+      "initiative": "이니셔티브",
+      "agent": "에이전트",
+      "squad": "스쿼드"
+    },
+    "soften_label": "임계값에서 완화",
+    "soften_hint": "이 비율을 넘으면 다음 새 작업은 라이트웨이트 레인을 사용합니다.",
+    "soften_percent_label": "임계값 비율",
+    "over_limit_label": "한도에 도달하면",
+    "over_limit_pause": "새 작업 일시 중지",
+    "over_limit_allow": "초과 허용",
+    "spent_of_limit": "{{spent}} / {{limit}}",
+    "bar_label": "월간 한도 대비 사용량",
+    "dialog_create_title": "새 예산",
+    "dialog_edit_title": "예산 편집",
+    "state": {
+      "ok": "정상",
+      "softened": "완화됨",
+      "exhausted": "한도 도달",
+      "pricing_incomplete": "일부 사용량에 가격이 없습니다. 모든 행에 요율이 생길 때까지 일시 중지는 닫힌 상태로 유지됩니다.",
+      "unattributed": "아직 귀속할 사용량이 없습니다. 작업이 여기에 귀속될 때까지 막대는 비어 있습니다.",
+      "allow_over": "이번 달 초과 가능"
+    },
+    "waiver": {
+      "bypass": "제한 면제",
+      "end": "면제 종료",
+      "title": "제한 면제",
+      "body": "이번 UTC 월이 끝날 때까지 이 프로젝트 또는 이니셔티브의 일시 중지와 완화를 건너뜁니다. 에이전트와 스쿼드 한도는 그대로 적용됩니다.",
+      "reason_label": "사유(선택)",
+      "confirm": "면제",
+      "chip": "{{date}}까지 제한 면제"
+    }
   }
 }

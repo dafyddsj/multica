@@ -12,8 +12,8 @@ import {
   NumberFlow,
 } from "@multica/ui/components/ui/number-flow";
 import { useWorkspaceId } from "@multica/core/hooks";
-import type { Agent } from "@multica/core/types";
-import { agentListOptions } from "@multica/core/workspace/queries";
+import type { Agent, Squad } from "@multica/core/types";
+import { agentListOptions, squadListOptions } from "@multica/core/workspace/queries";
 import { projectListOptions } from "@multica/core/projects/queries";
 import { initiativeListOptions } from "@multica/core/initiatives/queries";
 import {
@@ -25,6 +25,7 @@ import {
   dashboardFailuresDailyOptions,
   dashboardFailuresByAgentOptions,
 } from "@multica/core/dashboard";
+import { budgetKeys, useBudgets, useBudgetWaivers } from "@multica/core/budgets";
 import { useCustomPricingStore } from "@multica/core/runtimes/custom-pricing-store";
 import { useViewingTimezone } from "../../common/use-viewing-timezone";
 import { PAGE_GUTTER } from "../../layout/page-header";
@@ -75,6 +76,7 @@ import {
 import { UsageTrendCard } from "./usage-trend-card";
 import { Leaderboard } from "./leaderboard";
 import { ErrorsTab } from "./errors-tab";
+import { BudgetsTab } from "./budgets-tab";
 import { cn } from "@multica/ui/lib/utils";
 
 // Stable references — `data ?? []` would create a new empty array on
@@ -88,10 +90,21 @@ const EMPTY_FAILURE_DAILY: import("@multica/core/types").DashboardFailureDaily[]
 const EMPTY_FAILURE_BY_AGENT: import("@multica/core/types").DashboardFailureByAgent[] =
   [];
 const EMPTY_AGENTS: Agent[] = [];
+const EMPTY_SQUADS: Squad[] = [];
 
-type DashboardTab = "usage" | "errors";
+type DashboardTab = "usage" | "budgets" | "errors";
 const TAB_QUERY_KEY = "tab";
 const DEFAULT_TAB: DashboardTab = "usage";
+
+function parseDashboardTab(raw: string | null): DashboardTab {
+  switch (raw) {
+    case "errors":
+    case "budgets":
+      return raw;
+    default:
+      return DEFAULT_TAB;
+  }
+}
 
 /** Local time of the most recent successful fetch, in the viewer's timezone.
  *  Every number on this page is bucketed on that timezone, so the header says
@@ -137,23 +150,7 @@ function useDataFreshness(
 }
 
 /**
- * Workspace + project usage dashboard.
- *
- * Lives at `/{slug}/usage`. Two tabs, split by the question the reader arrived
- * with rather than by which rollup feeds them: Usage answers "what did this
- * cost", Errors answers "what broke". They used to share one scrolling page,
- * where the failure breakdown sat below a leaderboard that could itself run to
- * thirty rows, and the only way to chart failures was to hide spend.
- *
- * Scope is expressed by where a control lives: the toolbar under the header
- * carries the tabs and the page-scoped filters (time range, initiative, project),
- * every card carries its own view switches. All six rollups are fetched for
- * both tabs — they are small, and prefetching is what makes switching tabs
- * instant — but the loading and empty states are per tab, so Usage does not
- * wait on the failure queries.
- *
- * Cost math runs client-side via the runtimes utils — keeps the dashboard
- * and the runtime page using one pricing table.
+ * Workspace + project usage dashboard at `/{slug}/usage`.
  */
 export function DashboardPage() {
   const { t, i18n } = useT("usage");
@@ -170,12 +167,12 @@ export function DashboardPage() {
   // yourself"); component state cannot be linked to. `replace`, not `push`, so
   // flipping tabs does not stack up history entries. An unknown ?tab= value
   // falls back to Usage rather than rendering nothing.
-  const tabFromUrl = navigation.searchParams.get(TAB_QUERY_KEY);
-  const tab: DashboardTab = tabFromUrl === "errors" ? "errors" : DEFAULT_TAB;
+  const tab = parseDashboardTab(navigation.searchParams.get(TAB_QUERY_KEY));
   const handleTabChange = (next: string) => {
+    const parsed = parseDashboardTab(next);
     const params = new URLSearchParams(navigation.searchParams);
-    if (next === DEFAULT_TAB) params.delete(TAB_QUERY_KEY);
-    else params.set(TAB_QUERY_KEY, next);
+    if (parsed === DEFAULT_TAB) params.delete(TAB_QUERY_KEY);
+    else params.set(TAB_QUERY_KEY, parsed);
     const query = params.toString();
     navigation.replace(query ? `${navigation.pathname}?${query}` : navigation.pathname);
   };
@@ -188,6 +185,7 @@ export function DashboardPage() {
   const { data: initiatives = [] } = useQuery(initiativeListOptions(wsId));
   const agentsQuery = useQuery(agentListOptions(wsId));
   const agents = agentsQuery.data ?? EMPTY_AGENTS;
+  const { data: squads = EMPTY_SQUADS } = useQuery(squadListOptions(wsId));
 
   // Validate the picked initiative against the current workspace's list. A
   // stale UUID would silently empty every rollup while the chip still read
@@ -275,30 +273,38 @@ export function DashboardPage() {
   const failureDailyRows = failuresDailyQuery.data ?? EMPTY_FAILURE_DAILY;
   const failureByAgentRows = failuresByAgentQuery.data ?? EMPTY_FAILURE_BY_AGENT;
 
+  const budgetsQuery = useBudgets(wsId);
+  const waiversQuery = useBudgetWaivers(wsId);
+
   const queryClient = useQueryClient();
-  // "Refreshing" covers any of the six rollups being in flight, whichever
-  // trigger started it (button, interval, mount) — the header spinner and the
-  // timestamp describe the same set of queries.
   const isRefreshing =
-    dailyQuery.isFetching ||
-    byAgentQuery.isFetching ||
-    runTimeQuery.isFetching ||
-    runTimeDailyQuery.isFetching ||
-    failuresDailyQuery.isFetching ||
-    failuresByAgentQuery.isFetching;
+    tab === "budgets"
+      ? budgetsQuery.isFetching || waiversQuery.isFetching
+      : dailyQuery.isFetching ||
+        byAgentQuery.isFetching ||
+        runTimeQuery.isFetching ||
+        runTimeDailyQuery.isFetching ||
+        failuresDailyQuery.isFetching ||
+        failuresByAgentQuery.isFetching;
   const handleRefresh = () => {
+    if (tab === "budgets") {
+      void queryClient.invalidateQueries({ queryKey: budgetKeys.all(wsId) });
+      return;
+    }
     void queryClient.invalidateQueries({ queryKey: dashboardKeys.all(wsId) });
   };
 
   const { tzLabel, updatedLabel } = useDataFreshness(
-    [
-      dailyQuery.dataUpdatedAt,
-      byAgentQuery.dataUpdatedAt,
-      runTimeQuery.dataUpdatedAt,
-      runTimeDailyQuery.dataUpdatedAt,
-      failuresDailyQuery.dataUpdatedAt,
-      failuresByAgentQuery.dataUpdatedAt,
-    ],
+    tab === "budgets"
+      ? [budgetsQuery.dataUpdatedAt, waiversQuery.dataUpdatedAt]
+      : [
+          dailyQuery.dataUpdatedAt,
+          byAgentQuery.dataUpdatedAt,
+          runTimeQuery.dataUpdatedAt,
+          runTimeDailyQuery.dataUpdatedAt,
+          failuresDailyQuery.dataUpdatedAt,
+          failuresByAgentQuery.dataUpdatedAt,
+        ],
     viewTZ,
     locales,
   );
@@ -531,9 +537,7 @@ export function DashboardPage() {
       />
 
       {/* View toolbar, same grammar as the issues surface header: view
-          switching on the left, page-scoped filters on the right. Both tabs
-          share the range, initiative, and project filters, which is why the
-          filters live here and not inside a tab. */}
+          switching on the left, page-scoped filters on the right. */}
       <div className={cn("h-12 shrink-0 overflow-x-auto border-b [-webkit-overflow-scrolling:touch]", PAGE_GUTTER)}>
         <div className="flex h-full w-max min-w-full items-center justify-between gap-2">
           <TabsList variant="line" className="gap-0 p-0 group-data-horizontal/tabs:h-full">
@@ -544,25 +548,33 @@ export function DashboardPage() {
               {t(($) => $.tab_usage)}
             </TabsTrigger>
             <TabsTrigger
+              value="budgets"
+              className="h-full rounded-none px-2.5 text-label group-data-horizontal/tabs:after:bottom-0"
+            >
+              {t(($) => $.tab_budgets)}
+            </TabsTrigger>
+            <TabsTrigger
               value="errors"
               className="h-full rounded-none px-2.5 text-label group-data-horizontal/tabs:after:bottom-0"
             >
               {t(($) => $.errors.title)}
             </TabsTrigger>
           </TabsList>
-          <div className="flex shrink-0 items-center gap-2">
-            <TimeRangeFilter days={days} onChange={setDays} />
-            <InitiativeFilter
-              initiatives={initiatives}
-              initiativeValue={initiativeValue}
-              onInitiativeChange={handleInitiativeChange}
-            />
-            <ProjectFilter
-              projects={scopedProjects}
-              projectValue={projectValue}
-              onProjectChange={setProjectValue}
-            />
-          </div>
+          {tab !== "budgets" ? (
+            <div className="flex shrink-0 items-center gap-2">
+              <TimeRangeFilter days={days} onChange={setDays} />
+              <InitiativeFilter
+                initiatives={initiatives}
+                initiativeValue={initiativeValue}
+                onInitiativeChange={handleInitiativeChange}
+              />
+              <ProjectFilter
+                projects={scopedProjects}
+                projectValue={projectValue}
+                onProjectChange={setProjectValue}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -656,6 +668,14 @@ export function DashboardPage() {
                 />
               </>
             )}
+          </TabsContent>
+
+          <TabsContent value="budgets">
+            <BudgetsTab
+              wsId={wsId}
+              locales={locales}
+              lists={{ projects, initiatives, agents, squads }}
+            />
           </TabsContent>
 
           <TabsContent value="errors">

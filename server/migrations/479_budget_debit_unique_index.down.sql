@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS budget_debit_budget_task_provider_model_uidx;

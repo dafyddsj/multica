@@ -36,10 +36,7 @@ type Selection struct {
 }
 
 // Initial picks the first lane for a new task.
-func Initial(lanes AgentLanes, enabled bool) Selection {
-	if !enabled {
-		return primarySelection(lanes)
-	}
+func Initial(lanes AgentLanes) Selection {
 	if lanes.StartLightweight && lanes.LightweightModel != "" {
 		return Selection{
 			Lane:              LaneLightweight,
@@ -62,8 +59,8 @@ func ResolveClaim(lanes AgentLanes, lane Lane, modelOverride string) Selection {
 }
 
 // NextOnFailure returns the next unused lane after a failover-class failure.
-func NextOnFailure(lanes AgentLanes, current Lane, reason string, enabled bool) (Selection, bool) {
-	if !enabled || !IsFailoverReason(reason) {
+func NextOnFailure(lanes AgentLanes, current Lane, reason string) (Selection, bool) {
+	if !IsFailoverReason(reason) {
 		return Selection{}, false
 	}
 	switch current {

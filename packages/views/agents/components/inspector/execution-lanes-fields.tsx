@@ -1,7 +1,6 @@
 "use client";
 
-import { AGENT_EXECUTION_LANES_FLAG } from "@multica/core/feature-flags";
-import { useFeatureEnabled } from "@multica/core/config";
+import { isRuntimeUsableForUser } from "@multica/core/runtimes";
 import type { AgentRuntime, MemberWithUser } from "@multica/core/types";
 import { Switch } from "@multica/ui/components/ui/switch";
 import { SettingsRow } from "../../../settings/components/settings-layout";
@@ -40,13 +39,17 @@ export function ExecutionLanesFields({
   value: ExecutionLanesValue;
   onChange: (next: Partial<ExecutionLanesValue>) => void;
 }) {
-  const enabled = useFeatureEnabled(AGENT_EXECUTION_LANES_FLAG, false);
   const { t } = useT("agents");
-  if (!enabled) return null;
 
   const failoverRuntimeId = value.failoverRuntimeId || primaryRuntimeId;
   const failoverRuntime = runtimes.find((runtime) => runtime.id === failoverRuntimeId);
-  const canDiscoverFailover = failoverRuntime?.status === "online";
+  const failoverIsPrimary =
+    !value.failoverRuntimeId || failoverRuntimeId === primaryRuntimeId;
+  const canDiscoverFailover = failoverIsPrimary
+    ? canDiscoverPrimary
+    : failoverRuntime != null &&
+      failoverRuntime.status === "online" &&
+      isRuntimeUsableForUser(failoverRuntime, currentUserId);
 
   return (
     <>

@@ -86,6 +86,7 @@ export type WSEventType =
   | "property:updated"
   | "issue_status:changed"
   | "entity_status:changed"
+  | "budget:updated"
   | "pin:created"
   | "pin:deleted"
   | "pin:reordered"
@@ -176,6 +177,10 @@ export interface IssueStatusChangedPayload {
 export interface EntityStatusChangedPayload {
   action?: "created" | "updated" | "archived" | "reordered";
   resource_type?: "initiative" | "project";
+}
+
+export interface BudgetUpdatedPayload {
+  action?: string;
 }
 
 export interface AgentStatusPayload {
@@ -593,6 +598,7 @@ export interface WSEventPayloadMap {
   "property:updated": PropertyChangedPayload;
   "issue_status:changed": IssueStatusChangedPayload;
   "entity_status:changed": EntityStatusChangedPayload;
+  "budget:updated": BudgetUpdatedPayload;
   "issue_reaction:added": IssueReactionAddedPayload;
   "issue_reaction:removed": IssueReactionRemovedPayload;
   "comment:created": CommentCreatedPayload;

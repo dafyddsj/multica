@@ -17,12 +17,8 @@ func TestApplyClaimLaneSelectionOverride(t *testing.T) {
 		ExecutionLane: "lightweight",
 		ModelOverride: pgtype.Text{String: "stamped-haiku", Valid: true},
 	}
-	got := applyClaimLaneSelection(agent, task, true)
+	got := applyClaimLaneSelection(agent, task)
 	if got.Model != "stamped-haiku" {
 		t.Fatalf("want stamped override, got %+v", got)
-	}
-	got = applyClaimLaneSelection(agent, task, false)
-	if got.Model != "opus" {
-		t.Fatalf("disabled flag must use primary model, got %+v", got)
 	}
 }

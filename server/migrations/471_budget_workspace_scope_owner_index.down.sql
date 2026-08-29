@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS budget_workspace_scope_owner_uidx;

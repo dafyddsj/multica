@@ -31,6 +31,13 @@ func TestAgentBuilderCompatDecisionStaysEnabled(t *testing.T) {
 	}
 }
 
+func TestExecutionLanesCompatDecisionStaysEnabled(t *testing.T) {
+	flags := EvaluateFrontendPublicFlags(context.Background(), nil)
+	if !flags[executionLanesCompat] {
+		t.Fatal("execution lanes must stay enabled for installed clients")
+	}
+}
+
 func TestAgentSkillTogglesCompatDecisionStaysEnabled(t *testing.T) {
 	flags := EvaluateFrontendPublicFlags(context.Background(), nil)
 	if !flags[agentSkillTogglesCompat] {

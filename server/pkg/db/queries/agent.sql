@@ -256,11 +256,14 @@ WHERE id = $1
 RETURNING *;
 
 -- name: PauseAgent :one
+-- First pause wins the actor pair. A later call must not fill the empty
+-- side, or ResumeBudgetPaused would clear a human pause.
 UPDATE agent SET
   paused_at = COALESCE(paused_at, now()),
-  paused_by = COALESCE(paused_by, $2),
+  paused_by = CASE WHEN paused_at IS NULL THEN @paused_by ELSE paused_by END,
+  paused_by_budget_id = CASE WHEN paused_at IS NULL THEN @paused_by_budget_id ELSE paused_by_budget_id END,
   updated_at = now()
-WHERE id = $1
+WHERE id = @id
 RETURNING *;
 
 -- name: ArchiveAgentsByRuntime :many
@@ -336,8 +339,21 @@ WHERE id = $1
 RETURNING *;
 
 -- name: ResumeAgent :one
-UPDATE agent SET paused_at = NULL, paused_by = NULL, updated_at = now()
+UPDATE agent SET
+  paused_at = NULL,
+  paused_by = NULL,
+  paused_by_budget_id = NULL,
+  updated_at = now()
 WHERE id = $1
+RETURNING *;
+
+-- name: ResumeBudgetPausedAgents :many
+UPDATE agent SET
+  paused_at = NULL,
+  paused_by = NULL,
+  paused_by_budget_id = NULL,
+  updated_at = now()
+WHERE paused_by_budget_id = $1
 RETURNING *;
 
 -- name: ListAgentTasks :many
@@ -401,6 +417,7 @@ INSERT INTO agent_task_queue (
     squad_id, context, originator_user_id, accountable_user_id, runtime_mcp_overlay, runtime_connected_apps,
     originator_source, delegated_from_task_id, rule_version_id, rerun_of_task_id, trigger_evidence_kind, trigger_evidence_ref_id,
     execution_lane, model_override,
+    budget_project_id, budget_initiative_id, budget_origin_squad_id,
     id
 )
 SELECT
@@ -428,6 +445,9 @@ SELECT
     sqlc.narg(trigger_evidence_ref_id),
     COALESCE(sqlc.narg('execution_lane')::text, 'primary'),
     sqlc.narg('model_override'),
+    sqlc.narg(budget_project_id),
+    sqlc.narg(budget_initiative_id),
+    sqlc.narg(budget_origin_squad_id),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, $3, $2)
 RETURNING *;
@@ -447,6 +467,7 @@ INSERT INTO agent_task_queue (
     originator_source, delegated_from_task_id, rule_version_id, rerun_of_task_id,
     trigger_evidence_kind, trigger_evidence_ref_id, fire_at,
     execution_lane, model_override,
+    budget_project_id, budget_initiative_id, budget_origin_squad_id,
     id
 )
 SELECT
@@ -474,6 +495,9 @@ SELECT
     @fire_at,
     COALESCE(sqlc.narg('execution_lane')::text, 'primary'),
     sqlc.narg('model_override'),
+    sqlc.narg(budget_project_id),
+    sqlc.narg(budget_initiative_id),
+    sqlc.narg(budget_origin_squad_id),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, $3, $2)
 RETURNING *;
@@ -515,6 +539,7 @@ INSERT INTO agent_task_queue (
     accountable_user_id, runtime_mcp_overlay, runtime_connected_apps,
     originator_source, trigger_evidence_kind, trigger_evidence_ref_id,
     execution_lane, model_override,
+    budget_project_id, budget_initiative_id, budget_origin_squad_id,
     id
 )
 SELECT
@@ -528,6 +553,9 @@ SELECT
     sqlc.narg(trigger_evidence_ref_id),
     COALESCE(sqlc.narg('execution_lane')::text, 'primary'),
     sqlc.narg('model_override'),
+    sqlc.narg(budget_project_id),
+    sqlc.narg(budget_initiative_id),
+    sqlc.narg(budget_origin_squad_id),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, NULL, $2)
 RETURNING *;
@@ -550,6 +578,7 @@ INSERT INTO agent_task_queue (
     originator_user_id, accountable_user_id, originator_source,
     delegated_from_task_id, trigger_evidence_kind, trigger_evidence_ref_id,
     execution_lane, model_override,
+    budget_project_id, budget_initiative_id, budget_origin_squad_id,
     id
 )
 SELECT
@@ -568,6 +597,9 @@ SELECT
     sqlc.narg(trigger_evidence_ref_id),
     COALESCE(sqlc.narg('execution_lane')::text, 'primary'),
     sqlc.narg('model_override'),
+    sqlc.narg(budget_project_id),
+    sqlc.narg(budget_initiative_id),
+    sqlc.narg(budget_origin_squad_id),
     COALESCE(sqlc.narg('id')::uuid, gen_random_uuid())
 WHERE lock_task_owner_rows($1, $3, $2)
 RETURNING *;
@@ -647,6 +679,10 @@ WHERE id = $1 AND issue_id IS NULL
 -- older turn first. Combined with creating the retry inside FailTask's
 -- transaction, this leaves no window for a newer input task to jump ahead.
 --
+-- budget_project_id, budget_initiative_id, and budget_origin_squad_id are
+-- inherited so a hop cannot re-join today's issue.project_id or squad
+-- membership. Claim reads the snapshot, not live coverage.
+--
 -- fire_at arms a backoff before the retry: when non-NULL the child is inserted
 -- as 'deferred' with that fire_at and stays inert until the existing
 -- PromoteDueDeferredTasksForRuntime sweeper (run promote-first on every claim
@@ -670,7 +706,8 @@ INSERT INTO agent_task_queue (
     originator_source, delegated_from_task_id, rule_version_id,
     trigger_evidence_kind, trigger_evidence_ref_id, retry_of_task_id,
     chat_input_task_id, fire_at,
-    channel_context_revision, execution_lane, model_override, id
+    channel_context_revision, execution_lane, model_override,
+    budget_project_id, budget_initiative_id, budget_origin_squad_id, id
 )
 SELECT
     p.agent_id,
@@ -720,6 +757,9 @@ SELECT
     p.channel_context_revision,
     COALESCE(sqlc.narg('execution_lane')::text, p.execution_lane) AS execution_lane,
     COALESCE(sqlc.narg('model_override'), p.model_override) AS model_override,
+    p.budget_project_id,
+    p.budget_initiative_id,
+    p.budget_origin_squad_id,
     -- Named new_task_id, not id: $1 above is the PARENT task's id.
     COALESCE(sqlc.narg('new_task_id')::uuid, gen_random_uuid()) AS id
 FROM agent_task_queue p
@@ -745,14 +785,17 @@ INSERT INTO agent_task_queue (
     force_fresh_session, is_leader_task, squad_id,
     originator_user_id, accountable_user_id,
     runtime_mcp_overlay, runtime_connected_apps,
-    originator_source, rerun_of_task_id, id
+    originator_source, rerun_of_task_id,
+    budget_project_id, budget_initiative_id, budget_origin_squad_id, id
 )
 SELECT
     p.agent_id, p.runtime_id, 'queued', p.priority, p.context,
     TRUE, p.is_leader_task, p.squad_id,
     sqlc.arg(actor_user_id), sqlc.arg(actor_user_id),
     sqlc.narg(runtime_mcp_overlay), sqlc.narg(runtime_connected_apps),
-    'direct_human', p.id, sqlc.arg(new_task_id)
+    'direct_human', p.id,
+    p.budget_project_id, p.budget_initiative_id, p.budget_origin_squad_id,
+    sqlc.arg(new_task_id)
 FROM agent_task_queue p
 WHERE p.id = sqlc.arg(source_task_id)
   AND p.status = 'failed'

@@ -1,6 +1,7 @@
 {
   "title": "统计",
   "tab_usage": "用量",
+  "tab_budgets": "预算",
   "header": {
     "timezone_and_updated": "{{tz}} · 更新于 {{time}}",
     "refresh": "刷新"
@@ -106,5 +107,56 @@
   },
   "duration": {
     "less_than_minute": "<1分钟"
+  },
+  "budgets": {
+    "title": "预算",
+    "caption": "上限只约束新的 task。已经在跑的工作仍会跑完。",
+    "add": "添加预算",
+    "empty": "还没有预算。",
+    "month_caption": "{{month}} UTC",
+    "header_spent": "已用",
+    "edit": "编辑",
+    "delete": "删除",
+    "delete_confirm_title": "删除这份预算？",
+    "delete_confirm_body": "之后新的 task 将不再受这份上限约束。",
+    "cancel": "取消",
+    "save": "保存",
+    "create": "创建",
+    "limit_label": "每月上限（USD）",
+    "scope_label": "范围",
+    "applies_to": "适用于",
+    "scope": {
+      "project": "项目",
+      "initiative": "专项",
+      "agent": "智能体",
+      "squad": "小队"
+    },
+    "soften_label": "到达阈值后降档",
+    "soften_hint": "超过这个百分比后，下一个新 task 会走轻量通道。",
+    "soften_percent_label": "阈值百分比",
+    "over_limit_label": "到达上限时",
+    "over_limit_pause": "暂停新工作",
+    "over_limit_allow": "允许超支",
+    "spent_of_limit": "{{spent}} / {{limit}}",
+    "bar_label": "本月已用额度",
+    "dialog_create_title": "新建预算",
+    "dialog_edit_title": "编辑预算",
+    "state": {
+      "ok": "正常",
+      "softened": "已降档",
+      "exhausted": "已达上限",
+      "pricing_incomplete": "部分用量尚未定价。在每条记录都有费率之前，暂停会保持关闭。",
+      "unattributed": "还没有可归属的消耗。在 task 归到这里之前，进度条会保持空白。",
+      "allow_over": "本月允许超支"
+    },
+    "waiver": {
+      "bypass": "豁免限制",
+      "end": "结束豁免",
+      "title": "豁免限制",
+      "body": "在本 UTC 月结束前，跳过这个项目或专项的暂停和降档。智能体和小队的上限仍然生效。",
+      "reason_label": "原因（可选）",
+      "confirm": "豁免",
+      "chip": "限制已豁免至 {{date}}"
+    }
   }
 }

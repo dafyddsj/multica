@@ -514,6 +514,9 @@ func TestGetConfigExposesFrontendFeatureFlags(t *testing.T) {
 	if !cfg.FeatureFlags["settings_resource_labels"] {
 		t.Fatalf("settings_resource_labels: want true for installed clients, got false")
 	}
+	if !cfg.FeatureFlags["agent_execution_lanes"] {
+		t.Fatalf("agent_execution_lanes: want true for installed clients, got false")
+	}
 	// Deliberately unpublished: pre-v0.4.33 clients gate their "New status"
 	// button on this key and fail closed, which is how a client that predates
 	// the v0.4.31 rendering fixes is kept from creating one. See

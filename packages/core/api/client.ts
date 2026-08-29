@@ -138,6 +138,13 @@ import type {
   EntityStatusCategory,
   CreateEntityStatusRequest,
   UpdateEntityStatusRequest,
+  Budget,
+  BudgetWaiver,
+  ListBudgetsResponse,
+  ListBudgetWaiversResponse,
+  CreateBudgetRequest,
+  UpdateBudgetRequest,
+  CreateBudgetWaiverRequest,
   IssueLabelsResponse,
   LabelResourceType,
   ResourceLabelsResponse,
@@ -454,6 +461,14 @@ import {
   EntityStatusEntrySchema,
   EMPTY_LIST_ENTITY_STATUSES_RESPONSE,
   EMPTY_ENTITY_STATUS_ENTRY,
+  BudgetSchema,
+  ListBudgetsResponseSchema,
+  EMPTY_BUDGET,
+  EMPTY_LIST_BUDGETS_RESPONSE,
+  BudgetWaiverSchema,
+  ListBudgetWaiversResponseSchema,
+  EMPTY_BUDGET_WAIVER,
+  EMPTY_LIST_BUDGET_WAIVERS_RESPONSE,
   EMPTY_RESOURCE_LABELS_RESPONSE,
   GitHubConnectResponseSchema,
   ListGitHubInstallationsResponseSchema,
@@ -5112,6 +5127,58 @@ export class ApiClient {
     return parseWithFallback(raw, MemoryRecallResponseSchema, EMPTY_MEMORY_RECALL_RESPONSE, {
       endpoint: "GET /api/memory/recall",
     });
+  }
+
+  async listBudgets(): Promise<ListBudgetsResponse> {
+    const raw = await this.fetch<unknown>(`/api/budgets`);
+    return parseWithFallback(raw, ListBudgetsResponseSchema, EMPTY_LIST_BUDGETS_RESPONSE, {
+      endpoint: "GET /api/budgets",
+    });
+  }
+
+  async createBudget(data: CreateBudgetRequest): Promise<Budget> {
+    const raw = await this.fetch<unknown>(`/api/budgets`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, BudgetSchema, EMPTY_BUDGET, {
+      endpoint: "POST /api/budgets",
+    });
+  }
+
+  async updateBudget(id: string, data: UpdateBudgetRequest): Promise<Budget> {
+    const raw = await this.fetch<unknown>(`/api/budgets/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, BudgetSchema, EMPTY_BUDGET, {
+      endpoint: "PATCH /api/budgets/{id}",
+    });
+  }
+
+  async deleteBudget(id: string): Promise<void> {
+    await this.fetch(`/api/budgets/${id}`, { method: "DELETE" });
+  }
+
+  async listBudgetWaivers(): Promise<ListBudgetWaiversResponse> {
+    const raw = await this.fetch<unknown>(`/api/budgets/waivers`);
+    return parseWithFallback(raw, ListBudgetWaiversResponseSchema, EMPTY_LIST_BUDGET_WAIVERS_RESPONSE, {
+      endpoint: "GET /api/budgets/waivers",
+    });
+  }
+
+  async createBudgetWaiver(data: CreateBudgetWaiverRequest): Promise<BudgetWaiver> {
+    const raw = await this.fetch<unknown>(`/api/budgets/waivers`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    return parseWithFallback(raw, BudgetWaiverSchema, EMPTY_BUDGET_WAIVER, {
+      endpoint: "POST /api/budgets/waivers",
+    });
+  }
+
+  async deleteBudgetWaiver(id: string): Promise<void> {
+    await this.fetch(`/api/budgets/waivers/${id}`, { method: "DELETE" });
   }
 
   async redeemTelegramBindingToken(token: string): Promise<RedeemTelegramBindingTokenResponse> {
