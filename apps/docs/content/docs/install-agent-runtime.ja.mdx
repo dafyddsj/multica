@@ -54,7 +54,7 @@ QwenPaw を使う場合は、QwenPaw 側の設定でプロバイダーとモデ�
 
 Amp は `amp login` でログインするか `AMP_API_KEY` を設定してください。モデルは Amp が選び、Multica は `--model` を送りません。
 
-Goose は `goose configure` を実行し、`GOOSE_PROVIDER`、`GOOSE_MODEL`、およびそのプロバイダーの API key を設定してください。Multica は Goose の IdP にはなりません。Goose が未ログインでもモデル一覧を出せるようになるまで、モデル選択欄は「ランタイムで管理」のままです。
+Goose は `goose configure` を実行し、`GOOSE_PROVIDER`、`GOOSE_MODEL`、およびそのプロバイダーの API key を設定してください。Multica は Goose の IdP にはなりません。Multica にモデル id を入力すると `--model` として渡されます。空欄のままにすると Goose の設定済みデフォルトを使います。
 
 MiniMax Code を使う場合は、対応する Node.js バージョン（`>=22.19 <23` または `>=24 <27`）をインストールし、`npm install --global @minimax-ai/code@latest` を実行してください。npm のグローバルインストールによって `mcode` は npm のグローバル実行ファイルディレクトリに配置されます。`command -v mcode` または `Get-Command mcode` で見つからない場合は、そのディレクトリを `PATH` に追加してください。その後 `mcode login` を実行します。モデルは MiniMax Code が管理し、Multica から ACP 経由で上書きすることはできません。
 

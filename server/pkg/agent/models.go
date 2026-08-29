@@ -279,6 +279,8 @@ func ListModels(ctx context.Context, providerType string, runtimeCmd Command) (C
 		// unchanged.
 		return Catalog{Models: ampModeCatalog()}, nil
 	case "goose":
+		// Goose has no account-independent headless model catalog. An
+		// empty list keeps the runtime default and manual model entry available.
 		return Catalog{Models: []Model{}}, nil
 	default:
 		return Catalog{}, fmt.Errorf("unknown agent type: %q", providerType)
@@ -397,8 +399,6 @@ func ModelSelectionSupported(providerType string) bool {
 		// profile (`agents.<alias>.model_provider`) and nothing Multica sends
 		// can change it. Amp is not in this list: its picker values are
 		// --mode tokens (low|medium|high|ultra), not model ids.
-		return false
-	case "goose":
 		return false
 	default:
 		return true

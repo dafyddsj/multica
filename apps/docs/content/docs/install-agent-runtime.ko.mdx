@@ -54,7 +54,7 @@ QwenPaw를 사용할 때는 QwenPaw 자체 설정에서 공급자와 모델을 �
 
 Amp는 `amp login`으로 로그인하거나 `AMP_API_KEY`를 설정하세요. 모델은 Amp가 고르며 Multica는 `--model`을 보내지 않습니다.
 
-Goose는 `goose configure`를 실행하고 `GOOSE_PROVIDER`, `GOOSE_MODEL`, 그리고 해당 공급자의 API key를 설정하세요. Multica는 Goose의 IdP가 아닙니다. Goose가 로그인 없이 모델을 나열할 수 있을 때까지 모델 선택 상자는 "런타임에서 관리"로 유지됩니다.
+Goose는 `goose configure`를 실행하고 `GOOSE_PROVIDER`, `GOOSE_MODEL`, 그리고 해당 공급자의 API key를 설정하세요. Multica는 Goose의 IdP가 아닙니다. Multica에 모델 id를 입력하면 `--model`로 전달됩니다. 비워 두면 Goose가 설정한 기본값을 사용합니다.
 
 MiniMax Code를 사용하려면 지원되는 Node.js 버전(`>=22.19 <23` 또는 `>=24 <27`)을 설치한 뒤 `npm install --global @minimax-ai/code@latest`를 실행하세요. npm 전역 설치는 `mcode`를 npm의 전역 실행 파일 디렉터리에 추가합니다. `command -v mcode` 또는 `Get-Command mcode`에서 찾지 못하면 해당 디렉터리를 `PATH`에 추가하세요. 그다음 `mcode login`을 실행합니다. 모델은 MiniMax Code가 관리하며 Multica는 ACP를 통해 이를 덮어쓸 수 없습니다.
 

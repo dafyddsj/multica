@@ -54,7 +54,7 @@ Multica 当前会检测以下命令：
 
 使用 Amp 时，请先运行 `amp login`，或设置 `AMP_API_KEY`。模型由 Amp 自己选择，Multica 不会发送 `--model`。
 
-使用 Goose 时，请先运行 `goose configure`，并设置 `GOOSE_PROVIDER`、`GOOSE_MODEL` 以及该服务商的 API key。Multica 不会充当 Goose 的身份提供方。在 Goose 能在未登录服务商的情况下列出模型之前，模型选择框会显示「由运行时管理」。
+使用 Goose 时，请先运行 `goose configure`，并设置 `GOOSE_PROVIDER`、`GOOSE_MODEL` 以及该服务商的 API key。Multica 不会充当 Goose 的身份提供方。在 Multica 中输入模型 id，会作为 `--model` 发送。留空则使用 Goose 已配置的默认值。
 
 使用 MiniMax Code 时，请安装受支持的 Node.js 版本（`>=22.19 <23` 或 `>=24 <27`），并运行 `npm install --global @minimax-ai/code@latest`。全局 npm 安装会把 `mcode` 放入 npm 的全局可执行目录；如果 `command -v mcode` 或 `Get-Command mcode` 找不到它，请将该目录加入 `PATH`。然后运行 `mcode login`。模型由 MiniMax Code 管理，Multica 无法通过 ACP 覆盖它。
 

@@ -409,8 +409,8 @@ func TestGooseListModelsReturnsEmptyWithoutSpawning(t *testing.T) {
 	if len(cat.Models) != 0 {
 		t.Fatalf("ListModels(goose) = %#v, want empty catalog", cat.Models)
 	}
-	if ModelSelectionSupported("goose") {
-		t.Fatal("ModelSelectionSupported(goose) should be false until a model canary")
+	if !ModelSelectionSupported("goose") {
+		t.Fatal("ModelSelectionSupported(goose) should be true: goose honors --model like Qwen (empty catalog, manual entry)")
 	}
 }
 
