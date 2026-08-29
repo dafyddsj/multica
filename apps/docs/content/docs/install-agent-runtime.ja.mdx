@@ -54,7 +54,7 @@ QwenPaw を使う場合は、QwenPaw 側の設定でプロバイダーとモデ�
 
 Amp は `amp login` でログインするか `AMP_API_KEY` を設定してください。モデルは Amp が選び、Multica は `--model` を送りません。
 
-Devin は `devin auth login` でログインしてください。v1 はローカル CLI（`devin --print`）であり、Devin Cloud ではありません。ログイン済みの `devin models list` を確認するまで、Multica は Devin のモデル一覧を出しません。
+Devin は `devin auth login` でログインしてください。v1 はローカル CLI（`devin --print`）であり、Devin Cloud ではありません。Multica はデーモンホスト上の `devin models list --format json` でモデルを一覧します。ログインが必要です。一覧が空でも手動入力できます。
 
 MiniMax Code を使う場合は、対応する Node.js バージョン（`>=22.19 <23` または `>=24 <27`）をインストールし、`npm install --global @minimax-ai/code@latest` を実行してください。npm のグローバルインストールによって `mcode` は npm のグローバル実行ファイルディレクトリに配置されます。`command -v mcode` または `Get-Command mcode` で見つからない場合は、そのディレクトリを `PATH` に追加してください。その後 `mcode login` を実行します。モデルは MiniMax Code が管理し、Multica から ACP 経由で上書きすることはできません。
 

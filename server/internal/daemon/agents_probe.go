@@ -284,8 +284,8 @@ var probeAgentCLIs = func() map[string]AgentEntry {
 	if e, ok := probe("MULTICA_AMP_PATH", "amp", ""); ok {
 		agents["amp"] = e
 	}
-	// Listing models requires a logged-in account and ModelSelectionSupported
-	// is false until that canary.
+	// Devin takes no model env var. There is no MULTICA_DEVIN_MODEL; the
+	// picker lists `devin models list --format json` after login.
 	if e, ok := probe("MULTICA_DEVIN_PATH", "devin", ""); ok {
 		agents["devin"] = e
 	}

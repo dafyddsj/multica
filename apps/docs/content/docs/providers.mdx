@@ -61,6 +61,8 @@ Amp's picker lists Amp modes (`low`, `medium`, `high`, `ultra`). A mode chooses 
 
 DeepSeek Harness advertises its model catalog from the runtime itself (`dsh --profile multica --list-models`). Its model ids use the `provider/model` form (for example `deepseek-official/deepseek-chat`), so select the full id from the list.
 
+Devin lists models from the live CLI on the daemon host (`devin models list --format json`). The picker is supported. The list is empty until you are logged in; you can still type a model id.
+
 <Callout type="info">
 Different tools may use different model names. After switching AI coding tools, the previous model value is invalid in the new tool and needs to be selected again.
 </Callout>

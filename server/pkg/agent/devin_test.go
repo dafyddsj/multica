@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -219,7 +220,7 @@ func TestDevinBackendPrintsPromptFileNotArgv(t *testing.T) {
 	argsFile := filepath.Join(t.TempDir(), "args")
 	promptFile := filepath.Join(t.TempDir(), "prompt")
 	backend := newFakeDevinBackend(t, map[string]string{
-		"DEVIN_ARGS_FILE":     argsFile,
+		"DEVIN_ARGS_FILE":      argsFile,
 		"DEVIN_PROMPT_CAPTURE": promptFile,
 	})
 	session, err := backend.Execute(context.Background(), "what is 2+2?", ExecOptions{Timeout: 5 * time.Second})
@@ -316,16 +317,187 @@ func TestDevinBackendFailedExit(t *testing.T) {
 	}
 }
 
-func TestListModelsDevinEmptyAndUnsupported(t *testing.T) {
+const (
+	devinModelsArrayJSON    = `[{"id":"opus","name":"Claude Opus","default":true},{"id":"claude-sonnet-4","name":"Claude Sonnet 4"}]`
+	devinModelsFamiliesJSON = `{"families":[{"family":"Anthropic","models":[{"slug":"opus","id":"claude-opus-4.6","cost_summary":"$x"},{"id":"sonnet","name":"Sonnet"}]}]}`
+	devinModelsWrappedJSON  = `{"models":[{"model_id":"swe-1-6-fast","display_name":"SWE-1.6 Fast"}]}`
+)
+
+func TestModelSelectionSupportedDevin(t *testing.T) {
 	t.Parallel()
-	cat, err := ListModels(context.Background(), "devin", Command{Path: "/nonexistent/devin"})
+	if !ModelSelectionSupported("devin") {
+		t.Fatal("ModelSelectionSupported(devin) must be true so the picker sends --model")
+	}
+}
+
+func TestListModelsDevin(t *testing.T) {
+	t.Parallel()
+
+	t.Run("array catalog", func(t *testing.T) {
+		t.Parallel()
+		path, argsFile := fakeDevinModelsCLI(t, devinModelsArrayJSON, 0)
+		cat, err := ListModels(context.Background(), "devin", Command{Path: path})
+		if err != nil {
+			t.Fatalf("ListModels: %v", err)
+		}
+		assertDevinModelsArgv(t, argsFile)
+		if cat.Fallback {
+			t.Fatal("live catalog must not be marked Fallback")
+		}
+		if len(cat.Models) != 2 {
+			t.Fatalf("models = %#v, want opus and claude-sonnet-4", cat.Models)
+		}
+		if cat.Models[0].ID != "opus" || !cat.Models[0].Default || cat.Models[0].Label != "Claude Opus" || cat.Models[0].Provider != "devin" {
+			t.Fatalf("first model = %#v, want opus default Claude Opus / devin", cat.Models[0])
+		}
+		if cat.Models[1].ID != "claude-sonnet-4" || cat.Models[1].Default || cat.Models[1].Label != "Claude Sonnet 4" {
+			t.Fatalf("second model = %#v, want claude-sonnet-4", cat.Models[1])
+		}
+	})
+
+	t.Run("families prefers id over slug", func(t *testing.T) {
+		t.Parallel()
+		path, argsFile := fakeDevinModelsCLI(t, devinModelsFamiliesJSON, 0)
+		cat, err := ListModels(context.Background(), "devin", Command{Path: path})
+		if err != nil {
+			t.Fatalf("ListModels: %v", err)
+		}
+		assertDevinModelsArgv(t, argsFile)
+		if len(cat.Models) != 2 {
+			t.Fatalf("models = %#v, want claude-opus-4.6 and sonnet", cat.Models)
+		}
+		if cat.Models[0].ID != "claude-opus-4.6" {
+			t.Fatalf("id = %q, want claude-opus-4.6 not slug opus", cat.Models[0].ID)
+		}
+		if cat.Models[0].Provider != "Anthropic" || cat.Models[1].Provider != "Anthropic" {
+			t.Fatalf("provider = (%q, %q), want Anthropic from family", cat.Models[0].Provider, cat.Models[1].Provider)
+		}
+		if cat.Models[0].Label != "claude-opus-4.6" {
+			t.Fatalf("label = %q, cost_summary must not become the label", cat.Models[0].Label)
+		}
+		if cat.Models[1].ID != "sonnet" || cat.Models[1].Label != "Sonnet" {
+			t.Fatalf("second model = %#v", cat.Models[1])
+		}
+	})
+
+	t.Run("wrapped model_id", func(t *testing.T) {
+		t.Parallel()
+		path, argsFile := fakeDevinModelsCLI(t, devinModelsWrappedJSON, 0)
+		cat, err := ListModels(context.Background(), "devin", Command{Path: path})
+		if err != nil {
+			t.Fatalf("ListModels: %v", err)
+		}
+		assertDevinModelsArgv(t, argsFile)
+		if len(cat.Models) != 1 || cat.Models[0].ID != "swe-1-6-fast" || cat.Models[0].Label != "SWE-1.6 Fast" || cat.Models[0].Provider != "devin" {
+			t.Fatalf("models = %#v, want swe-1-6-fast", cat.Models)
+		}
+	})
+
+	t.Run("missing binary", func(t *testing.T) {
+		t.Parallel()
+		cat, err := ListModels(context.Background(), "devin", Command{Path: "/nonexistent/devin"})
+		if err != nil {
+			t.Fatalf("ListModels: %v", err)
+		}
+		if len(cat.Models) != 0 || !cat.Fallback {
+			t.Fatalf("missing binary catalog = %#v fallback=%v, want empty Fallback", cat.Models, cat.Fallback)
+		}
+	})
+
+	t.Run("failing binary", func(t *testing.T) {
+		t.Parallel()
+		path, argsFile := fakeDevinModelsCLI(t, "", 1)
+		cat, err := ListModels(context.Background(), "devin", Command{Path: path})
+		if err != nil {
+			t.Fatalf("ListModels: %v", err)
+		}
+		assertDevinModelsArgv(t, argsFile)
+		if len(cat.Models) != 0 || !cat.Fallback {
+			t.Fatalf("failing binary catalog = %#v fallback=%v, want empty Fallback", cat.Models, cat.Fallback)
+		}
+	})
+}
+
+func TestParseDevinModelsJSON(t *testing.T) {
+	t.Parallel()
+
+	t.Run("garbage and empty", func(t *testing.T) {
+		t.Parallel()
+		for _, raw := range []string{"", "{}", "[]", "null", `{"foo":1}`, `{"models":[]}`} {
+			if got := parseDevinModelsJSON([]byte(raw)); len(got) != 0 {
+				t.Fatalf("parseDevinModelsJSON(%q) = %#v, want empty", raw, got)
+			}
+		}
+	})
+
+	t.Run("text blob", func(t *testing.T) {
+		t.Parallel()
+		if got := parseDevinModelsJSON([]byte("Available models\nopus\nclaude-sonnet-4\n")); len(got) != 0 {
+			t.Fatalf("non-JSON blob = %#v, want empty", got)
+		}
+	})
+
+	t.Run("nested and official ids", func(t *testing.T) {
+		t.Parallel()
+		raw := `{"data":{"items":[{"id":"claude-sonnet-4"},{"slug":"claude-opus-4.6"},{"model":"opus"},{"modelId":"codex"},{"model_id":"swe"},{"id":"--model"},{"id":"/tmp/opus"},{"id":"opus"}]}}`
+		got := parseDevinModelsJSON([]byte(raw))
+		want := []string{"claude-sonnet-4", "claude-opus-4.6", "opus", "codex", "swe"}
+		if len(got) != len(want) {
+			t.Fatalf("ids = %#v, want %v", got, want)
+		}
+		for i, id := range want {
+			if got[i].ID != id {
+				t.Fatalf("got[%d].ID = %q, want %q", i, got[i].ID, id)
+			}
+		}
+	})
+
+	t.Run("first id wins on dedup", func(t *testing.T) {
+		t.Parallel()
+		got := parseDevinModelsJSON([]byte(`[{"id":"opus","name":"First"},{"id":"opus","name":"Second"}]`))
+		if len(got) != 1 || got[0].Label != "First" {
+			t.Fatalf("dedup = %#v, want first label", got)
+		}
+	})
+}
+
+func fakeDevinModelsCLI(t *testing.T, stdout string, exitCode int) (path, argsFile string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture is POSIX-only")
+	}
+	dir := t.TempDir()
+	path = filepath.Join(dir, "devin")
+	argsFile = filepath.Join(dir, "args")
+	jsonFile := filepath.Join(dir, "models.json")
+	if err := os.WriteFile(jsonFile, []byte(stdout), 0o600); err != nil {
+		t.Fatalf("write models.json: %v", err)
+	}
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$@\" > \"" + argsFile + "\"\n" +
+		"if [ \"$1\" != \"models\" ] || [ \"$2\" != \"list\" ] || [ \"$3\" != \"--format\" ] || [ \"$4\" != \"json\" ]; then\n" +
+		"  exit 1\n" +
+		"fi\n" +
+		"cat \"" + jsonFile + "\"\n" +
+		"exit " + strconv.Itoa(exitCode) + "\n"
+	writeTestExecutable(t, path, []byte(script))
+	return path, argsFile
+}
+
+func assertDevinModelsArgv(t *testing.T, argsFile string) {
+	t.Helper()
+	raw, err := os.ReadFile(argsFile)
 	if err != nil {
-		t.Fatalf("ListModels: %v", err)
+		t.Fatalf("read captured argv: %v", err)
 	}
-	if len(cat.Models) != 0 {
-		t.Fatalf("devin catalog = %#v, want empty", cat.Models)
+	got := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	want := []string{"models", "list", "--format", "json"}
+	if len(got) != len(want) {
+		t.Fatalf("argv = %q, want %v", raw, want)
 	}
-	if ModelSelectionSupported("devin") {
-		t.Fatal("ModelSelectionSupported(devin) must stay false until models list canary")
+	for i, token := range want {
+		if got[i] != token {
+			t.Fatalf("argv[%d] = %q, want %q (full %q)", i, got[i], token, raw)
+		}
 	}
 }

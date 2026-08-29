@@ -54,7 +54,7 @@ Multica 当前会检测以下命令：
 
 使用 Amp 时，请先运行 `amp login`，或设置 `AMP_API_KEY`。模型由 Amp 自己选择，Multica 不会发送 `--model`。
 
-使用 Devin 时，请先运行 `devin auth login`。v1 是本机 CLI（`devin --print`），不是 Devin Cloud。在登录后的 `devin models list` 验证完成前，Multica 不会列出 Devin 模型。
+使用 Devin 时，请先运行 `devin auth login`。v1 是本机 CLI（`devin --print`），不是 Devin Cloud。Multica 通过守护进程主机上的 `devin models list --format json` 列出 Devin 模型。仍需登录。列表为空时可以手动输入。
 
 使用 MiniMax Code 时，请安装受支持的 Node.js 版本（`>=22.19 <23` 或 `>=24 <27`），并运行 `npm install --global @minimax-ai/code@latest`。全局 npm 安装会把 `mcode` 放入 npm 的全局可执行目录；如果 `command -v mcode` 或 `Get-Command mcode` 找不到它，请将该目录加入 `PATH`。然后运行 `mcode login`。模型由 MiniMax Code 管理，Multica 无法通过 ACP 覆盖它。
 

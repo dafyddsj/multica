@@ -54,7 +54,7 @@ For QwenPaw, choose the provider and model in QwenPaw's own configuration. Multi
 
 For Amp, sign in with `amp login` or set `AMP_API_KEY`. Amp picks its own model; Multica does not send `--model`.
 
-For Devin, sign in with `devin auth login`. v1 is the local CLI (`devin --print`), not Devin Cloud. Multica does not list Devin models until a logged-in `devin models list` canary.
+For Devin, sign in with `devin auth login`. v1 is the local CLI (`devin --print`), not Devin Cloud. Multica lists models from `devin models list --format json` on the daemon host. Login is required. An empty list still allows manual entry.
 
 For MiniMax Code, install a supported Node.js release (`>=22.19 <23` or `>=24 <27`) and run `npm install --global @minimax-ai/code@latest`. A global npm install places `mcode` on npm's global binary path; if `command -v mcode` or `Get-Command mcode` cannot find it, add that path to `PATH`. Then run `mcode login`. MiniMax Code owns the model selection; Multica cannot override it through ACP.
 

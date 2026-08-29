@@ -61,6 +61,8 @@ Amp 的选择框列出的是 Amp 的 mode（`low`、`medium`、`high`、`ultra`�
 
 DeepSeek Harness 的模型目录由运行时自身提供（`dsh --profile multica --list-models`）。它的模型 id 采用 `provider/model` 形式（例如 `deepseek-official/deepseek-chat`），请从列表中选择完整 id。
 
+Devin 的模型目录来自守护进程主机上的实时 CLI（`devin models list --format json`）。选择框可用。未登录时列表为空，此时可以手动输入。
+
 <Callout type="info">
 不同工具可能使用不同的模型名称。更换 AI 编程工具后，原有的模型值在新工具中无效，需要重新选择。
 </Callout>
