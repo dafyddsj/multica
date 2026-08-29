@@ -7,7 +7,7 @@ This folder is the implementation record. Product copy lives in
 
 ## What shipped
 
-- Two product tables plus a purge ledger (migrations 459–461)
+- Two product tables plus a purge ledger (migrations 460–462)
 - Domain service in `server/internal/integrations/agentmail/`
 - Live AgentMail `/v0` HTTP client, plus an in-process memory client for tests
 - HTTP under `/api/workspaces/{id}/agentmail` and `/api/agents/{id}/agentmail`

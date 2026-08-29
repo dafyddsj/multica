@@ -22,7 +22,7 @@ with omitempty. The UI treats missing as false (`=== true`).
 
 ```
 docs/agentmail/                              this folder
-server/migrations/459–461                    tables + concurrent indexes
+server/migrations/460–462                    tables + concurrent indexes
 server/pkg/db/queries/agentmail.sql          sqlc
 server/internal/integrations/agentmail/      service, live client, secrets, overlay
 server/internal/handler/integrations_agentmail.go

@@ -61,9 +61,9 @@ func applyAgentMailMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	dir := filepath.Join(filepath.Dir(file), "..", "..", "..", "migrations")
 	for _, name := range []string{
-		"459_agentmail_tables.up.sql",
-		"460_agentmail_inbox_agent_index.up.sql",
-		"461_agentmail_purge_workspace_index.up.sql",
+		"460_agentmail_tables.up.sql",
+		"461_agentmail_inbox_agent_index.up.sql",
+		"462_agentmail_purge_workspace_index.up.sql",
 	} {
 		body, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
