@@ -98,6 +98,34 @@ func TestCloudRuntimeDisabledReturnsUnavailable(t *testing.T) {
 	}
 }
 
+func TestPutCloudRuntimeNodeDesiredForwardsBody(t *testing.T) {
+	proxy := &fakeCloudRuntimeProxy{
+		enabled: true,
+		resp: &cloudruntime.Response{
+			StatusCode: http.StatusOK,
+			Body:       []byte(`{"instance_id":"i-1","tools":["claude"],"secret_keys":["ANTHROPIC_API_KEY"]}`),
+		},
+	}
+	useCloudRuntimeProxy(t, proxy)
+
+	req := newRequest(http.MethodPut, "/api/cloud-runtime/nodes/desired", map[string]any{
+		"instance_id": "i-1",
+		"tools":       []string{"claude"},
+	})
+	w := httptest.NewRecorder()
+	testHandler.PutCloudRuntimeNodeDesired(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if proxy.req.Method != http.MethodPut || proxy.req.Path != "/api/v1/nodes/desired" {
+		t.Fatalf("proxied request = %s %s", proxy.req.Method, proxy.req.Path)
+	}
+	if proxy.req.UserID != testUserID {
+		t.Fatalf("proxied user id = %q", proxy.req.UserID)
+	}
+}
+
 func TestListCloudRuntimeNodesForwardsQuery(t *testing.T) {
 	proxy := &fakeCloudRuntimeProxy{
 		enabled: true,

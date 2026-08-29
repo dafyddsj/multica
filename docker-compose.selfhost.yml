@@ -211,6 +211,7 @@ services:
       DOCS_URL: ${DOCS_URL:-}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
       NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-}
+      NEXT_PUBLIC_ENABLE_CLOUD_RUNTIME: ${NEXT_PUBLIC_ENABLE_CLOUD_RUNTIME:-false}
     restart: unless-stopped
 
 volumes:

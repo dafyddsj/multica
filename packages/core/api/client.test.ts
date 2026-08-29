@@ -1461,6 +1461,80 @@ describe("ApiClient", () => {
     );
   });
 
+  it("commandCloudRuntimeNode posts start/stop to the fleet command routes", async () => {
+    const node = {
+      id: "node-1",
+      owner_id: "user-1",
+      instance_id: "i-0123456789abcdef0",
+      region: "local",
+      instance_type: "t4g.medium",
+      image_id: "qmstros-inventory",
+      subnet_id: "local",
+      name: "alice-dev",
+      status: "stopped",
+      tags: {},
+      metadata: {},
+      created_at: "2026-05-21T08:30:00Z",
+      updated_at: "2026-05-21T08:30:00Z",
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(node), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("https://api.example.test");
+    await client.commandCloudRuntimeNode("i-0123456789abcdef0", "stop");
+    const [url, opts] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.example.test/api/cloud-runtime/nodes/stop");
+    expect(opts).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ instance_id: "i-0123456789abcdef0" }),
+    });
+  });
+
+  it("putCloudRuntimeNodeDesired sends tools and never echoes secret values", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          instance_id: "i-0123456789abcdef0",
+          tools: ["claude"],
+          secret_keys: ["ANTHROPIC_API_KEY"],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("https://api.example.test");
+    const out = await client.putCloudRuntimeNodeDesired({
+      instance_id: "i-0123456789abcdef0",
+      tools: ["claude"],
+      secrets: { ANTHROPIC_API_KEY: "sk-test" },
+    });
+    expect(out.secret_keys).toEqual(["ANTHROPIC_API_KEY"]);
+    expect(JSON.stringify(out)).not.toContain("sk-test");
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      "https://api.example.test/api/cloud-runtime/nodes/desired",
+    );
+  });
+
+  it("falls back when Cloud Runtime desired responses drift", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ instance_id: 12 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("https://api.example.test");
+    await expect(client.getCloudRuntimeNodeDesired("i-1")).resolves.toMatchObject({
+      instance_id: "",
+      tools: [],
+      secret_keys: [],
+    });
+  });
+
   describe("getAttachment", () => {
     it("returns the parsed attachment for a well-formed response", async () => {
       vi.stubGlobal(

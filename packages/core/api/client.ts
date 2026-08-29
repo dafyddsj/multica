@@ -252,6 +252,8 @@ import type {
   FeedbackKind,
 } from "../feedback/types";
 import type {
+  CloudRuntimeDesired,
+  CloudRuntimeDesiredWrite,
   CloudRuntimeNode,
   CreateCloudRuntimeNodeRequest,
   ListCloudRuntimeNodesParams,
@@ -278,8 +280,10 @@ import {
   CommentsListSchema,
   CommentTriggerPreviewSchema,
   IssueTriggerPreviewSchema,
+  CloudRuntimeDesiredSchema,
   CloudRuntimeNodeListSchema,
   CloudRuntimeNodeSchema,
+  EMPTY_CLOUD_RUNTIME_DESIRED,
   AgentBuilderRuntimeSwitchSchema,
   AgentBuilderSessionSchema,
   AgentBuilderSessionListSchema,
@@ -1766,6 +1770,53 @@ export class ApiClient {
       body: JSON.stringify({ instance_id: instanceId }),
       extraHeaders: { "Content-Type": "application/json" },
     });
+  }
+
+  async commandCloudRuntimeNode(
+    instanceId: string,
+    command: "start" | "stop" | "reboot",
+  ): Promise<CloudRuntimeNode> {
+    const res = await this.fetchRaw(`/api/cloud-runtime/nodes/${command}`, {
+      method: "POST",
+      body: JSON.stringify({ instance_id: instanceId }),
+      extraHeaders: { "Content-Type": "application/json" },
+    });
+    const raw = await res.json() as unknown;
+    return parseWithFallback(
+      raw,
+      CloudRuntimeNodeSchema,
+      EMPTY_CLOUD_RUNTIME_NODE,
+      { endpoint: `POST /api/cloud-runtime/nodes/${command}` },
+    );
+  }
+
+  async getCloudRuntimeNodeDesired(instanceId: string): Promise<CloudRuntimeDesired> {
+    const raw = await this.fetch<unknown>(
+      `/api/cloud-runtime/nodes/desired?instance_id=${encodeURIComponent(instanceId)}`,
+    );
+    return parseWithFallback(
+      raw,
+      CloudRuntimeDesiredSchema,
+      EMPTY_CLOUD_RUNTIME_DESIRED,
+      { endpoint: "GET /api/cloud-runtime/nodes/desired" },
+    );
+  }
+
+  async putCloudRuntimeNodeDesired(
+    data: CloudRuntimeDesiredWrite,
+  ): Promise<CloudRuntimeDesired> {
+    const res = await this.fetchRaw("/api/cloud-runtime/nodes/desired", {
+      method: "PUT",
+      body: JSON.stringify(data),
+      extraHeaders: { "Content-Type": "application/json" },
+    });
+    const raw = await res.json() as unknown;
+    return parseWithFallback(
+      raw,
+      CloudRuntimeDesiredSchema,
+      EMPTY_CLOUD_RUNTIME_DESIRED,
+      { endpoint: "PUT /api/cloud-runtime/nodes/desired" },
+    );
   }
 
   // ---------------------------------------------------------------------

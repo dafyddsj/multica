@@ -226,7 +226,7 @@
     "title": "Cloud Runtime",
     "description": "Launch a managed cloud node and watch its Fleet status.",
     "create_title": "New node",
-    "create_hint": "Choose a name, instance type, and disk size. Fleet applies the rest.",
+    "create_hint": "Choose a size, the tools this node should run, and any API keys for those tools.",
     "nodes_title": "Fleet nodes",
     "refresh": "Refresh",
     "nodes_empty": "No cloud nodes",
@@ -242,6 +242,11 @@
     "delete_confirm": "Are you sure you want to delete this cloud node? This action cannot be undone.",
     "toast_deleted": "Cloud node deleted",
     "toast_delete_failed": "Failed to delete cloud node",
+    "start": "Start node",
+    "stop": "Stop node",
+    "toast_start_failed": "Failed to start cloud node",
+    "toast_stop_failed": "Failed to stop cloud node",
+    "secrets_hint": "Written once to this node. Values are never shown again.",
     "fields": {
       "name": "Name",
       "instance_type": "Instance type",
@@ -250,11 +255,14 @@
       "image_id": "AMI ID",
       "subnet_id": "Subnet ID",
       "key_name": "Key pair",
-      "bootstrap_pat": "Bootstrap PAT"
+      "bootstrap_pat": "Bootstrap PAT",
+      "tools": "Tools on this node",
+      "secrets": "Tool API keys"
     },
     "placeholders": {
       "name": "cloud-dev-01",
-      "key_name": "dev-key"
+      "key_name": "dev-key",
+      "secrets": "ANTHROPIC_API_KEY=..."
     },
     "validation": {
       "instance_type_required": "Instance type is required",
