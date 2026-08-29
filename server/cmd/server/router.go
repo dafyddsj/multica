@@ -2243,12 +2243,13 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				})
 			})
 
-			// Cloud Runtime fleet proxy. The remote service URL is configured
-			// on SaaS API nodes only; self-hosted deployments return 503.
+			// Cloud Runtime fleet proxy. Empty MULTICA_CLOUD_URL returns 503.
 			r.Route("/api/cloud-runtime", func(r chi.Router) {
 				r.Get("/", h.GetCloudRuntimeService)
 				r.Get("/healthz", h.GetCloudRuntimeHealth)
 				r.Get("/readyz", h.GetCloudRuntimeReady)
+				r.Get("/nodes/desired", h.GetCloudRuntimeNodeDesired)
+				r.Put("/nodes/desired", h.PutCloudRuntimeNodeDesired)
 				r.Get("/nodes", h.ListCloudRuntimeNodes)
 				r.Post("/nodes", h.CreateCloudRuntimeNode)
 				r.Delete("/nodes", h.DeleteCloudRuntimeNode)

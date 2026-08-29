@@ -95,7 +95,7 @@ import type {
   WebhookDelivery,
   WorkspaceMcpServer,
 } from "../types";
-import type { CloudRuntimeNode } from "../runtimes/cloud-runtime";
+import type { CloudRuntimeDesired, CloudRuntimeNode } from "../runtimes/cloud-runtime";
 import type { CreateFeedbackResponse } from "../feedback/types";
 
 export const PluginConfigFieldSchema = z.object({
@@ -1683,6 +1683,18 @@ export const EMPTY_CLOUD_RUNTIME_NODE: CloudRuntimeNode = {
   metadata: {},
   created_at: "",
   updated_at: "",
+};
+
+export const CloudRuntimeDesiredSchema = z.object({
+  instance_id: z.string(),
+  tools: z.array(z.string()).default([]),
+  secret_keys: z.array(z.string()).default([]),
+}).loose();
+
+export const EMPTY_CLOUD_RUNTIME_DESIRED: CloudRuntimeDesired = {
+  instance_id: "",
+  tools: [],
+  secret_keys: [],
 };
 
 // ---------------------------------------------------------------------------

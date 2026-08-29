@@ -214,7 +214,7 @@
     "title": "클라우드 런타임",
     "description": "관리형 클라우드 노드를 시작하고 Fleet 상태를 확인합니다.",
     "create_title": "새 노드",
-    "create_hint": "이름, 인스턴스 유형, 디스크 크기를 선택하세요. 나머지는 Fleet이 적용합니다.",
+    "create_hint": "크기, 이 노드에서 실행할 도구, 해당 API 키를 지정하세요.",
     "nodes_title": "Fleet 노드",
     "refresh": "새로고침",
     "nodes_empty": "클라우드 노드 없음",
@@ -230,6 +230,11 @@
     "delete_confirm": "이 클라우드 노드를 삭제할까요? 이 작업은 되돌릴 수 없습니다.",
     "toast_deleted": "클라우드 노드를 삭제했습니다",
     "toast_delete_failed": "클라우드 노드를 삭제하지 못했습니다",
+    "start": "노드 시작",
+    "stop": "노드 중지",
+    "toast_start_failed": "클라우드 노드를 시작하지 못했습니다",
+    "toast_stop_failed": "클라우드 노드를 중지하지 못했습니다",
+    "secrets_hint": "이 노드에 한 번만 기록됩니다. 값은 다시 보여 주지 않습니다.",
     "fields": {
       "name": "이름",
       "instance_type": "인스턴스 유형",
@@ -238,11 +243,14 @@
       "image_id": "AMI ID",
       "subnet_id": "Subnet ID",
       "key_name": "키 페어",
-      "bootstrap_pat": "Bootstrap PAT"
+      "bootstrap_pat": "Bootstrap PAT",
+      "tools": "이 노드의 도구",
+      "secrets": "도구 API 키"
     },
     "placeholders": {
       "name": "cloud-dev-01",
-      "key_name": "dev-key"
+      "key_name": "dev-key",
+      "secrets": "ANTHROPIC_API_KEY=..."
     },
     "validation": {
       "instance_type_required": "인스턴스 유형은 필수입니다",
