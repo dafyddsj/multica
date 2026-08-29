@@ -7,12 +7,14 @@ import {
   resolveDocsUrl,
   resolveRemoteApiUrl,
 } from "./config/runtime-urls";
+import { applyClerkPublishableKeyAlias } from "./lib/clerk-env";
 import { createMDX } from "fumadocs-mdx/next";
 
 // Load root .env so local next.config.ts rewrites see REMOTE_API_URL / DOCS_URL.
 // Production requests use proxy.ts runtime rewrites, which read process.env
 // when the Next.js server runs instead of baking these URLs at build time.
 config({ path: resolve(__dirname, "../../.env") });
+applyClerkPublishableKeyAlias();
 
 // `next dev` falls back to the conventional localhost upstreams; builds use
 // the strict resolvers so prebuilt images keep unset upstreams unproxied.

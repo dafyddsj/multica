@@ -463,6 +463,9 @@ var launchPrefixBlockedArgs = map[string]map[string]blockedArgMode{
 	"traecli":     traecliBlockedArgs,
 	"dim":         dimBlockedArgs,
 	"zeroclaw":    zeroclawBlockedArgs,
+	"amp":         ampBlockedArgs,
+	"devin":       devinBlockedArgs,
+	"goose":       gooseBlockedArgs,
 }
 
 // FilterLaunchPrefix is the exported form for callers outside this package —
@@ -530,6 +533,9 @@ func filterLaunchPrefix(prefix []string, agentType string, logger *slog.Logger) 
 			!strings.HasPrefix(unshellQuoteArg(prefix[i+1]), "-") {
 			i++
 		}
+	}
+	if agentType == "amp" {
+		return filterAmpThreadSequences(filtered, logger)
 	}
 	return filtered
 }

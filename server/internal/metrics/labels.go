@@ -136,6 +136,8 @@ var (
 		"unknown": "unknown",
 	}
 	knownRuntimeProviders = map[string]string{
+		"amp":           "amp",
+		"devin":         "devin",
 		"antigravity":   "antigravity",
 		"claude":        "claude",
 		"codebuddy":     "codebuddy",
@@ -144,6 +146,7 @@ var (
 		"cursor":        "cursor",
 		"dsh":           "dsh",
 		"gemini":        "gemini",
+		"goose":         "goose",
 		"grok":          "grok",
 		"hermes":        "hermes",
 		"kiro":          "kiro",

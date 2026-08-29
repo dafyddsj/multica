@@ -8,7 +8,7 @@ import type {
   MemberWithUser,
 } from "@multica/core/types";
 import { providerSupportsMcpConfig } from "@multica/core/agents";
-import { useFeatureEnabled } from "@multica/core/config";
+import { useConfigStore, useFeatureEnabled } from "@multica/core/config";
 import { COMPOSIO_MCP_APPS_FLAG } from "@multica/core/feature-flags";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useAgentPermissions } from "@multica/core/permissions";
@@ -36,6 +36,7 @@ import { CustomArgsTab } from "./tabs/custom-args-tab";
 import { McpConfigTab } from "./tabs/mcp-config-tab";
 import { AgentMcpTab } from "./tabs/agent-mcp-tab";
 import { IntegrationsTab } from "./tabs/integrations-tab";
+import { EmailTab } from "./tabs/email-tab";
 import { RuntimeConfigTab } from "./tabs/runtime-config-tab";
 import { AgentDetailInspector } from "./agent-detail-inspector";
 import { AgentAccessSettings } from "./agent-access-settings";
@@ -45,16 +46,18 @@ import { ActorIssuesPanel } from "../../common/actor-issues-panel";
 import { useT } from "../../i18n";
 import { useNavigation } from "../../navigation";
 
-type DetailSection = "overview" | "work" | "capabilities" | "settings";
+type DetailSection = "overview" | "work" | "email" | "capabilities" | "settings";
 
 export type DetailTab =
   | "overview"
   | "work"
+  | "email"
   | "instructions"
   | "skills"
   | "mcp_config"
   | "composio_mcp"
   | "integrations"
+  | "agentmail"
   | "general"
   | "access"
   | "env"
@@ -95,6 +98,7 @@ const SETTINGS_TABS: SecondaryTab[] = [
 const TOP_TABS: { id: DetailSection; labelKey: DetailSection }[] = [
   { id: "overview", labelKey: "overview" },
   { id: "work", labelKey: "work" },
+  { id: "email", labelKey: "email" },
   { id: "capabilities", labelKey: "capabilities" },
   { id: "settings", labelKey: "settings" },
 ];
@@ -106,6 +110,8 @@ const SETTINGS_IDS = new Set<DetailTab>(SETTINGS_TABS.map((tab) => tab.id));
 const DETAIL_VIEWS = new Set<DetailTab>([
   "overview",
   "work",
+  "email",
+  "agentmail",
   ...CAPABILITY_TABS.map((tab) => tab.id),
   ...SETTINGS_TABS.map((tab) => tab.id),
 ]);
@@ -114,9 +120,16 @@ function isDetailTab(value: string | null): value is DetailTab {
   return value !== null && DETAIL_VIEWS.has(value as DetailTab);
 }
 
+function normalizeView(value: string | null): DetailTab | null {
+  if (value === "agentmail") return "email";
+  if (isDetailTab(value)) return value;
+  return null;
+}
+
 function sectionForView(view: DetailTab): DetailSection {
   if (view === "overview") return "overview";
   if (view === "work") return "work";
+  if (view === "email" || view === "agentmail") return "email";
   if (CAPABILITY_IDS.has(view)) return "capabilities";
   return "settings";
 }
@@ -163,8 +176,9 @@ export function AgentOverviewPane({
     COMPOSIO_MCP_APPS_FLAG,
     false,
   );
+  const agentmailAvailable = useConfigStore((s) => s.agentmailAvailable);
   const [activeView, setActiveView] = useState<DetailTab>(() =>
-    isDetailTab(urlView) ? urlView : "overview",
+    normalizeView(urlView) ?? "overview",
   );
   const [activeDirty, setActiveDirty] = useState(false);
   const [pendingView, setPendingView] = useState<DetailTab | null>(null);
@@ -215,6 +229,7 @@ export function AgentOverviewPane({
     });
   }, [
     agent.owner_id,
+    canEdit,
     composioMCPAppsEnabled,
     currentUserId,
     integrationsConfigured,
@@ -236,15 +251,22 @@ export function AgentOverviewPane({
     [canEdit, runtime?.provider],
   );
 
+  const visibleTopTabs = useMemo(
+    () =>
+      TOP_TABS.filter((tab) => tab.id !== "email" || (agentmailAvailable && canEdit)),
+    [agentmailAvailable, canEdit],
+  );
+
   const visibleViews = useMemo(
     () =>
       new Set<DetailTab>([
         "overview",
         "work",
+        ...(agentmailAvailable && canEdit ? (["email"] as const) : []),
         ...visibleCapabilityTabs.map((tab) => tab.id),
         ...visibleSettingsTabs.map((tab) => tab.id),
       ]),
-    [visibleCapabilityTabs, visibleSettingsTabs],
+    [agentmailAvailable, canEdit, visibleCapabilityTabs, visibleSettingsTabs],
   );
 
   const effectiveView = visibleViews.has(activeView) ? activeView : "overview";
@@ -255,7 +277,7 @@ export function AgentOverviewPane({
       setActiveView(next);
       const params = new URLSearchParams(navigation.searchParams);
       if (next === "overview") params.delete("view");
-      else params.set("view", next);
+      else params.set("view", next === "agentmail" ? "email" : next);
       const query = params.toString();
       navigation.replace(`${navigation.pathname}${query ? `?${query}` : ""}`);
     },
@@ -275,7 +297,7 @@ export function AgentOverviewPane({
   );
 
   const requestSection = (section: DetailSection) => {
-    if (section === "overview" || section === "work") {
+    if (section === "overview" || section === "work" || section === "email") {
       requestView(section);
       return;
     }
@@ -306,8 +328,9 @@ export function AgentOverviewPane({
       setActiveView("overview");
       return;
     }
-    if (isDetailTab(urlView) && visibleViews.has(urlView)) {
-      setActiveView(urlView);
+    const next = normalizeView(urlView);
+    if (next && visibleViews.has(next)) {
+      setActiveView(next);
     }
   }, [urlView, visibleViews]);
 
@@ -336,7 +359,7 @@ export function AgentOverviewPane({
         aria-label={t(($) => $.tabs.page_navigation_aria)}
       >
         <div className="mx-auto flex max-w-[1440px] items-center gap-6">
-          {TOP_TABS.map((tab) => (
+          {visibleTopTabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
@@ -381,6 +404,12 @@ export function AgentOverviewPane({
         {effectiveView === "work" && (
           <div className="flex min-h-[620px] flex-col">
             <ActorIssuesPanel actorType="agent" actorId={agent.id} />
+          </div>
+        )}
+
+        {effectiveView === "email" && (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <EmailTab agent={agent} />
           </div>
         )}
 

@@ -82,6 +82,32 @@ vi.mock("@/features/auth/auth-cookie", () => ({
   setLoggedInCookie: vi.fn(),
 }));
 
+vi.mock("@clerk/nextjs", () => ({
+  SignIn: (props: {
+    forceRedirectUrl?: string;
+    fallbackRedirectUrl?: string;
+    signUpForceRedirectUrl?: string;
+    signUpFallbackRedirectUrl?: string;
+  }) => (
+    <div
+      data-testid="clerk-sign-in"
+      data-force-redirect={props.forceRedirectUrl}
+      data-fallback-redirect={props.fallbackRedirectUrl}
+      data-signup-force-redirect={props.signUpForceRedirectUrl}
+      data-signup-fallback-redirect={props.signUpFallbackRedirectUrl}
+    >
+      Clerk Sign In
+    </div>
+  ),
+  useAuth: () => ({
+    isLoaded: true,
+    isSignedIn: false,
+    getToken: async () => null,
+  }),
+  useClerk: () => ({ signOut: async () => {} }),
+  ClerkProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock api
 vi.mock("@multica/core/api", () => ({
   api: {
@@ -94,6 +120,7 @@ vi.mock("@multica/core/api", () => ({
   },
 }));
 
+import { configStore } from "@multica/core/config";
 import LoginPage from "./page";
 
 describe("LoginPage", () => {
@@ -104,6 +131,27 @@ describe("LoginPage", () => {
     authStateRef.state.isLoading = false;
     mockListWorkspaces.mockResolvedValue([]);
     mockListMyInvitations.mockResolvedValue([]);
+    configStore.getState().setAuthConfig({
+      allowSignup: true,
+      googleClientId: "",
+      clerkPublishableKey: "",
+    });
+  });
+
+  it("renders Clerk sign-in when the API advertises a publishable key", () => {
+    configStore.getState().setAuthConfig({
+      allowSignup: true,
+      clerkPublishableKey: "pk_test_x",
+    });
+    render(<LoginPage />, { wrapper: createWrapper() });
+
+    const widget = screen.getByTestId("clerk-sign-in");
+    expect(widget).toHaveTextContent("Clerk Sign In");
+    expect(widget).toHaveAttribute("data-force-redirect", "/login");
+    expect(widget).toHaveAttribute("data-fallback-redirect", "/login");
+    expect(widget).toHaveAttribute("data-signup-force-redirect", "/login");
+    expect(widget).toHaveAttribute("data-signup-fallback-redirect", "/login");
+    expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
   });
 
   it("renders login form with email input and continue button", () => {
@@ -115,6 +163,7 @@ describe("LoginPage", () => {
     expect(
       screen.getByRole("button", { name: "Continue" })
     ).toBeInTheDocument();
+    expect(screen.queryByTestId("clerk-sign-in")).not.toBeInTheDocument();
   });
 
   it("does not call sendCode when email is empty", async () => {

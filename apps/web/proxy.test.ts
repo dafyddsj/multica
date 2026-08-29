@@ -1,7 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { MULTICA_LOCALE_HEADER } from "./lib/locale-routing";
-import { config, proxy } from "./proxy";
+import { syncProxy } from "./lib/sync-proxy";
+import { config } from "./proxy";
+
+const clerkEnvKeys = [
+  "CLERK_SECRET_KEY",
+  "CLERK_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+] as const;
+
+beforeEach(() => {
+  for (const key of clerkEnvKeys) {
+    delete process.env[key];
+  }
+});
 
 function makeRequest(
   path: string,
@@ -22,7 +35,7 @@ function redirectLocation(
   cookies: Record<string, string> = {},
   host?: string,
 ) {
-  return proxy(makeRequest(path, cookies, host)).headers.get("location");
+  return syncProxy(makeRequest(path, cookies, host)).headers.get("location");
 }
 
 function restoreEnv(key: string, value: string | undefined) {
@@ -35,9 +48,15 @@ function withoutRuntimeUpstreams(run: () => void) {
   const previousDocsUrl = process.env.DOCS_URL;
   const previousPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
   const previousPort = process.env.PORT;
+  const previousClerkSecret = process.env.CLERK_SECRET_KEY;
+  const previousClerkPublishable = process.env.CLERK_PUBLISHABLE_KEY;
+  const previousClerkNextPublishable = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   delete process.env.REMOTE_API_URL;
   delete process.env.DOCS_URL;
   delete process.env.NEXT_PUBLIC_API_URL;
+  delete process.env.CLERK_SECRET_KEY;
+  delete process.env.CLERK_PUBLISHABLE_KEY;
+  delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   process.env.PORT = "3000";
 
   try {
@@ -47,6 +66,9 @@ function withoutRuntimeUpstreams(run: () => void) {
     restoreEnv("DOCS_URL", previousDocsUrl);
     restoreEnv("NEXT_PUBLIC_API_URL", previousPublicApiUrl);
     restoreEnv("PORT", previousPort);
+    restoreEnv("CLERK_SECRET_KEY", previousClerkSecret);
+    restoreEnv("CLERK_PUBLISHABLE_KEY", previousClerkPublishable);
+    restoreEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", previousClerkNextPublishable);
   }
 }
 
@@ -140,7 +162,7 @@ describe("proxy runtime upstream rewrites", () => {
 
   it("does not rewrite API requests when no runtime API origin is configured", () => {
     withoutRuntimeUpstreams(() => {
-      const res = proxy(makeRequest("/api/config?x=1"));
+      const res = syncProxy(makeRequest("/api/config?x=1"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBeNull();
@@ -152,7 +174,7 @@ describe("proxy runtime upstream rewrites", () => {
 
   it("does not rewrite Plugin API requests when no runtime API origin is configured", () => {
     withoutRuntimeUpstreams(() => {
-      const res = proxy(makeRequest("/v1/context?x=1"));
+      const res = syncProxy(makeRequest("/v1/context?x=1"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBeNull();
@@ -161,7 +183,7 @@ describe("proxy runtime upstream rewrites", () => {
 
   it("does not rewrite docs requests when no runtime docs origin is configured", () => {
     withoutRuntimeUpstreams(() => {
-      const res = proxy(makeRequest("/docs/zh"));
+      const res = syncProxy(makeRequest("/docs/zh"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBeNull();
@@ -175,7 +197,7 @@ describe("proxy runtime upstream rewrites", () => {
     const previous = process.env.REMOTE_API_URL;
     process.env.REMOTE_API_URL = "http://backend:8080";
     try {
-      const res = proxy(makeRequest("/api/config?x=1"));
+      const res = syncProxy(makeRequest("/api/config?x=1"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBe(
@@ -190,7 +212,7 @@ describe("proxy runtime upstream rewrites", () => {
     const previous = process.env.REMOTE_API_URL;
     process.env.REMOTE_API_URL = "http://backend:8080";
     try {
-      const res = proxy(makeRequest("/health"));
+      const res = syncProxy(makeRequest("/health"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBe(
@@ -205,7 +227,7 @@ describe("proxy runtime upstream rewrites", () => {
     const previous = process.env.REMOTE_API_URL;
     process.env.REMOTE_API_URL = "http://backend:8080";
     try {
-      const res = proxy(makeRequest("/v1/issues/MUL-6581?x=1"));
+      const res = syncProxy(makeRequest("/v1/issues/MUL-6581?x=1"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBe(
@@ -220,7 +242,7 @@ describe("proxy runtime upstream rewrites", () => {
     const previous = process.env.DOCS_URL;
     process.env.DOCS_URL = "http://docs:4000";
     try {
-      const res = proxy(makeRequest("/docs/zh/agents"));
+      const res = syncProxy(makeRequest("/docs/zh/agents"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBe(
@@ -235,7 +257,7 @@ describe("proxy runtime upstream rewrites", () => {
     const previous = process.env.REMOTE_API_URL;
     process.env.REMOTE_API_URL = "http://backend:8080";
     try {
-      const res = proxy(makeRequest("/ws"));
+      const res = syncProxy(makeRequest("/ws"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBe(
@@ -250,7 +272,7 @@ describe("proxy runtime upstream rewrites", () => {
     const previous = process.env.REMOTE_API_URL;
     process.env.REMOTE_API_URL = "http://backend:8080";
     try {
-      const res = proxy(makeRequest("/auth/callback"));
+      const res = syncProxy(makeRequest("/auth/callback"));
 
       expect(res.status).toBe(200);
       expect(res.headers.get("x-middleware-rewrite")).toBeNull();
@@ -265,7 +287,7 @@ describe("proxy runtime upstream rewrites", () => {
 
 describe("proxy root and locale handling", () => {
   it("redirects logged-in root visits to the last workspace", () => {
-    const res = proxy(
+    const res = syncProxy(
       makeRequest("/", {
         multica_logged_in: "1",
         last_workspace_slug: "acme",
@@ -279,12 +301,20 @@ describe("proxy root and locale handling", () => {
   });
 
   it("forwards locale on login requests", () => {
-    const res = proxy(makeRequest("/login", { "multica-locale": "zh-Hans" }));
+    const res = syncProxy(makeRequest("/login", { "multica-locale": "zh-Hans" }));
 
     expect(res.status).toBe(200);
     expect(res.headers.get("location")).toBeNull();
     expect(
       res.headers.get(`x-middleware-request-${MULTICA_LOCALE_HEADER}`),
     ).toBe("zh-Hans");
+  });
+
+  it("leaves /login unwrapped when Clerk env is absent", () => {
+    const res = syncProxy(makeRequest("/login"));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.headers.get("x-middleware-rewrite")).toBeNull();
   });
 });

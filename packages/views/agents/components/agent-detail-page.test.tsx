@@ -64,6 +64,7 @@ vi.mock("@multica/core/hooks", () => ({
   useWorkspaceId: () => "ws-1",
 }));
 vi.mock("@multica/core/agents", () => ({
+  agentIsPaused: (agent: { paused_at?: string | null }) => !!agent.paused_at,
   isAgentRuntimeBound: (agent: { runtime_id: string; runtime_bound?: boolean }) =>
     agent.runtime_bound !== false && agent.runtime_id.length > 0,
   useWorkspacePresenceMap: () => ({ byAgent: new Map() }),

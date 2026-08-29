@@ -345,6 +345,57 @@ function DimLogo({ className }: { className: string }) {
   return <img src={staticAssetSrc(dimLogo)} alt="" aria-hidden className={className} />;
 }
 
+function DevinLogo({ className }: { className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <rect x="4" y="4" width="16" height="16" rx="3" />
+      <path d="M8 8h5a3 3 0 0 1 0 6H8z" />
+    </svg>
+  );
+}
+
+function AmpLogo({ className }: { className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M12 3l8 18H4L12 3z" />
+      <path d="M9 15h6" />
+    </svg>
+  );
+}
+
+function GooseLogo({ className }: { className: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M5 16c2-6 8-8 12-4 1 1 2 3 2 5" />
+      <path d="M17 12c2-1 4-1 5 1" />
+    </svg>
+  );
+}
+
 // ZeroClaw — no official brand asset has been sourced for this runtime yet
 // (multica-ai/multica#1543), so this is a deliberately simple placeholder
 // mark (three claw-scratch strokes) rather than a claimed "official" logo.
@@ -424,6 +475,12 @@ export function ProviderLogo({
       return <DimLogo className={className} />;
     case "zeroclaw":
       return <ZeroClawLogo className={className} />;
+    case "amp":
+      return <AmpLogo className={className} />;
+    case "devin":
+      return <DevinLogo className={className} />;
+    case "goose":
+      return <GooseLogo className={className} />;
     default:
       return <Monitor className={className} />;
   }

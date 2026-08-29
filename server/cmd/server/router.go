@@ -20,12 +20,14 @@ import (
 
 	"github.com/multica-ai/multica/server/internal/analytics"
 	"github.com/multica-ai/multica/server/internal/auth"
+	"github.com/multica-ai/multica/server/internal/clerk"
 	"github.com/multica-ai/multica/server/internal/cloudruntime"
 	"github.com/multica-ai/multica/server/internal/daemonws"
 	"github.com/multica-ai/multica/server/internal/entitlement"
 	"github.com/multica-ai/multica/server/internal/events"
 	"github.com/multica-ai/multica/server/internal/featureflags"
 	"github.com/multica-ai/multica/server/internal/handler"
+	agentmailinteg "github.com/multica-ai/multica/server/internal/integrations/agentmail"
 	"github.com/multica-ai/multica/server/internal/integrations/channel"
 	"github.com/multica-ai/multica/server/internal/integrations/channel/engine"
 	composiointeg "github.com/multica-ai/multica/server/internal/integrations/composio"
@@ -1127,6 +1129,34 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		slog.Info("vcs integration disabled (MULTICA_VCS_SECRET_KEY not set)")
 	}
 
+	// AgentMail: always construct so workspace delete can sweep product rows
+	// and write the purge ledger. Connect/grant/claim stay closed until the
+	// dedicated box is set. Hosted org key stays in process env only.
+	hostedOrgKey := os.Getenv("MULTICA_AGENTMAIL_ORG_KEY")
+	if hostedOrgKey == "" {
+		hostedOrgKey = os.Getenv("AGENTMAIL_ORG_API_KEY")
+	}
+	agentMailCfg := agentmailinteg.Config{
+		HostedOrgKey: hostedOrgKey,
+		APIBaseURL:   strings.TrimSpace(os.Getenv("MULTICA_AGENTMAIL_API_BASE")),
+	}
+	if key, err := secretbox.LoadKey("MULTICA_AGENTMAIL_SECRET_KEY"); err == nil {
+		box, err := secretbox.New(key)
+		if err != nil {
+			slog.Error("agentmail: secretbox.New failed; connect/grant disabled", "error", err)
+		} else {
+			agentMailCfg.Box = box
+			slog.Info("agentmail secret encryption enabled")
+		}
+	} else {
+		slog.Info("agentmail connect disabled (MULTICA_AGENTMAIL_SECRET_KEY not set)")
+	}
+	if svc, err := agentmailinteg.New(agentMailCfg, queries); err != nil {
+		slog.Error("agentmail: service init failed", "error", err)
+	} else {
+		h.AgentMail = svc
+	}
+
 	// Plugin secrets use a dedicated deployment key. Keeping this separate from
 	// VCS and channel secrets gives operators an isolated rotation and blast
 	// radius; without it, saving a `secret` config field fails closed rather
@@ -1199,6 +1229,16 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		FleetBaseURL: signupConfig.CloudURL,
 		Redis:        rdb,
 	})
+
+	// Clerk overlay: nil when CLERK_SECRET_KEY / CLERK_PUBLISHABLE_KEY are
+	// not both set, so self-host and merge-from-upstream keep native auth.
+	clerkClient := clerk.FromEnv()
+	if clerkClient == nil {
+		slog.Info("clerk auth overlay disabled: CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY are not both set")
+	} else {
+		slog.Info("clerk auth overlay enabled")
+	}
+	h.Clerk = clerkClient
 
 	// Empty-claim cache: lets the daemon poll path skip a Postgres
 	// scan when a recent check confirmed the runtime had no queued
@@ -1275,7 +1315,17 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		return util.UUIDToString(ws.ID), nil
 	})
 	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-		realtime.HandleWebSocket(hub, mc, pr, slugResolver, w, r)
+		var resolveSession realtime.SessionResolver
+		if clerkClient != nil {
+			resolveSession = func(ctx context.Context, token string) (string, error) {
+				identity, err := clerkClient.Resolve(ctx, token, queries)
+				if err != nil {
+					return "", err
+				}
+				return identity.UserID, nil
+			}
+		}
+		realtime.HandleWebSocket(hub, mc, pr, slugResolver, resolveSession, w, r)
 	})
 
 	// Local file serving (when using local storage). Served through the
@@ -1322,9 +1372,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	authRL := middleware.RateLimit(rdb, envPositiveInt("RATE_LIMIT_AUTH", 5), time.Minute, trustedProxies)
 	authVerifyRL := middleware.RateLimit(rdb, envPositiveInt("RATE_LIMIT_AUTH_VERIFY", 20), time.Minute, trustedProxies)
 	contactSalesRL := middleware.RateLimit(rdb, envPositiveInt("RATE_LIMIT_CONTACT_SALES", 5), time.Hour, trustedProxies)
-	r.With(authRL).Post("/auth/send-code", h.SendCode)
-	r.With(authVerifyRL).Post("/auth/verify-code", h.VerifyCode)
-	r.With(authRL).Post("/auth/google", h.GoogleLogin)
+	hideNativeAuth := middleware.HideNativeAuth(clerkClient != nil)
+	r.With(authRL, hideNativeAuth).Post("/auth/send-code", h.SendCode)
+	r.With(authVerifyRL, hideNativeAuth).Post("/auth/verify-code", h.VerifyCode)
+	r.With(authRL, hideNativeAuth).Post("/auth/google", h.GoogleLogin)
 	r.Post("/auth/logout", h.Logout)
 
 	// Public API
@@ -1443,7 +1494,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	// signed-in user's session and the installation header. Keeping it outside
 	// /v1 prevents the Public API from accepting session cookies.
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.Auth(queries, patCache, cloudPATVerifier))
+		r.Use(middleware.Authenticate(queries, patCache, cloudPATVerifier, clerkClient))
 		r.Route(pluginBridgePrefix, func(r chi.Router) {
 			registerPluginActionRoutes(r, h)
 			// ui / manual only. `event` is dispatched by the host off the event
@@ -1453,7 +1504,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.Auth(queries, patCache, cloudPATVerifier))
+		r.Use(middleware.Authenticate(queries, patCache, cloudPATVerifier, clerkClient))
 		r.Use(middleware.RefreshCloudFrontCookies(cfSigner))
 
 		// Plugin Action API. Called by the HOST PAGE on the signed-in user's
@@ -1523,6 +1574,9 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					// for the same reason as GitHub installations; connect /
 					// disconnect are admin-gated in the group below.
 					r.Get("/vcs/connections", h.ListVCSConnections)
+					r.Get("/agentmail", h.GetAgentMail)
+					r.Get("/agentmail/domains", h.ListAgentMailDomains)
+					r.Get("/agentmail/account-inboxes", h.ListAgentMailAccountInboxes)
 					// Custom runtime profiles — listing/reading is member-visible
 					// (the Runtime page renders for everyone; create/edit/delete
 					// are admin-gated below).
@@ -1610,6 +1664,8 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					r.Post("/vcs/connections", h.ConnectVCS)
 					r.Post("/vcs/connections/{connectionId}/rotate-webhook", h.RotateVCSConnectionWebhook)
 					r.Delete("/vcs/connections/{connectionId}", h.DeleteVCSConnection)
+					r.With(handler.RequireHumanActor).Post("/agentmail", h.ConnectAgentMail)
+					r.With(handler.RequireHumanActor).Delete("/agentmail", h.DisconnectAgentMail)
 				})
 
 				// Lark integration. Every endpoint here only requires
@@ -2100,6 +2156,13 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 					// internal/handler/agent_env.go.
 					r.Get("/env", h.GetAgentEnv)
 					r.Put("/env", h.UpdateAgentEnv)
+					r.Get("/agentmail", h.GetAgentMailInbox)
+					r.Get("/agentmail/mailbox", h.ListAgentMailMailbox)
+					r.Get("/agentmail/folders", h.ListAgentMailFolders)
+					r.Get("/agentmail/threads", h.ListAgentMailThreads)
+					r.Get("/agentmail/threads/{threadId}", h.GetAgentMailThread)
+					r.With(handler.RequireHumanActor).Put("/agentmail", h.GrantAgentMailInbox)
+					r.With(handler.RequireHumanActor).Delete("/agentmail", h.RevokeAgentMailInbox)
 				})
 			})
 

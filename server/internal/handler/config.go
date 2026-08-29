@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/multica-ai/multica/server/internal/analytics"
+	"github.com/multica-ai/multica/server/internal/clerk"
 	"github.com/multica-ai/multica/server/internal/featureflags"
 )
 
@@ -25,6 +26,10 @@ type AppConfig struct {
 	// toggle signup or wire Google OAuth.
 	AllowSignup    bool   `json:"allow_signup"`
 	GoogleClientID string `json:"google_client_id,omitempty"`
+	// ClerkPublishableKey is emitted only when both Clerk env keys are set,
+	// so the web app can switch to hosted sign-in without a rebuild. Omitted
+	// when Clerk is off to keep the self-host / merge-from-upstream shape.
+	ClerkPublishableKey string `json:"clerk_publishable_key,omitempty"`
 	// WorkspaceCreationDisabled mirrors the server-side
 	// DISABLE_WORKSPACE_CREATION env var so the UI can hide every
 	// "Create workspace" affordance on self-hosted instances. Omitted
@@ -45,6 +50,14 @@ type AppConfig struct {
 	// false so the managed-cloud response keeps its previous shape; the UI
 	// defaults absent to false (hidden).
 	VCSIntegrationAvailable bool `json:"vcs_integration_available,omitempty"`
+
+	// AgentMailAvailable is true when this process can seal AgentMail keys
+	// (MULTICA_AGENTMAIL_SECRET_KEY). Omitted when false so older clients and
+	// unconfigured deployments keep the Settings Email tab hidden.
+	AgentMailAvailable bool `json:"agentmail_available,omitempty"`
+	// AgentMailHostedAvailable is true when a process-env org key is set, so
+	// the UI can offer hosted connect without asking for a BYO key.
+	AgentMailHostedAvailable bool `json:"agentmail_hosted_available,omitempty"`
 
 	// PostHog public config for the frontend. The key is the same Project
 	// API Key the backend uses; returning it here (instead of baking it
@@ -101,6 +114,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 		AgentConversationStartersSupported: true,
 		AllowSignup:                        os.Getenv("ALLOW_SIGNUP") != "false",
 		GoogleClientID:                     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClerkPublishableKey:                clerk.PublishableKeyFromEnv(),
 		WorkspaceCreationDisabled:          os.Getenv("DISABLE_WORKSPACE_CREATION") == "true",
 	}
 	if h.Storage != nil {
@@ -109,6 +123,10 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	config.CdnSigned = h.CFSigner != nil
 	config.DaemonServerURL, config.DaemonAppURL = daemonSetupURLsFromEnv()
 	config.VCSIntegrationAvailable = h.cfg.VCSIntegrationEnabled
+	if h.AgentMail != nil {
+		config.AgentMailAvailable = h.AgentMail.Available()
+		config.AgentMailHostedAvailable = h.AgentMail.HostedAvailable()
+	}
 	config.FeatureFlags = featureflags.EvaluateFrontendPublicFlags(r.Context(), h.FeatureFlags)
 	// Only surface the build version on self-hosted deployments. The managed
 	// cloud is continuously deployed and its users can't choose the build, so

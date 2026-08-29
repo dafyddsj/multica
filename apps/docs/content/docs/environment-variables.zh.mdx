@@ -181,6 +181,9 @@ MULTICA_PUBLIC_URL=https://api.multica.example.com
 | Composio | `COMPOSIO_STATE_SECRET` | OAuth state 签名密钥；可从 `JWT_SECRET` 派生 |
 | 自托管 Git | `MULTICA_VCS_INTEGRATION_ENABLED` | Forgejo/Gitea/GitLab 集成开关，compose 默认开启 |
 | 自托管 Git | `MULTICA_VCS_SECRET_KEY` | base64 编码的 32 字节加密密钥（`openssl rand -base64 32`）；未配置时该功能整体不可用 |
+| AgentMail | `MULTICA_AGENTMAIL_SECRET_KEY` | base64 编码的 32 字节加密密钥；未配置时邮箱页不出现 |
+| AgentMail | `MULTICA_AGENTMAIL_ORG_KEY` | 托管组织密钥，只存在于进程环境；`AGENTMAIL_ORG_API_KEY` 是别名 |
+| AgentMail | `MULTICA_AGENTMAIL_API_BASE` | 可选 REST 根地址，需包含 `/v0`（默认 `https://api.agentmail.to/v0`） |
 | 插件 | `MULTICA_PLUGIN_SECRET_KEY` | base64 编码的 32 字节密钥，用于加密已存 secret 和 surface 启动 URL |
 | 插件 | `MULTICA_PLUGIN_SURFACE_ORIGIN` | 路由到后端的独立无 Cookie 浏览器 origin；必须不同于 app/API origin，并保留 `Host` |
 | 插件 | `MULTICA_PLUGIN_API_URL` | 带版本的插件 Public API 完整 Base URL，例如 `https://plugin-api.example.com/v1`；未设置时使用 `MULTICA_PUBLIC_URL` + `/v1` |
@@ -188,7 +191,7 @@ MULTICA_PUBLIC_URL=https://api.multica.example.com
 
 不配置 `GITHUB_APP_ID` 和私钥时，PR 仍会正常关联、镜像和触发合并转 done，但卡片上不显示 CI 与可合并状态，"从 GitHub 选择"仓库入口也会禁用。
 
-配置步骤见 [GitHub 集成](/github-integration#自托管配置)、[飞书 Bot](/lark-bot-integration#自托管配置)、[Slack Bot](/slack-bot-integration#自托管配置)和 [Telegram Bot](/telegram-bot-integration#自托管配置)。
+配置步骤见 [GitHub 集成](/github-integration#自托管配置)、[飞书 Bot](/lark-bot-integration#自托管配置)、[Slack Bot](/slack-bot-integration#自托管配置)、[Telegram Bot](/telegram-bot-integration#自托管配置)和 [AgentMail](/agentmail-integration)。
 
 ## 服务端 LLM
 
@@ -240,7 +243,7 @@ API key 与 base URL 都为空时，这一层关闭，不会发出任何上游�
 | `MULTICA_AGENT_TEMP_BASE` | `/tmp`（Linux/macOS） | 仅适用于 Linux/macOS。私有 task 临时目录的父目录；必须是现有、可写的绝对路径，无效值会使 task 启动失败，不会回退到 `/tmp`。请选择较短的路径——子工具可能会在其中绑定 AF_UNIX socket；Linux 的 `sun_path` 上限为 108 字节，macOS 为 104 字节 |
 | `MULTICA_KEEP_ENV_AFTER_TASK` | `false` | 保留执行任务目录用于调试 |
 
-各 AI 编程工具可以使用 `MULTICA_<PROVIDER>_PATH` 覆盖命令路径；支持模型覆盖的工具还可以使用 `MULTICA_<PROVIDER>_MODEL`。QwenPaw 和 MiniMax Code 没有模型变量，因为 Multica 不会向它们传模型；MiniMax Code 的路径变量是 `MULTICA_MCODE_PATH`。详见 [AI 编程工具对比](/providers#模型来源)。DeepSeek Harness 支持 `MULTICA_DSH_PATH` 和 `MULTICA_DSH_MODEL`（取值为 dsh 模型目录中的模型 id，例如 `deepseek-official/deepseek-chat`）。ZeroClaw 支持 `MULTICA_ZEROCLAW_PATH`，但没有模型变量；模型由 ZeroClaw 的智能体配置管理。全机默认参数 `MULTICA_<PROVIDER>_ARGS` 目前支持 Claude Code、Codex、CodeBuddy、Qwen Code 和 QwenPaw 五款工具。对应变量是 `MULTICA_CLAUDE_ARGS`、`MULTICA_CODEX_ARGS`、`MULTICA_CODEBUDDY_ARGS`、`MULTICA_QWEN_ARGS` 和 `MULTICA_QWENPAW_ARGS`。例如：
+各 AI 编程工具可以使用 `MULTICA_<PROVIDER>_PATH` 覆盖命令路径；支持模型覆盖的工具还可以使用 `MULTICA_<PROVIDER>_MODEL`。QwenPaw 和 MiniMax Code 没有模型变量，因为 Multica 不会向它们传模型；MiniMax Code 的路径变量是 `MULTICA_MCODE_PATH`。详见 [AI 编程工具对比](/providers#模型来源)。DeepSeek Harness 支持 `MULTICA_DSH_PATH` 和 `MULTICA_DSH_MODEL`（取值为 dsh 模型目录中的模型 id，例如 `deepseek-official/deepseek-chat`）。ZeroClaw 支持 `MULTICA_ZEROCLAW_PATH`，但没有模型变量；模型由 ZeroClaw 的智能体配置管理。Amp 支持 `MULTICA_AMP_PATH` 和透传 `AMP_API_KEY`。智能体上的模型字段会作为 `--mode` 传给 Amp；没有 `MULTICA_AMP_MODEL`。Devin 支持 `MULTICA_DEVIN_PATH`。没有 `MULTICA_DEVIN_MODEL`。选择框列出 `devin models list --format json` 的结果。Goose 支持 `MULTICA_GOOSE_PATH`。没有 `MULTICA_GOOSE_MODEL`。智能体上设置了模型时，会作为 `--model` 传入。全机默认参数 `MULTICA_<PROVIDER>_ARGS` 目前支持 Claude Code、Codex、CodeBuddy、Qwen Code、QwenPaw、Amp、Devin 和 Goose 八款工具。对应变量是 `MULTICA_CLAUDE_ARGS`、`MULTICA_CODEX_ARGS`、`MULTICA_CODEBUDDY_ARGS`、`MULTICA_QWEN_ARGS`、`MULTICA_QWENPAW_ARGS`、`MULTICA_AMP_ARGS`、`MULTICA_DEVIN_ARGS` 和 `MULTICA_GOOSE_ARGS`。例如：
 
 ```dotenv
 MULTICA_CLAUDE_PATH=/opt/bin/claude

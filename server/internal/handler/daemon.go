@@ -2162,6 +2162,21 @@ func (h *Handler) buildClaimedTaskResponse(r *http.Request, task *db.AgentTaskQu
 			mcpConfig = merged
 		}
 	}
+	// Inbox-scoped AgentMail MCP is claimed here, not stored on the task
+	// row. A broken overlay must not fail the claim.
+	if h.AgentMail != nil && h.AgentMail.Available() {
+		if overlay, err := h.AgentMail.ClaimOverlay(r.Context(), agent.WorkspaceID, agent.ID); err != nil {
+			slog.Warn("daemon claim: agentmail overlay failed; continuing without it",
+				"task_id", uuidToString(task.ID), "agent_id", uuidToString(agent.ID), "error", err)
+		} else if len(overlay) > 0 {
+			if merged, err := mergeMCPOverlay(mcpConfig, overlay); err != nil {
+				slog.Warn("daemon claim: merge agentmail overlay failed; continuing without it",
+					"task_id", uuidToString(task.ID), "agent_id", uuidToString(agent.ID), "error", err)
+			} else {
+				mcpConfig = merged
+			}
+		}
+	}
 	// runtime_config is stored as JSONB and may legitimately be the
 	// empty object `{}` for agents that haven't opted into any
 	// provider-specific tuning. Forward only non-empty payloads so the

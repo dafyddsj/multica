@@ -272,6 +272,22 @@ func ListModels(ctx context.Context, providerType string, runtimeCmd Command) (C
 		// ModelSelectionSupported. Return an empty list rather than spawning
 		// an ACP subprocess that can only ever come back empty.
 		return Catalog{Models: []Model{}}, nil
+	case "amp":
+		// Amp's product dial is --mode (low|medium|high|ultra or a plugin
+		// mode), not a model id. The catalog is static so the picker does not
+		// spawn amp. Plugin modes can still be typed; they pass through --mode
+		// unchanged.
+		return Catalog{Models: ampModeCatalog()}, nil
+	case "devin":
+		// Devin's `--model` flag is real. The catalog comes from
+		// `devin models list --format json` on the daemon host.
+		return cachedDiscovery(discoveryCacheKey(providerType, runtimeCmd), func() (Catalog, error) {
+			return discoverDevinModels(ctx, runtimeCmd)
+		})
+	case "goose":
+		// Goose has no account-independent headless model catalog. An
+		// empty list keeps the runtime default and manual model entry available.
+		return Catalog{Models: []Model{}}, nil
 	default:
 		return Catalog{}, fmt.Errorf("unknown agent type: %q", providerType)
 	}
@@ -387,7 +403,9 @@ func ModelSelectionSupported(providerType string) bool {
 		// its ACP dispatch table at all (0.8.4 answers -32601) and no handler
 		// reads a model param, so the model comes from the ZeroClaw agent
 		// profile (`agents.<alias>.model_provider`) and nothing Multica sends
-		// can change it.
+		// can change it. Amp is not in this list: its picker values are
+		// --mode tokens (low|medium|high|ultra), not model ids.
+		// Devin's `--model` flag is real, so it is not in this list.
 		return false
 	default:
 		return true

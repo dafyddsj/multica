@@ -494,6 +494,14 @@ func (h *Handler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if ws, err := h.Queries.GetWorkspace(r.Context(), inv.WorkspaceID); err == nil {
+		if err := h.addClerkOrgMember(r.Context(), ws, user, inv.Role); err != nil {
+			slog.Error("clerk org invite accept failed", append(logger.RequestAttrs(r), "error", err, "workspace_id", uuidToString(inv.WorkspaceID))...)
+			writeError(w, http.StatusBadGateway, "failed to join organization")
+			return
+		}
+	}
+
 	// Use a transaction: mark accepted + create member atomically.
 	tx, err := h.TxStarter.Begin(r.Context())
 	if err != nil {

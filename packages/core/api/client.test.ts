@@ -2156,6 +2156,15 @@ describe("ApiClient model discovery response schema", () => {
   });
 });
 
+describe("ApiClient AgentMail revoke empty body", () => {
+  it("treats an empty 200 as success so a 204-to-200 proxy does not throw", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new ApiClient("https://api.example.test");
+    await expect(client.revokeAgentMailInbox("agent-1")).resolves.toBeUndefined();
+  });
+});
+
 /**
  * Mixed-version contract for subtree unsubscribe (MUL-5483).
  *

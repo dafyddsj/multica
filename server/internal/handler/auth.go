@@ -462,6 +462,13 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user = h.syncClerkProfile(r.Context(), user)
+	if err := h.syncClerkOrgs(r.Context(), user); err != nil {
+		slog.Error("clerk org sync failed", append(logger.RequestAttrs(r), "error", err, "user_id", userID)...)
+		writeError(w, http.StatusBadGateway, "failed to sync organizations")
+		return
+	}
+
 	writeJSON(w, http.StatusOK, h.userToResponse(user))
 }
 
@@ -766,6 +773,10 @@ func (h *Handler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to update user")
 		return
+	}
+
+	if req.AvatarURL != nil {
+		h.pushClerkUserAvatar(r.Context(), updatedUser, params.AvatarUrl.String)
 	}
 
 	writeJSON(w, http.StatusOK, h.userToResponse(updatedUser))

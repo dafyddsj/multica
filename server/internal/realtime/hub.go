@@ -33,6 +33,10 @@ type PATResolver interface {
 	ResolveToken(ctx context.Context, token string) (userID string, ok bool)
 }
 
+// SessionResolver maps a non-machine bearer to a Multica user id.
+// The Clerk overlay supplies Client.Resolve here. Nil keeps native JWT/PAT only.
+type SessionResolver func(ctx context.Context, token string) (userID string, err error)
+
 // ScopeAuthorizer decides whether a connection (identified by userID +
 // workspaceID) is allowed to subscribe to a given scope. Implementations
 // typically perform a DB lookup on the underlying resource (task / chat
@@ -676,7 +680,7 @@ func (h *Hub) Snapshot() map[string]any {
 }
 
 // authenticateToken validates a JWT or PAT string and returns the user ID.
-func authenticateToken(tokenStr string, pr PATResolver, ctx context.Context) (string, string) {
+func authenticateToken(tokenStr string, pr PATResolver, ctx context.Context, resolveSession SessionResolver) (string, string) {
 	if strings.HasPrefix(tokenStr, "mul_") {
 		if pr == nil {
 			return "", `{"error":"invalid token"}`
@@ -698,7 +702,17 @@ func authenticateToken(tokenStr string, pr PATResolver, ctx context.Context) (st
 		return auth.JWTSecret(), nil
 	})
 	if err != nil || !token.Valid {
-		return "", `{"error":"invalid token"}`
+		if resolveSession == nil {
+			return "", `{"error":"invalid token"}`
+		}
+		uid, rerr := resolveSession(ctx, tokenStr)
+		if rerr != nil || strings.TrimSpace(uid) == "" {
+			return "", `{"error":"invalid token"}`
+		}
+		if auth.IsTemporarilyDisabledUserID(uid) {
+			return "", `{"error":"account disabled"}`
+		}
+		return uid, ""
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -772,7 +786,7 @@ func writeWSAuthErrorAndClose(conn *websocket.Conn, payload []byte, attrs ...any
 
 // HandleWebSocket upgrades an HTTP connection to WebSocket with cookie or
 // first-message auth.
-func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, resolveSlug SlugResolver, w http.ResponseWriter, r *http.Request) {
+func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, resolveSlug SlugResolver, resolveSession SessionResolver, w http.ResponseWriter, r *http.Request) {
 	workspaceID := r.URL.Query().Get("workspace_id")
 	if workspaceID == "" {
 		if slug := r.URL.Query().Get("workspace_slug"); slug != "" && resolveSlug != nil {
@@ -790,21 +804,23 @@ func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, resolveSlug
 	}
 
 	var userID string
-	if cookie, err := r.Cookie(auth.AuthCookieName); err == nil && cookie.Value != "" {
-		uid, errMsg := authenticateToken(cookie.Value, pr, r.Context())
-		if errMsg != "" {
-			status := http.StatusUnauthorized
-			if errMsg == `{"error":"account disabled"}` {
-				status = http.StatusForbidden
+	if resolveSession == nil {
+		if cookie, err := r.Cookie(auth.AuthCookieName); err == nil && cookie.Value != "" {
+			uid, errMsg := authenticateToken(cookie.Value, pr, r.Context(), nil)
+			if errMsg != "" {
+				status := http.StatusUnauthorized
+				if errMsg == `{"error":"account disabled"}` {
+					status = http.StatusForbidden
+				}
+				http.Error(w, errMsg, status)
+				return
 			}
-			http.Error(w, errMsg, status)
-			return
+			if !mc.IsMember(r.Context(), uid, workspaceID) {
+				http.Error(w, `{"error":"not a member of this workspace"}`, http.StatusForbidden)
+				return
+			}
+			userID = uid
 		}
-		if !mc.IsMember(r.Context(), uid, workspaceID) {
-			http.Error(w, `{"error":"not a member of this workspace"}`, http.StatusForbidden)
-			return
-		}
-		userID = uid
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -827,7 +843,7 @@ func HandleWebSocket(hub *Hub, mc MembershipChecker, pr PATResolver, resolveSlug
 			writeWSAuthErrorAndClose(conn, []byte(errMsg), "workspace_id", workspaceID)
 			return
 		}
-		uid, errMsg := authenticateToken(tokenStr, pr, r.Context())
+		uid, errMsg := authenticateToken(tokenStr, pr, r.Context(), resolveSession)
 		if errMsg != "" {
 			writeWSAuthErrorAndClose(conn, []byte(errMsg), "workspace_id", workspaceID)
 			return

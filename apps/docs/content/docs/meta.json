@@ -44,6 +44,7 @@
     "telegram-bot-integration",
     "github-integration",
     "vcs-integration",
+    "agentmail-integration",
     "---Apps---",
     "desktop-app",
     "mobile-app",

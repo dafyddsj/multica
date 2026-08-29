@@ -1,12 +1,15 @@
 agy
+amp
 claude
 codebuddy
 codex
 copilot
 cursor-agent
 deveco
+devin
 dim
 dsh
+goose
 grok
 hermes
 kimi

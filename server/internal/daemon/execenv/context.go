@@ -139,6 +139,7 @@ func writeWorkspacesRootMarkerAtomic(path string, data []byte) error {
 // QwenPaw:      skills → {workDir}/.qwenpaw/skills/{name}/SKILL.md  (native project-level discovery)
 // MiniMax Code: skills → {workDir}/.minimax/skills/{name}/SKILL.md  (native project-level discovery)
 // Antigravity: skills → {workDir}/.agents/skills/{name}/SKILL.md  (native discovery — see https://antigravity.google/docs/gcli-migration "Workspace skills")
+// Amp:         skills → {workDir}/.agents/skills/{name}/SKILL.md  (native discovery — Amp CLI lists .agents/skills/ as the workspace skill root)
 // Default:     skills → {workDir}/.agent_context/skills/{name}/SKILL.md
 //
 // manifest, when non-nil, is populated with every file we created and every
@@ -436,6 +437,22 @@ func skillsDirPath(workDir, provider string) string {
 		// .agents/skills/ in the workdir. The CLI inherits Gemini CLI's
 		// workspace skill layout; see https://antigravity.google/docs/gcli-migration
 		// under "Workspace skills".
+		return filepath.Join(workDir, ".agents", "skills")
+	case "amp":
+		// Amp CLI 0.0.1787871856 documents workspace skills at
+		// .agents/skills/ (plus ~/.config/agents/skills/ and the legacy
+		// ~/.agents/skills/). The fallback .agent_context/skills/ is not
+		// on that scan list, so Amp spent a minute hunting SKILL.md files
+		// that the brief said were "discovered automatically".
+		return filepath.Join(workDir, ".agents", "skills")
+	case "devin":
+		// Devin CLI 3000.6.2 `devin skills paths` lists project skills at
+		// .devin/skills/. .agents/skills/ is also scanned and is shared
+		// with Amp and Goose, so Multica-managed Devin skills stay here.
+		return filepath.Join(workDir, ".devin", "skills")
+	case "goose":
+		// Goose 1.48.0 `goose skills list` names the project path as
+		// .agents/skills/.
 		return filepath.Join(workDir, ".agents", "skills")
 	case "grok":
 		// Grok Build CLI discovers project-level skills from .grok/skills/

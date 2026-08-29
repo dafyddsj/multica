@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  AgentMailAccountInboxListResponseSchema,
+  AgentMailDomainListResponseSchema,
+  AgentMailMailboxResponseSchema,
+  AgentMailThreadListResponseSchema,
+  AgentMailWorkspaceResponseSchema,
   AppConfigSchema,
   ChildIssueProgressResponseSchema,
   WecomInstallationSchema,
@@ -1198,6 +1203,62 @@ describe("AppConfigSchema agent_conversation_starters_supported drift", () => {
   });
 });
 
+describe("AppConfigSchema agentmail availability drift", () => {
+  it("defaults missing flags to false", () => {
+    const parsed = AppConfigSchema.parse({ cdn_domain: "cdn.example.com" });
+    expect(parsed.agentmail_available).toBe(false);
+    expect(parsed.agentmail_hosted_available).toBe(false);
+  });
+
+  it("keeps explicit true", () => {
+    expect(
+      AppConfigSchema.parse({
+        agentmail_available: true,
+        agentmail_hosted_available: true,
+      }).agentmail_available,
+    ).toBe(true);
+  });
+});
+
+describe("AgentMailWorkspaceResponseSchema malformed", () => {
+  it("falls back inboxes to [] when missing", () => {
+    const parsed = AgentMailWorkspaceResponseSchema.parse({
+      available: true,
+      connected: true,
+    });
+    expect(parsed.inboxes).toEqual([]);
+    expect(parsed.can_manage).toBe(false);
+  });
+});
+
+describe("AgentMailThreadListResponseSchema malformed", () => {
+  it("falls back threads to [] when missing", () => {
+    const parsed = AgentMailThreadListResponseSchema.parse({});
+    expect(parsed.threads).toEqual([]);
+  });
+});
+
+describe("AgentMailMailboxResponseSchema malformed", () => {
+  it("falls back items to [] when missing", () => {
+    const parsed = AgentMailMailboxResponseSchema.parse({});
+    expect(parsed.items).toEqual([]);
+  });
+});
+
+describe("AgentMailDomainListResponseSchema malformed", () => {
+  it("falls back domains to [] when missing", () => {
+    const parsed = AgentMailDomainListResponseSchema.parse({});
+    expect(parsed.domains).toEqual([]);
+  });
+});
+
+describe("AgentMailAccountInboxListResponseSchema malformed", () => {
+  it("falls back inboxes to [] when missing", () => {
+    const parsed = AgentMailAccountInboxListResponseSchema.parse({});
+    expect(parsed.inboxes).toEqual([]);
+  });
+});
+
 describe("AppConfigSchema cdn_signed drift", () => {
   it("defaults cdn_signed to false when the server omits it (pre-MUL-3254 servers)", () => {
     const parsed = AppConfigSchema.parse({ cdn_domain: "cdn.example.com" });
@@ -1239,6 +1300,13 @@ describe("AppConfigSchema cdn_signed drift", () => {
   it("parses server_version and leaves it undefined when the server omits it", () => {
     expect(AppConfigSchema.parse({ server_version: "1.2.3" }).server_version).toBe("1.2.3");
     expect(AppConfigSchema.parse({}).server_version).toBeUndefined();
+  });
+
+  it("parses clerk_publishable_key and leaves it undefined when the server omits it", () => {
+    expect(AppConfigSchema.parse({ clerk_publishable_key: "pk_test_x" }).clerk_publishable_key).toBe(
+      "pk_test_x",
+    );
+    expect(AppConfigSchema.parse({}).clerk_publishable_key).toBeUndefined();
   });
 });
 

@@ -196,6 +196,47 @@ type AgentToLabel struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type AgentmailConnection struct {
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	Source          string             `json:"source"`
+	State           string             `json:"state"`
+	AuthorityKind   string             `json:"authority_kind"`
+	PodID           pgtype.Text        `json:"pod_id"`
+	OrgKeyEncrypted pgtype.Text        `json:"org_key_encrypted"`
+	PodClientID     string             `json:"pod_client_id"`
+	Domain          string             `json:"domain"`
+	ConnectedByID   pgtype.UUID        `json:"connected_by_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AgentmailInbox struct {
+	ID                pgtype.UUID        `json:"id"`
+	WorkspaceID       pgtype.UUID        `json:"workspace_id"`
+	AgentID           pgtype.UUID        `json:"agent_id"`
+	ClientID          string             `json:"client_id"`
+	State             string             `json:"state"`
+	RemoteInboxID     pgtype.Text        `json:"remote_inbox_id"`
+	Address           pgtype.Text        `json:"address"`
+	DisplayName       string             `json:"display_name"`
+	InboxKeyEncrypted pgtype.Text        `json:"inbox_key_encrypted"`
+	KeyAttemptID      pgtype.UUID        `json:"key_attempt_id"`
+	CreatedByID       pgtype.UUID        `json:"created_by_id"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AgentmailPurge struct {
+	ID              pgtype.UUID        `json:"id"`
+	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
+	Kind            string             `json:"kind"`
+	RemoteID        string             `json:"remote_id"`
+	Source          string             `json:"source"`
+	OrgKeyEncrypted pgtype.Text        `json:"org_key_encrypted"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
 type Attachment struct {
 	ID              pgtype.UUID        `json:"id"`
 	WorkspaceID     pgtype.UUID        `json:"workspace_id"`
@@ -1513,7 +1554,8 @@ type User struct {
 	Language                pgtype.Text        `json:"language"`
 	ProfileDescription      string             `json:"profile_description"`
 	// User-preferred IANA timezone for report rendering (Viewing tz). NULL means "use the browser-detected tz at render time". Affects dashboards, charts, and any "today" label shown to this user. Does not affect data materialisation — all rollups remain in UTC.
-	Timezone pgtype.Text `json:"timezone"`
+	Timezone    pgtype.Text `json:"timezone"`
+	ClerkUserID pgtype.Text `json:"clerk_user_id"`
 }
 
 type UserComposioConnection struct {
@@ -1634,7 +1676,8 @@ type Workspace struct {
 	IssueCounter int32              `json:"issue_counter"`
 	AvatarUrl    pgtype.Text        `json:"avatar_url"`
 	// When TRUE, an agent run that resolves to no precise accountable human (would be owner_fallback) is refused at enqueue instead of degrading to the agent owner (MUL-4302 §3.5). Default FALSE = owner_fallback. Never affects authorization (originator_user_id).
-	AttributionFailClosed bool `json:"attribution_fail_closed"`
+	AttributionFailClosed bool        `json:"attribution_fail_closed"`
+	ClerkOrgID            pgtype.Text `json:"clerk_org_id"`
 }
 
 type WorkspaceInvitation struct {

@@ -58,6 +58,8 @@ func TestGetConfigIncludesRuntimeAuthConfig(t *testing.T) {
 
 	t.Setenv("ALLOW_SIGNUP", "false")
 	t.Setenv("GOOGLE_CLIENT_ID", "google-client-id")
+	t.Setenv("CLERK_SECRET_KEY", "")
+	t.Setenv("CLERK_PUBLISHABLE_KEY", "")
 	t.Setenv("POSTHOG_API_KEY", "phc_test")
 	t.Setenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 	t.Setenv("MULTICA_DAEMON_SERVER_URL", "")
@@ -86,6 +88,9 @@ func TestGetConfigIncludesRuntimeAuthConfig(t *testing.T) {
 	if cfg.GoogleClientID != "google-client-id" {
 		t.Fatalf("google_client_id: want google-client-id, got %q", cfg.GoogleClientID)
 	}
+	if cfg.ClerkPublishableKey != "" {
+		t.Fatalf("clerk_publishable_key: want omitted when Clerk env is unset, got %q", cfg.ClerkPublishableKey)
+	}
 	if cfg.PosthogKey != "phc_test" {
 		t.Fatalf("posthog_key: want phc_test, got %q", cfg.PosthogKey)
 	}
@@ -103,6 +108,25 @@ func TestGetConfigIncludesRuntimeAuthConfig(t *testing.T) {
 	}
 	if cfg.DaemonAppURL != "https://app.example.com" {
 		t.Fatalf("daemon_app_url: want https://app.example.com, got %q", cfg.DaemonAppURL)
+	}
+}
+
+func TestGetConfigExposesClerkPublishableKeyOnlyWhenFullyConfigured(t *testing.T) {
+	t.Setenv("CLERK_SECRET_KEY", "")
+	t.Setenv("CLERK_PUBLISHABLE_KEY", "pk_test_only")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	var cfg AppConfig
+	testutil.Call(t, testHandler.GetConfig, req).Want(http.StatusOK).JSON(&cfg)
+	if cfg.ClerkPublishableKey != "" {
+		t.Fatalf("half-configured Clerk must not advertise a publishable key, got %q", cfg.ClerkPublishableKey)
+	}
+
+	t.Setenv("CLERK_SECRET_KEY", "sk_test_x")
+	t.Setenv("CLERK_PUBLISHABLE_KEY", "pk_test_x")
+	testutil.Call(t, testHandler.GetConfig, req).Want(http.StatusOK).JSON(&cfg)
+	if cfg.ClerkPublishableKey != "pk_test_x" {
+		t.Fatalf("clerk_publishable_key: want pk_test_x, got %q", cfg.ClerkPublishableKey)
 	}
 }
 
@@ -153,6 +177,44 @@ func TestGetConfigHonorsVCSIntegrationSwitch(t *testing.T) {
 	}
 	if string(raw) != "true" {
 		t.Fatalf("vcs_integration_available: want true, got %s", raw)
+	}
+}
+
+func TestGetConfigExposesAgentMailAvailability(t *testing.T) {
+	orig := testHandler.AgentMail
+	t.Cleanup(func() { testHandler.AgentMail = orig })
+
+	fetch := func() map[string]json.RawMessage {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+		w := httptest.NewRecorder()
+		testHandler.GetConfig(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("GetConfig: expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var cfg map[string]json.RawMessage
+		if err := json.Unmarshal(w.Body.Bytes(), &cfg); err != nil {
+			t.Fatalf("decode config: %v", err)
+		}
+		return cfg
+	}
+
+	testHandler.AgentMail = nil
+	raw := fetch()
+	if _, ok := raw["agentmail_available"]; ok {
+		t.Fatal("agentmail_available must be omitted when the service is unset")
+	}
+	if _, ok := raw["agentmail_hosted_available"]; ok {
+		t.Fatal("agentmail_hosted_available must be omitted when the service is unset")
+	}
+
+	withAgentMail(t)
+	raw = fetch()
+	if string(raw["agentmail_available"]) != "true" {
+		t.Fatalf("agentmail_available: want true, got %s", raw["agentmail_available"])
+	}
+	if string(raw["agentmail_hosted_available"]) != "true" {
+		t.Fatalf("agentmail_hosted_available: want true, got %s", raw["agentmail_hosted_available"])
 	}
 }
 

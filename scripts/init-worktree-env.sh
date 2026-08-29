@@ -40,6 +40,8 @@ MULTICA_APP_URL=${frontend_origin}
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=${frontend_origin}/auth/callback
+CLERK_SECRET_KEY=
+CLERK_PUBLISHABLE_KEY=
 
 FRONTEND_PORT=${frontend_port}
 FRONTEND_ORIGIN=${frontend_origin}

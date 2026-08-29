@@ -74,11 +74,13 @@ function renderInitializer({
   storage = makeStorage({ multica_token: "token-1" }),
   cookieAuth = false,
   platform = "desktop",
+  resolveAccessToken,
 }: {
   api: ApiClient;
   storage?: StorageAdapter;
   cookieAuth?: boolean;
   platform?: "desktop" | "web";
+  resolveAccessToken?: () => Promise<string | null>;
 }) {
   const onLogin = vi.fn();
   const onLogout = vi.fn();
@@ -98,6 +100,7 @@ function renderInitializer({
         onLogin={onLogin}
         onLogout={onLogout}
         storage={storage}
+        resolveAccessToken={resolveAccessToken}
       >
         <div>child</div>
       </AuthInitializer>
@@ -269,6 +272,25 @@ describe("AuthInitializer recovery", () => {
       await vi.advanceTimersByTimeAsync(60_000);
     });
     expect(getConfig).toHaveBeenCalledTimes(3);
+  });
+
+  it("applies resolveAccessToken before getMe in cookie mode", async () => {
+    const api = makeApi();
+    const resolveAccessToken = vi.fn().mockResolvedValue("clerk-jwt");
+    renderInitializer({
+      api,
+      cookieAuth: true,
+      platform: "web",
+      storage: makeStorage(),
+      resolveAccessToken,
+    });
+
+    await waitFor(() => {
+      expect(useAuthStore.getState().status).toBe("authenticated");
+    });
+    expect(resolveAccessToken).toHaveBeenCalled();
+    expect(api.setToken).toHaveBeenCalledWith("clerk-jwt");
+    expect(api.getMe).toHaveBeenCalled();
   });
 
   it("publishes a definitive logout for a genuine 401", async () => {

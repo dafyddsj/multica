@@ -235,6 +235,26 @@ backends may consume protocol selectors before launch:
   parameter. `zeroclaw acp` has no such CLI flag. Set one of these custom args
   when ZeroClaw has multiple agents and no `[acp].default_agent`; omit it for a
   sole-agent config so ZeroClaw can auto-select that agent.
+- Amp owns `--execute` / `-x`, `--stream-json*`, `--dangerously-allow-all`,
+  `--no-archive-after-execute`, `--unarchive`, `--mcp-config`, `--settings-file`,
+  `--mode` / `-m`, `--resume`, `--continue`, `threads continue <id>`, `--no-tui`,
+  `--executor`, `-p`, and `--output-format`. Those tokens are stripped from
+  `custom_args`. The first-class `model` field is sent as `--mode`. Put extra
+  Amp flags in `custom_args` or `MULTICA_AMP_ARGS`; do not put `--mode` there.
+- Devin owns `--print` / `-p`, `--prompt-file`, `--permission-mode`,
+  `--respect-workspace-trust`, `--model`, `-c` / `--continue`, `-r` / `--resume`,
+  `--sandbox`, and the `acp` / `cloud` / `ssh` / `desktop` subcommands. Those
+  tokens are stripped from `custom_args`. Resume requires a parsed local CLI
+  session id. Do not emit `-c` or a value-less `--resume`. Put extra Devin
+  flags in `custom_args` or `MULTICA_DEVIN_ARGS`.
+- Goose owns `-i` / `--instructions`, `-t` / `--text`, `--output-format`,
+  `--resume`, `-r`, `--session-id`, `--no-session`, `-s` / `--interactive`,
+  `--recipe`, `--acp`, `acp`, `serve`, and `--provider`. Those tokens are
+  stripped from `custom_args`. The prompt is written on stdin through
+  `-i -`. Resume is `--resume --session-id <id>` together. The first-class
+  `model` field is sent as `--model`. `runtime_config.goose_provider` is
+  `--provider`. Put extra Goose flags in `custom_args` or
+  `MULTICA_GOOSE_ARGS`.
 
 Never put credentials or other secrets in `custom_args`. Daemon command logs
 redact argument values, but values that a backend does not consume still live

@@ -19,7 +19,7 @@ class FakeWebSocket {
     FakeWebSocket.lastInstance = this;
   }
   close() {}
-  send() {}
+  send = vi.fn();
 }
 
 describe("WSClient", () => {
@@ -48,6 +48,24 @@ describe("WSClient", () => {
     // Token must never appear in the URL — it is delivered as the first
     // WS message in token mode.
     expect(url.searchParams.has("token")).toBe(false);
+  });
+
+  it("sends first-frame auth when a token is set even in cookieAuth mode", () => {
+    const ws = new WSClient("ws://example.test/ws", { cookieAuth: true });
+    ws.setAuth("clerk-jwt", "acme");
+    ws.connect();
+    FakeWebSocket.lastInstance!.onopen?.();
+    expect(FakeWebSocket.lastInstance!.send).toHaveBeenCalledWith(
+      JSON.stringify({ type: "auth", payload: { token: "clerk-jwt" } }),
+    );
+  });
+
+  it("skips first-frame auth in cookieAuth mode when no token is set", () => {
+    const ws = new WSClient("ws://example.test/ws", { cookieAuth: true });
+    ws.setAuth(null, "acme");
+    ws.connect();
+    FakeWebSocket.lastInstance!.onopen?.();
+    expect(FakeWebSocket.lastInstance!.send).not.toHaveBeenCalled();
   });
 
   it("omits client_* params when identity is not configured", () => {

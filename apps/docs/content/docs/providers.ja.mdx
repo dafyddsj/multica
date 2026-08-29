@@ -20,6 +20,7 @@ Multica は、普段使っている AI コーディングツールの代わり�
 
 | ツール | 検出コマンド | セッション再開 | Multica による MCP 管理 | スキルの注入先 |
 |---|---|---:|---:|---|
+| Amp | `amp` | ✓ | ✓ | `.agents/skills/` |
 | Antigravity | `agy` | ✓ | — | `.agents/skills/` |
 | Claude Code | `claude` | ✓ | ✓ | `.claude/skills/` |
 | CodeBuddy | `codebuddy` | ✓ | ✓ | `.codebuddy/skills/` |
@@ -27,7 +28,9 @@ Multica は、普段使っている AI コーディングツールの代わり�
 | GitHub Copilot CLI | `copilot` | ✓ | — | `.github/skills/` |
 | Cursor Agent | `cursor-agent` | ✓ | ✓ | `.cursor/skills/` |
 | DeepSeek Harness | `dsh` | ✓ | ✓ | `.dsh/skills/` |
+| Devin | `devin` | ✓ | — | `.devin/skills/` |
 | DevEco Code | `deveco` | ✓ | — | `.deveco/skills/` |
+| Goose | `goose` | ✓ | — | `.agents/skills/` |
 | Grok | `grok` | ✓ | ✓ | `.grok/skills/` |
 | Hermes | `hermes` | ✓ | ✓ | 1 回の実行専用の `HERMES_HOME/skills/` |
 | Kimi CLI | `kimi` | ✓ | ✓ | `.kimi/skills/` |
@@ -45,7 +48,7 @@ Multica は、普段使っている AI コーディングツールの代わり�
 | Trae CLI | `traecli` | ✓ | ✓ | `.traecli/skills/` |
 | Dim | `dim` | ✓ | ✓ | — |
 
-「Multica による MCP 管理」とは、エージェント設定に MCP server を入力し、Multica が実行前にその設定を対応ツールへ渡せることを意味します。そのツールにほかの MCP 設定方法がない、という意味ではありません。
+「Multica による MCP 管理」とは、エージェント設定に MCP server を入力し、Multica が実行前にその設定を対応ツールへ渡せることを意味します。そのツールにほかの MCP 設定方法がない、という意味ではありません。Amp の `--mcp-config` は既存設定とマージされます。Multica は `--settings-file` を `amp.mcpServers` が空の実行ごとのファイルへ向け、グローバルな Amp MCP を引き継がないようにします。Amp アカウントの server とワークスペースの `.amp/settings.json` は、なお読み込まれることがあります。
 
 ## モデルの取得元
 
@@ -55,7 +58,13 @@ Multica は、普段使っている AI コーディングツールの代わり�
 
 QwenPaw と MiniMax Code は例外です。Multica 側で選んだモデルを受け付けないため、選択欄は操作できず「ランタイムで管理」と表示されます。モデルは各ツール側の設定で選んでください。モデル一覧が空なのは正常であり、ランタイムがオフラインであることを示すものではありません。
 
+Amp の選択欄に並ぶのは Amp の mode（`low`、`medium`、`high`、`ultra`）です。mode がモデル、システムプロンプト、ツールをまとめて決めます。空欄なら Amp 既定の `medium` を使います。プラグイン mode は手入力できます。
+
 DeepSeek Harness のモデルカタログはランタイム自身が提供します（`dsh --profile multica --list-models`）。モデル ID は `provider/model` 形式（例: `deepseek-official/deepseek-chat`）なので、一覧から完全な ID を選択してください。
+
+Devin のモデル一覧はデーモンホスト上の CLI（`devin models list --format json`）から取得します。選択欄は使えます。ログインするまで一覧は空ですが、モデル ID を手入力できます。
+
+Goose のカタログが空なのは想定どおりです。Goose のモデル id を入力してください。空欄のままにすると `GOOSE_MODEL` を使います。Goose プロバイダー id（`openrouter`、`ollama` など）を入力するか、空欄のままにして `GOOSE_PROVIDER` を使います。
 
 <Callout type="info">
 ツールによってモデル名が異なることがあります。AI コーディングツールを変更すると、以前のモデル値は新しいツールで使えないため、選び直す必要があります。
@@ -65,13 +74,13 @@ DeepSeek Harness のモデルカタログはランタイム自身が提供しま
 
 表で ✓ が付いたツールは、後続の実行で既存のセッションを続行できます。ただし、元のセッションが残っており、そのセッションへアクセスできるランタイムでタスクが実行される必要があります。MiniMax Code 0.1.2 は ACP でセッション読み込み機能を通知しないため、後続の実行では新しい MCode セッションを開始します。
 
-Multica はツールから返されたセッション識別子を保存します。次に同じイシューで作業を続けるとき、ランタイムはそのセッションの再開を試みます。再開できない場合は、新しいセッションを作成して実行を続けます。Pi はローカルのセッションファイルパスを保存するため、元のコンピューターとファイルへの依存度が高くなります。
+Multica はツールから返されたセッション識別子を保存します。次に同じイシューで作業を続けるとき、ランタイムはそのセッションの再開を試みます。再開できない場合は、新しいセッションを作成して実行を続けます。Pi はローカルのセッションファイルパスを保存するため、元のコンピューターとファイルへの依存度が高くなります。Goose 1.48.0 の stream-json は session id を出しません。後続の Goose が解析可能な `session_id` をイベントに載せた時点で、Multica はそれを保存します。それまでは Goose の実行は毎回新しいセッションになります。
 
 再試行とセッション再開のルールは、[タスク](/tasks#手動リトライ)を参照してください。
 
 ## MCP 設定
 
-Antigravity、GitHub Copilot CLI、DevEco Code、Pi は、現時点ではエージェントの MCP 設定を読み取りません。そのため、これらのツールを選んだ場合、エージェント作成画面にこの項目は表示されません。
+Antigravity、GitHub Copilot CLI、DevEco Code、Devin、Goose、Pi は、現時点ではエージェントの MCP 設定を読み取りません。そのため、これらのツールを選んだ場合、エージェント作成画面にこの項目は表示されません。Devin v1 はローカル CLI（`devin --print`）であり、Devin Cloud ではありません。
 
 <Callout type="warning">
 MCP server のコマンド、引数、環境変数は、エージェント設定の一部としてサーバーに保存されます。共有する必要がないローカルの認証情報を設定へ直接入力しないでください。

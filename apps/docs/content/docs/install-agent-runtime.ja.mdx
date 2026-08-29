@@ -15,6 +15,7 @@ Multica は現在、次のコマンドを検出します。
 
 | ツール | 検出するコマンド | 公式インストールガイド |
 | --- | --- | --- |
+| Amp | `amp` | [Amp](https://ampcode.com) |
 | Antigravity CLI | `agy` | [Antigravity のインストールとログイン](https://antigravity.google/docs/cli-install) |
 | Claude Code | `claude` | [Claude Code クイックスタート](https://code.claude.com/docs/en/quickstart) |
 | CodeBuddy Code | `codebuddy` | [CodeBuddy クイックスタート](https://www.codebuddy.ai/docs/cli/quickstart) |
@@ -22,7 +23,9 @@ Multica は現在、次のコマンドを検出します。
 | GitHub Copilot CLI | `copilot` | [Copilot CLI のインストール](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli) |
 | Cursor Agent | `cursor-agent` | [Cursor CLI のインストール](https://docs.cursor.com/en/cli/installation) |
 | DeepSeek Harness | `dsh` | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) |
+| Devin | `devin` | [Devin CLI](https://docs.devin.ai/cli) |
 | DevEco Code | `deveco` | [DevEco Code](https://gitcode.com/openharmony-sig/deveco-code) |
+| Goose | `goose` | [Goose](https://github.com/block/goose) |
 | Grok Build | `grok` | [Grok Build クイックスタート](https://docs.x.ai/build/overview) |
 | Hermes Agent | `hermes` | [Hermes クイックスタート](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart/) |
 | Kimi CLI | `kimi` | [Kimi CLI](https://github.com/MoonshotAI/kimi-cli) |
@@ -49,6 +52,11 @@ Multica は現在、次のコマンドを検出します。
 Reasonix を使う場合は、デーモンを起動する前に `reasonix setup` を実行し、デフォルトのプロバイダーとモデルを設定してください。
 
 QwenPaw を使う場合は、QwenPaw 側の設定でプロバイダーとモデルを選んでください。Multica が実行時に QwenPaw のモデルを上書きすることはできません。
+
+Amp は `amp login` でログインするか `AMP_API_KEY` を設定してください。モデルは Amp が選び、Multica は `--model` を送りません。
+
+Devin は `devin auth login` でログインしてください。v1 はローカル CLI（`devin --print`）であり、Devin Cloud ではありません。Multica はデーモンホスト上の `devin models list --format json` でモデルを一覧します。ログインが必要です。一覧が空でも手動入力できます。
+Goose は `goose configure` を実行し、`GOOSE_PROVIDER`、`GOOSE_MODEL`、およびそのプロバイダーの API key を設定してください。Multica は Goose の IdP にはなりません。Multica にモデル id を入力すると `--model` として渡されます。空欄のままにすると Goose の設定済みデフォルトを使います。Goose プロバイダー id（`openrouter`、`ollama` など）を入力すると `--provider` として渡されます。空欄のままにすると `GOOSE_PROVIDER` を使います。
 
 MiniMax Code を使う場合は、対応する Node.js バージョン（`>=22.19 <23` または `>=24 <27`）をインストールし、`npm install --global @minimax-ai/code@latest` を実行してください。npm のグローバルインストールによって `mcode` は npm のグローバル実行ファイルディレクトリに配置されます。`command -v mcode` または `Get-Command mcode` で見つからない場合は、そのディレクトリを `PATH` に追加してください。その後 `mcode login` を実行します。モデルは MiniMax Code が管理し、Multica から ACP 経由で上書きすることはできません。
 
