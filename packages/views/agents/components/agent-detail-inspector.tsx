@@ -343,7 +343,7 @@ export function AgentDetailInspector({
             <SettingsRow
               label={t(($) => $.inspector.prop_goose_provider)}
               description={t(($) => $.inspector.prop_goose_provider_hint)}
-              size="text"
+              size="select-wide"
             >
               <GooseProviderField
                 value={
@@ -519,7 +519,7 @@ function GooseProviderField({
       }}
       disabled={!canEdit}
       placeholder={t(($) => $.inspector.prop_goose_provider_placeholder)}
-      className="min-h-10"
+      className="min-h-10 w-full"
     />
   );
 }

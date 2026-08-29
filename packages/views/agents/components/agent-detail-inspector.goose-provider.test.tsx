@@ -89,7 +89,9 @@ describe("AgentDetailInspector Goose provider", () => {
     renderInspector(vi.fn(async () => {}), gooseRuntime, {
       runtime_config: { goose_provider: "ollama" },
     });
-    expect(screen.getByLabelText("Goose provider")).toHaveValue("ollama");
+    const field = screen.getByLabelText("Goose provider");
+    expect(field).toHaveValue("ollama");
+    expect(field).toHaveAttribute("placeholder", "openrouter, ollama, etc");
   });
 
   it("hides the field for other runtimes", () => {

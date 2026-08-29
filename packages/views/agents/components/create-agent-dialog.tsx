@@ -472,7 +472,7 @@ export function CreateAgentDialog({
                   placeholder={t(
                     ($) => $.create_dialog.goose_provider_placeholder,
                   )}
-                  className="mt-1 min-h-10"
+                  className="mt-1 min-h-10 w-full"
                   aria-label={t(($) => $.create_dialog.goose_provider_label)}
                 />
                 <p className="mt-1 text-caption text-muted-foreground">
