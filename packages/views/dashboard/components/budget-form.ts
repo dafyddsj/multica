@@ -113,6 +113,14 @@ export function formatUtcDate(iso: string, locales: Intl.LocalesArgument): strin
   }).format(date);
 }
 
+export function formatUtcMonth(now: Date, locales: Intl.LocalesArgument): string {
+  return new Intl.DateTimeFormat(locales, {
+    timeZone: "UTC",
+    month: "long",
+    year: "numeric",
+  }).format(now);
+}
+
 export function ownerLabel(args: {
   scope: BudgetScope;
   ownerId: string;

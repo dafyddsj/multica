@@ -1,6 +1,7 @@
 {
   "title": "Analytics",
   "tab_usage": "Usage",
+  "tab_budgets": "Budgets",
   "header": {
     "timezone_and_updated": "{{tz}} · updated {{time}}",
     "refresh": "Refresh"
@@ -112,6 +113,8 @@
     "caption": "Caps apply to new tasks. Work already running can still finish.",
     "add": "Add budget",
     "empty": "No budgets yet.",
+    "month_caption": "{{month}} UTC",
+    "header_spent": "Spent",
     "edit": "Edit",
     "delete": "Delete",
     "delete_confirm_title": "Delete this budget?",
@@ -147,13 +150,13 @@
       "allow_over": "May exceed this month"
     },
     "waiver": {
-      "bypass": "Bypass teeth",
-      "end": "End bypass",
-      "title": "Bypass teeth",
+      "bypass": "Bypass limits",
+      "end": "Restore limits",
+      "title": "Bypass limits",
       "body": "Skip pause and soften for this project or initiative until the end of the UTC month. Agent and squad caps still apply.",
       "reason_label": "Reason (optional)",
       "confirm": "Bypass",
-      "chip": "Teeth waived until {{date}}"
+      "chip": "Limits waived until {{date}}"
     }
   }
 }

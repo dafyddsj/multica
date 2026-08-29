@@ -1,6 +1,7 @@
 {
   "title": "分析",
   "tab_usage": "使用量",
+  "tab_budgets": "予算",
   "header": {
     "timezone_and_updated": "{{tz}} · {{time}} 更新",
     "refresh": "更新"
@@ -112,6 +113,8 @@
     "caption": "上限は新しい作業に適用されます。実行中の作業はそのまま完了できます。",
     "add": "予算を追加",
     "empty": "予算はまだありません。",
+    "month_caption": "{{month}} UTC",
+    "header_spent": "使用額",
     "edit": "編集",
     "delete": "削除",
     "delete_confirm_title": "この予算を削除しますか？",

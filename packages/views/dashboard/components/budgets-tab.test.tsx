@@ -9,10 +9,17 @@ import type { BudgetOwnerLists } from "./budget-form-dialog";
 const budgetsRef = vi.hoisted(() => ({ current: [] as Budget[] }));
 const waiversRef = vi.hoisted(() => ({ current: [] as BudgetWaiver[] }));
 const roleRef = vi.hoisted(() => ({ current: "owner" as MemberRole }));
+const loadingRef = vi.hoisted(() => ({ current: false }));
 
 vi.mock("@multica/core/budgets", () => ({
-  useBudgets: () => ({ data: { budgets: budgetsRef.current }, isLoading: false }),
-  useBudgetWaivers: () => ({ data: { waivers: waiversRef.current }, isLoading: false }),
+  useBudgets: () => ({
+    data: { budgets: budgetsRef.current },
+    isLoading: loadingRef.current,
+  }),
+  useBudgetWaivers: () => ({
+    data: { waivers: waiversRef.current },
+    isLoading: loadingRef.current,
+  }),
   useCreateBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteBudget: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -57,7 +64,7 @@ vi.mock("@multica/ui/components/ui/alert-dialog", () => ({
   ),
 }));
 
-import { BudgetsCard } from "./budgets-card";
+import { BudgetsTab } from "./budgets-tab";
 
 const LISTS: BudgetOwnerLists = {
   projects: [{ id: "proj-1", title: "Alpha" }],
@@ -86,17 +93,26 @@ function budget(partial: Partial<Budget> & Pick<Budget, "id" | "scope" | "owner_
   };
 }
 
-function renderCard() {
+function renderTab() {
   return renderWithI18n(
-    <BudgetsCard wsId="ws-1" locales="en-US" lists={LISTS} />,
+    <BudgetsTab wsId="ws-1" locales="en-US" lists={LISTS} />,
   );
 }
 
-describe("BudgetsCard", () => {
+describe("BudgetsTab", () => {
   beforeEach(() => {
     budgetsRef.current = [];
     waiversRef.current = [];
     roleRef.current = "owner";
+    loadingRef.current = false;
+  });
+
+  it("does not claim an empty list while budgets are loading", () => {
+    loadingRef.current = true;
+    renderTab();
+
+    expect(screen.queryByText("No budgets yet.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add budget" })).toBeInTheDocument();
   });
 
   it("shows the unattributed empty state without a spend bar", () => {
@@ -108,7 +124,7 @@ describe("BudgetsCard", () => {
         current_period: period("unattributed", 0),
       }),
     ];
-    renderCard();
+    renderTab();
 
     expect(
       screen.getByText(
@@ -127,7 +143,7 @@ describe("BudgetsCard", () => {
         current_period: period("exhausted", 50),
       }),
     ];
-    renderCard();
+    renderTab();
 
     expect(screen.getByText("At limit")).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
@@ -143,7 +159,7 @@ describe("BudgetsCard", () => {
         current_period: period("ok", 10),
       }),
     ];
-    renderCard();
+    renderTab();
 
     expect(screen.getByText("May exceed this month")).toBeInTheDocument();
   });
@@ -168,39 +184,39 @@ describe("BudgetsCard", () => {
         reason: null,
       },
     ];
-    renderCard();
+    renderTab();
 
-    expect(screen.getByText("Teeth waived until Jan 1, 2099")).toBeInTheDocument();
+    expect(screen.getByText("Limits waived until Jan 1, 2099")).toBeInTheDocument();
   });
 
-  it("hides Bypass teeth for a member on a project row", () => {
+  it("hides Bypass limits for a member on a project row", () => {
     roleRef.current = "member";
     budgetsRef.current = [
       budget({ id: "b-proj", scope: "project", owner_id: "proj-1" }),
     ];
-    renderCard();
+    renderTab();
 
-    expect(screen.queryByRole("button", { name: "Bypass teeth" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bypass limits" })).not.toBeInTheDocument();
   });
 
-  it("hides Bypass teeth on an agent row even for an owner", () => {
+  it("hides Bypass limits on an agent row even for an owner", () => {
     roleRef.current = "owner";
     budgetsRef.current = [
       budget({ id: "b-agent", scope: "agent", owner_id: "agent-1" }),
     ];
-    renderCard();
+    renderTab();
 
-    expect(screen.queryByRole("button", { name: "Bypass teeth" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bypass limits" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
   });
 
-  it("shows Bypass teeth on a project row for an owner", () => {
+  it("shows Bypass limits on a project row for an owner", () => {
     roleRef.current = "owner";
     budgetsRef.current = [
       budget({ id: "b-proj", scope: "project", owner_id: "proj-1" }),
     ];
-    renderCard();
+    renderTab();
 
-    expect(screen.getByRole("button", { name: "Bypass teeth" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bypass limits" })).toBeInTheDocument();
   });
 });

@@ -1,6 +1,7 @@
 {
   "title": "분석",
   "tab_usage": "사용량",
+  "tab_budgets": "예산",
   "header": {
     "timezone_and_updated": "{{tz}} · {{time}} 업데이트",
     "refresh": "새로고침"
@@ -112,6 +113,8 @@
     "caption": "한도는 새 작업에만 적용됩니다. 이미 실행 중인 작업은 그대로 끝날 수 있습니다.",
     "add": "예산 추가",
     "empty": "아직 예산이 없습니다.",
+    "month_caption": "{{month}} UTC",
+    "header_spent": "사용액",
     "edit": "편집",
     "delete": "삭제",
     "delete_confirm_title": "이 예산을 삭제할까요?",

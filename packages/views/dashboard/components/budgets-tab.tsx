@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   useBudgetWaivers,
@@ -40,6 +41,7 @@ import {
 import { Label } from "@multica/ui/components/ui/label";
 import { CurrencyNumberFlow } from "@multica/ui/components/ui/number-flow";
 import { Progress } from "@multica/ui/components/ui/progress";
+import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { Textarea } from "@multica/ui/components/ui/textarea";
 import { useT } from "../../i18n";
 import { BudgetFormDialog, type BudgetFormSubmit, type BudgetOwnerLists } from "./budget-form-dialog";
@@ -47,6 +49,7 @@ import {
   canWaiveScope,
   defaultWaiverWindow,
   formatUtcDate,
+  formatUtcMonth,
   isWaiverLive,
   isWaiverWriteRole,
   ownerLabel,
@@ -56,7 +59,10 @@ import {
   ticksToUsd,
 } from "./budget-form";
 
-export function BudgetsCard({
+const BUDGET_GRID =
+  "grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_auto] items-start gap-3";
+
+export function BudgetsTab({
   wsId,
   lists,
   locales,
@@ -108,6 +114,9 @@ export function BudgetsCard({
   }, [waivers]);
 
   const canWriteWaiver = isWaiverWriteRole(role);
+  const monthCaption = t(($) => $.budgets.month_caption, {
+    month: formatUtcMonth(new Date(), locales),
+  });
 
   const handleSubmit = async (submit: BudgetFormSubmit) => {
     try {
@@ -160,14 +169,11 @@ export function BudgetsCard({
   };
 
   return (
-    <section className="rounded-lg border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-title font-medium">{t(($) => $.budgets.title)}</h2>
-          <p className="mt-1 text-caption text-muted-foreground">
-            {t(($) => $.budgets.caption)}
-          </p>
-        </div>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-caption text-muted-foreground">
+          {t(($) => $.budgets.caption)}
+        </p>
         <Button
           type="button"
           size="sm"
@@ -180,36 +186,56 @@ export function BudgetsCard({
         </Button>
       </div>
 
-      {budgets.length === 0 ? (
-        <p className="mt-4 text-caption text-muted-foreground">{t(($) => $.budgets.empty)}</p>
+      {budgetsQuery.isLoading || waiversQuery.isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-28 rounded-lg" />
+          <Skeleton className="h-48 rounded-lg" />
+        </div>
+      ) : budgets.length === 0 ? (
+        <div className="flex flex-col items-center rounded-lg border border-dashed py-12 text-center">
+          <Wallet className="h-6 w-6 text-faint-foreground" />
+          <p className="mt-3 text-body font-medium">{t(($) => $.budgets.empty)}</p>
+        </div>
       ) : (
-        <ul className="mt-4 space-y-3" aria-label={t(($) => $.budgets.title)}>
-          {budgets.map((budget) => {
-            const waiver = liveWaiverByOwner.get(`${budget.scope}:${budget.owner_id}`) ?? null;
-            return (
-              <BudgetRow
-                key={budget.id}
-                budget={budget}
-                waiver={waiver}
-                lists={lists}
-                locales={locales}
-                canWriteWaiver={canWriteWaiver}
-                onEdit={() => {
-                  setEditing(budget);
-                  setFormOpen(true);
-                }}
-                onDelete={() => setPendingDelete(budget)}
-                onBypass={() => {
-                  setWaiverReason("");
-                  setPendingWaiver(budget);
-                }}
-                onEndWaiver={() => {
-                  if (waiver) void handleEndWaiver(waiver);
-                }}
-              />
-            );
-          })}
-        </ul>
+        <div className="rounded-lg border bg-card">
+          <div className="border-b px-4 pt-4 pb-3">
+            <p className="text-caption text-muted-foreground">{monthCaption}</p>
+          </div>
+          <div
+            className={`${BUDGET_GRID} border-b px-4 py-2 text-caption font-medium text-muted-foreground`}
+          >
+            <span>{t(($) => $.budgets.owner_label)}</span>
+            <span className="text-right">{t(($) => $.budgets.header_spent)}</span>
+            <span />
+          </div>
+          <ul aria-label={t(($) => $.budgets.title)} className="divide-y">
+            {budgets.map((budget) => {
+              const waiver = liveWaiverByOwner.get(`${budget.scope}:${budget.owner_id}`) ?? null;
+              return (
+                <BudgetRow
+                  key={budget.id}
+                  budget={budget}
+                  waiver={waiver}
+                  lists={lists}
+                  locales={locales}
+                  canWriteWaiver={canWriteWaiver}
+                  onEdit={() => {
+                    setEditing(budget);
+                    setFormOpen(true);
+                  }}
+                  onDelete={() => setPendingDelete(budget)}
+                  onBypass={() => {
+                    setWaiverReason("");
+                    setPendingWaiver(budget);
+                  }}
+                  onEndWaiver={() => {
+                    if (waiver) void handleEndWaiver(waiver);
+                  }}
+                />
+              );
+            })}
+          </ul>
+        </div>
       )}
 
       <BudgetFormDialog
@@ -291,7 +317,7 @@ export function BudgetsCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </div>
   );
 }
 
@@ -334,68 +360,70 @@ function BudgetRow({
   const showWaiver = canWriteWaiver && canWaiveScope(budget.scope);
 
   return (
-    <li className="rounded-md border border-border p-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-body font-medium">{name}</p>
-            <span className="text-caption text-muted-foreground">
-              {scopeLabel(budget.scope, {
-                project: t(($) => $.budgets.scope.project),
-                initiative: t(($) => $.budgets.scope.initiative),
-                agent: t(($) => $.budgets.scope.agent),
-                squad: t(($) => $.budgets.scope.squad),
-              })}
-            </span>
-            {budget.over_limit === "allow" ? (
-              <Badge variant="outline">{t(($) => $.budgets.state.allow_over)}</Badge>
-            ) : null}
-            <StateChip budget={budget} waiver={waiver} locales={locales} />
-          </div>
-          {showBar ? (
-            <div className="mt-2 flex items-baseline gap-1 text-caption text-muted-foreground">
+    <li className={`${BUDGET_GRID} px-4 py-3`}>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-body font-medium">{name}</p>
+          <span className="text-caption text-muted-foreground">
+            {scopeLabel(budget.scope, {
+              project: t(($) => $.budgets.scope.project),
+              initiative: t(($) => $.budgets.scope.initiative),
+              agent: t(($) => $.budgets.scope.agent),
+              squad: t(($) => $.budgets.scope.squad),
+            })}
+          </span>
+          {budget.over_limit === "allow" ? (
+            <Badge variant="outline">{t(($) => $.budgets.state.allow_over)}</Badge>
+          ) : null}
+          <StateChip budget={budget} waiver={waiver} locales={locales} />
+        </div>
+        {state === "unattributed" ? (
+          <p className="mt-2 text-caption text-muted-foreground">
+            {t(($) => $.budgets.state.unattributed)}
+          </p>
+        ) : null}
+        {state === "pricing_incomplete" ? (
+          <p className="mt-2 text-caption text-muted-foreground">
+            {t(($) => $.budgets.state.pricing_incomplete)}
+          </p>
+        ) : null}
+      </div>
+      <div className="min-w-0">
+        {showBar ? (
+          <>
+            <div className="flex items-baseline justify-end gap-1 text-right text-caption text-muted-foreground">
               <CurrencyNumberFlow value={spentUsd} locales={locales} />
               <span>/</span>
               <CurrencyNumberFlow value={limitUsd} locales={locales} />
             </div>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-1">
-          {showWaiver && waiver ? (
-            <Button type="button" size="sm" variant="ghost" onClick={onEndWaiver}>
-              {t(($) => $.budgets.waiver.end)}
-            </Button>
-          ) : null}
-          {showWaiver && !waiver ? (
-            <Button type="button" size="sm" variant="ghost" onClick={onBypass}>
-              {t(($) => $.budgets.waiver.bypass)}
-            </Button>
-          ) : null}
-          <Button type="button" size="sm" variant="ghost" onClick={onEdit}>
-            {t(($) => $.budgets.edit)}
-          </Button>
-          <Button type="button" size="sm" variant="ghost" onClick={onDelete}>
-            {t(($) => $.budgets.delete)}
-          </Button>
-        </div>
+            {period ? (
+              <Progress
+                className="mt-2"
+                value={spendPercent(period.spent_usd_ticks, budget.limit_usd_ticks)}
+                aria-label={t(($) => $.budgets.bar_label)}
+              />
+            ) : null}
+          </>
+        ) : null}
       </div>
-      {showBar && period ? (
-        <Progress
-          className="mt-3"
-          value={spendPercent(period.spent_usd_ticks, budget.limit_usd_ticks)}
-          aria-label={t(($) => $.budgets.bar_label)}
-        />
-      ) : null}
-      {state === "unattributed" ? (
-        <p className="mt-2 text-caption text-muted-foreground">
-          {t(($) => $.budgets.state.unattributed)}
-        </p>
-      ) : null}
-      {state === "pricing_incomplete" ? (
-        <p className="mt-2 text-caption text-muted-foreground">
-          {t(($) => $.budgets.state.pricing_incomplete)}
-        </p>
-      ) : null}
+      <div className="flex flex-wrap items-center justify-end gap-1">
+        {showWaiver && waiver ? (
+          <Button type="button" size="sm" variant="ghost" onClick={onEndWaiver}>
+            {t(($) => $.budgets.waiver.end)}
+          </Button>
+        ) : null}
+        {showWaiver && !waiver ? (
+          <Button type="button" size="sm" variant="ghost" onClick={onBypass}>
+            {t(($) => $.budgets.waiver.bypass)}
+          </Button>
+        ) : null}
+        <Button type="button" size="sm" variant="ghost" onClick={onEdit}>
+          {t(($) => $.budgets.edit)}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={onDelete}>
+          {t(($) => $.budgets.delete)}
+        </Button>
+      </div>
     </li>
   );
 }
