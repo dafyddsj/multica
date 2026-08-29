@@ -284,6 +284,14 @@ var probeAgentCLIs = func() map[string]AgentEntry {
 	if e, ok := probe("MULTICA_AMP_PATH", "amp", ""); ok {
 		agents["amp"] = e
 	}
+	// Devin takes no model env var. There is no MULTICA_DEVIN_MODEL; the
+	// picker lists `devin models list --format json` after login.
+	if e, ok := probe("MULTICA_DEVIN_PATH", "devin", ""); ok {
+		agents["devin"] = e
+	}
+	if e, ok := probe("MULTICA_GOOSE_PATH", "goose", ""); ok {
+		agents["goose"] = e
+	}
 	return agents
 }
 

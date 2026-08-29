@@ -19,4 +19,5 @@ export * from "./visibility-label";
 export * from "./use-workspace-agent-availability";
 export * from "./mcp-support";
 export * from "./openclaw-runtime-config";
+export * from "./goose-runtime-config";
 export * from "./runtime-binding";

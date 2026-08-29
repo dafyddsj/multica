@@ -464,6 +464,8 @@ var launchPrefixBlockedArgs = map[string]map[string]blockedArgMode{
 	"dim":         dimBlockedArgs,
 	"zeroclaw":    zeroclawBlockedArgs,
 	"amp":         ampBlockedArgs,
+	"devin":       devinBlockedArgs,
+	"goose":       gooseBlockedArgs,
 }
 
 // FilterLaunchPrefix is the exported form for callers outside this package —

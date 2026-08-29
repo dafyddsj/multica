@@ -6873,6 +6873,10 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 	if task.Agent != nil && provider == "openclaw" {
 		openclawMode, openclawGateway = decodeOpenclawRuntimeConfig(task.Agent.RuntimeConfig, d.logger)
 	}
+	var gooseProvider string
+	if task.Agent != nil {
+		gooseProvider = decodeGooseProvider(task.Agent.RuntimeConfig, d.logger)
+	}
 	var agentEnvOverrides map[string]string
 	var agentCustomArgs []string
 	if task.Agent != nil {
@@ -7579,6 +7583,7 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 		OpenclawMode:           openclawMode,
 		ClaudeSettingsPath:     env.ClaudeSettingsPath,
 		QwenpawWorkspace:       env.QwenpawWorkspace,
+		GooseProvider:          gooseProvider,
 	}
 	// Some providers do not reliably load the per-task runtime config files we
 	// write into the task workdir:
@@ -9176,6 +9181,10 @@ func defaultArgsForProvider(cfg Config, provider string) []string {
 		args = cfg.QwenpawArgs
 	case "amp":
 		args = cfg.AmpArgs
+	case "devin":
+		args = cfg.DevinArgs
+	case "goose":
+		args = cfg.GooseArgs
 	default:
 		return nil
 	}

@@ -1,0 +1,6 @@
+{"type":"notification","extension_id":"developer","message":"running"}
+{"type":"message","message":{"role":"assistant","created":1,"content":[{"type":"thinking","thinking":"planning","signature":""}],"metadata":{"userVisible":true,"agentVisible":true}}}
+{"type":"message","message":{"role":"assistant","created":2,"content":[{"type":"toolRequest","id":"call-1","toolCall":{"name":"developer__shell","arguments":{"command":"ls"}}}],"metadata":{"userVisible":true,"agentVisible":true,"inference":{"provider":"openai","requestedModel":"goose-test","resolvedModel":"goose-test"}}}}
+{"type":"message","message":{"role":"user","created":3,"content":[{"type":"toolResponse","id":"call-1","toolResult":"Listed 1 item"}],"metadata":{"userVisible":true,"agentVisible":true}}}
+{"type":"message","message":{"role":"assistant","created":4,"content":[{"type":"redactedThinking","data":""},{"type":"text","text":"PONG"}],"metadata":{"userVisible":true,"agentVisible":true,"inference":{"provider":"openai","requestedModel":"goose-test","resolvedModel":"goose-test"},"usage":{"inputTokens":10,"outputTokens":2,"cacheReadTokens":3}}}}
+{"type":"complete","total_tokens":24,"input_tokens":20,"output_tokens":4,"cache_read_input_tokens":6}

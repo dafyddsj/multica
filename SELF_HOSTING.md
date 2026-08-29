@@ -133,6 +133,8 @@ You also need at least one AI agent CLI installed:
 - [MiniMax Code CLI](https://www.npmjs.com/package/@minimax-ai/code) (`mcode` 0.1.2+ on PATH). Install a supported Node.js release (`>=22.19 <23` or `>=24 <27`), run `npm install --global @minimax-ai/code@latest`, then `mcode login`.
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (`dsh` on PATH with the Multica runtime profile installed; set `DEEPSEEK_API_KEY`)
 - [Amp](https://ampcode.com) (`amp` on PATH; sign in with `amp login` or set `AMP_API_KEY`)
+- [Devin](https://docs.devin.ai/cli) (`devin` on PATH; sign in with `devin auth login`; local CLI, not Devin Cloud)
+- [Goose](https://github.com/block/goose) (`goose` on PATH; run `goose configure` and set `GOOSE_PROVIDER` / `GOOSE_MODEL` plus the vendor key)
 
 ### b) One-command setup
 
