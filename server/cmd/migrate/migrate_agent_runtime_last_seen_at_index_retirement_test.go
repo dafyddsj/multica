@@ -73,13 +73,13 @@ func TestAgentRuntimeLastSeenAtIndexRetirement(t *testing.T) {
 		predicate  string
 	}{
 		{
-			version:    "438_agent_runtime_online_last_seen_index",
+			version:    "486_agent_runtime_online_last_seen_index",
 			index:      "idx_agent_runtime_online_last_seen",
 			keyColumns: "last_seen_at",
 			predicate:  "status = 'online'::text",
 		},
 		{
-			version:    "439_agent_runtime_offline_last_seen_index",
+			version:    "487_agent_runtime_offline_last_seen_index",
 			index:      "idx_agent_runtime_offline_last_seen",
 			keyColumns: "last_seen_at, id",
 			predicate:  "status = 'offline'::text",
