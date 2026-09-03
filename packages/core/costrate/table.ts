@@ -2,7 +2,7 @@
 // Do not edit by hand. Edit scripts/model-rates.json and run
 // `pnpm generate:model-rates`.
 
-export const CATALOG_HASH = "7a19717f3f2fd589229ac76982a4af5d8a602782bf8cfdf1b5a80cbf04fb922f";
+export const CATALOG_HASH = "007d5388491589d54de21d23f3914d77fdea161e39cc5b01875a27736e2a9c95";
 
 export interface ModelRate {
   input: number;
@@ -13,6 +13,7 @@ export interface ModelRate {
 
 export const MODEL_RATES: Readonly<Record<string, ModelRate>> = {
   "claude-fable-5": { input: 10, output: 50, cacheRead: 1, cacheWrite: 12.5 },
+  "claude-fable-5-1": { input: 10, output: 50, cacheRead: 0.25, cacheWrite: 12.5 },
   "claude-haiku-3-5": { input: 0.8, output: 4, cacheRead: 0.08, cacheWrite: 1 },
   "claude-haiku-4-5": { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
   "claude-opus-4": { input: 15, output: 75, cacheRead: 1.5, cacheWrite: 18.75 },

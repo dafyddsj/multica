@@ -59,7 +59,9 @@ need_file server/internal/clerk/sdk.go
 
 need_absent server/migrations/437_drop_agent_runtime_last_seen_at_index.up.sql
 need_absent server/migrations/438_agent_runtime_online_last_seen_index.up.sql
+need_absent server/migrations/440_github_pr_head_sha_index.up.sql
 need_absent server/migrations/441_runtime_profile_add_codearts.up.sql
+need_absent server/migrations/442_vcs_reference_only_repair.up.sql
 need_absent server/migrations/448_autopilot_quota_rejection_notified_at.up.sql
 need_absent server/migrations/449_autopilot_trigger_created_by.up.sql
 need_absent packages/views/modals/issue-limit-upgrade-dialog.tsx
