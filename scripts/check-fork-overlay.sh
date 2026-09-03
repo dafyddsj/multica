@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Fail if a cherry-pick dropped fork-only product or reused an upstream
-# migration number this fork already spent.
-#
-# Usage: scripts/check-fork-overlay.sh
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

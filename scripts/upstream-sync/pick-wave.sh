@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Cherry-pick a SHA list onto HEAD. Abort and record conflicts.
-# After each successful pick, run scripts/check-fork-overlay.sh and
-# drop the pick if the overlay broke.
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
