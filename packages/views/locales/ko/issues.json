@@ -68,7 +68,6 @@
   "revision": {
     "conflict": "태스크 또는 댓글이 변경되었습니다. 최신 버전으로 새로 고쳤으니 비교한 후 다시 저장하세요.",
     "compare_title": "제목이 동시에 변경되었습니다. 두 버전을 비교하세요.",
-    "compare_description": "설명이 동시에 변경되었습니다. 두 버전을 비교하세요.",
     "compare_comment": "댓글이 동시에 변경되었습니다. 두 버전을 비교하세요.",
     "server_version": "서버의 최신 버전",
     "local_version": "내 로컬 버전",
@@ -325,6 +324,8 @@
     "add_sub_issues": "하위 태스크 추가",
     "add_sub_issue_tooltip": "하위 태스크 추가",
     "add_sub_issue_aria": "하위 태스크 추가",
+    "select_all_sub_issues_aria": "모든 하위 태스크 선택",
+    "select_sub_issue_aria": "{{identifier}} 선택",
     "section_properties": "속성",
     "section_parent_issue": "상위 태스크",
     "section_pull_requests": "Pull requests",

@@ -4,7 +4,7 @@
 
 package costrate
 
-const CatalogHash = "7a19717f3f2fd589229ac76982a4af5d8a602782bf8cfdf1b5a80cbf04fb922f"
+const CatalogHash = "007d5388491589d54de21d23f3914d77fdea161e39cc5b01875a27736e2a9c95"
 
 type Rate struct {
 	Input      float64
@@ -15,6 +15,7 @@ type Rate struct {
 
 var table = map[string]Rate{
 	"claude-fable-5": {Input: 10, Output: 50, CacheRead: 1, CacheWrite: 12.5},
+	"claude-fable-5-1": {Input: 10, Output: 50, CacheRead: 0.25, CacheWrite: 12.5},
 	"claude-haiku-3-5": {Input: 0.8, Output: 4, CacheRead: 0.08, CacheWrite: 1},
 	"claude-haiku-4-5": {Input: 1, Output: 5, CacheRead: 0.1, CacheWrite: 1.25},
 	"claude-opus-4": {Input: 15, Output: 75, CacheRead: 1.5, CacheWrite: 18.75},
