@@ -31,7 +31,7 @@ func TestAgentRuntimeLastSeenAtIndexRetirement(t *testing.T) {
 	}
 	assertIndexValidity(t, pool, schema, "idx_agent_runtime_last_seen_at", true)
 
-	const version = "437_drop_agent_runtime_last_seen_at_index"
+	const version = "485_drop_agent_runtime_last_seen_at_index"
 	options.Files = realMigrationFiles(t, []string{version}, "up")
 	if err := runMigrations(ctx, pool, options); err != nil {
 		t.Fatalf("apply runtime index retirement migration: %v", err)
