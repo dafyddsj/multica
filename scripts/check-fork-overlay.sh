@@ -50,6 +50,18 @@ need_file server/migrations/460_agentmail_tables.up.sql
 need_file server/migrations/463_runtime_profile_add_devin.up.sql
 need_file server/migrations/464_runtime_profile_add_goose.up.sql
 need_file server/migrations/468_budget.up.sql
+need_file server/migrations/485_drop_agent_runtime_last_seen_at_index.up.sql
+need_file server/migrations/485_drop_agent_runtime_last_seen_at_index.down.sql
+need_file server/migrations/486_agent_runtime_online_last_seen_index.up.sql
+need_file server/migrations/486_agent_runtime_online_last_seen_index.down.sql
+need_file server/migrations/487_agent_runtime_offline_last_seen_index.up.sql
+need_file server/migrations/487_agent_runtime_offline_last_seen_index.down.sql
+need_file server/migrations/488_github_pr_head_sha_index.up.sql
+need_file server/migrations/488_github_pr_head_sha_index.down.sql
+need_file server/migrations/489_vcs_reference_only_repair.up.sql
+need_file server/migrations/489_vcs_reference_only_repair.down.sql
+need_file server/migrations/490_autopilot_trigger_created_by.up.sql
+need_file server/migrations/490_autopilot_trigger_created_by.down.sql
 need_file apps/web/app/\(auth\)/login/page.test.tsx
 need_file server/internal/clerk/sdk.go
 
@@ -77,6 +89,10 @@ need_grep server/pkg/agent/agent_supported_types_test.go '"amp": true'
 need_grep server/pkg/agent/agent_supported_types_test.go '"devin": true'
 need_grep server/pkg/agent/agent_supported_types_test.go '"goose": true'
 need_absent_grep server/pkg/agent/agent_supported_types_test.go 'codearts'
+need_grep server/cmd/migrate/main.go '485_drop_agent_runtime_last_seen_at_index'
+need_grep server/cmd/migrate/main.go '486_agent_runtime_online_last_seen_index'
+need_grep server/cmd/migrate/main.go '487_agent_runtime_offline_last_seen_index'
+need_grep server/cmd/migrate/main.go '488_github_pr_head_sha_index'
 
 if [ "$fail" -ne 0 ]; then
 	exit 1

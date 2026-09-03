@@ -8,6 +8,11 @@ list="${1:?usage: pick-wave.sh <sha-list-file>}"
 log="${2:-$root_dir/.audit/upstream-v0438/pick-log.tsv}"
 guard="$root_dir/scripts/check-fork-overlay.sh"
 
+if ! git diff --quiet || ! git diff --cached --quiet; then
+	printf 'dirty tracked tree; commit or stash before pick-wave\n' >&2
+	exit 1
+fi
+
 if [ ! -f "$log" ]; then
 	printf 'sha\tsubject\tresult\tdetail\n' > "$log"
 fi
