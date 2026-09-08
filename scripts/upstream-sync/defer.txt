@@ -1,0 +1,24 @@
+79559ebb9	CI flake WeCom+mdx	turbo mdx ported; WeCom test left with WeCom
+879d0de91	drop Active sibling runs prompt	agent-task copy; review against fork prompts
+d4a712abf	CLI filter/sort by custom property	needs 4fe6586b3 operators first
+d7247fa9f	departed member identity in timelines	identity rewrite; dedicated port
+a6911a952	sweep delegated recovery every 5m	sweeper cluster; after f1ce9d454
+a075e58b8	Claude Code live model catalog	picker/schemas; keep MODEL_RATES
+a2d819ea4	env-prep own failure reason	daemon failure-reason enum merge
+f01eb5a06	bigram property contains 446/447	renumber 491+; fights fork 446/447
+11bd18a50	Co-authored-by in existing checkouts	fork already has multica-coauthor-extra
+4fe6586b3	scalar property operator matching	needs 46c9ea38a already on branch
+316b89595	i18n locale for formatted values	left after ja/ko megapatch skip
+108407088	Codex explicit standard speed	codex handshake/speed cluster
+f1ce9d454	stop rescanning settled recoveries 444/445	renumber 491+; sweeper cluster
+eddb0dc2a	attribute agent_runtime lookups	metrics cluster
+7c1d826a9	remove database-sampled metrics	metrics cluster
+2ebe0ae32	Codex widen thread handshake budget	codex handshake/speed cluster
+3e55ce4db	remove unused active db samplers	metrics cluster
+db86c75e1	per-row issue status 443	fights fork entity-status
+9556613b2	i18n status and priority values	left after ja/ko megapatch skip
+1179142c1	desktop share public web URLs	desktop URL adapter merge
+a92e8f6f7	Pi MCP config	mcp-support.ts already has Amp/Devin/Goose
+d6ecf4bc8	non-ASCII status keys	fights fork entity-status
+08a1e6e93	archived-agent runtime GC	sweeper cluster
+acf6864f5	remove duplicate DOM coverage	fork owns login page.test.tsx

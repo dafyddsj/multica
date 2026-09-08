@@ -1581,15 +1581,52 @@ WHERE (
 RETURNING *;
 
 -- name: ExpireStaleQueuedTasks :many
--- Fails tasks that have been sitting in 'queued' for longer than the TTL.
--- This is the cleanup arm of the MUL-1899 "queued backlog" fix: even with the
--- new dispatch-time admission gate that refuses to enqueue when the runtime
--- is offline, we still need to drain the historical 87k+ doomed rows and
--- handle edge cases where a runtime goes offline AFTER a task is already
--- queued (the admission check protects new enqueues, not in-flight queue
--- depth). A retry created by runtime_offline is exempt: it deliberately waits
--- for that runtime to reconnect, so time spent in this recovery state must not
--- consume the generic queue TTL.
+-- Fails queued tasks whose runtime can no longer prove it is alive.
+--
+-- This used to be a pure wall clock: queued for longer than a TTL (default 2h)
+-- meant failed. That conflated "nobody is coming for this task" with "the
+-- queue ahead of it is long", and the second one is not a failure. MUL-6558
+-- was exactly that — a self-hosted runtime with low task concurrency held its
+-- own queue past 2h and healthy work died as queued_expired. The TTL knob
+-- added then (MULTICA_TASK_QUEUED_TTL) only moved the cliff; it did not stop
+-- a busy runtime from eventually crossing it.
+--
+-- So the question is not "how long has this waited" but "is anything still
+-- able to pick it up". A runtime that keeps heartbeating is busy, not dead,
+-- and its backlog must be allowed to drain however long that takes. The
+-- liveness signal is the same one FailTasksForOfflineRuntimes uses for
+-- dispatched/running rows, so a daemon going down now retires its queued and
+-- its in-flight work on one clock instead of two.
+--
+-- The row must ALSO have been queued for a full grace of its own. Enqueue binds
+-- a task to agent.runtime_id without checking that the runtime is up, so
+-- runtime liveness alone would fail a task the instant it is assigned to a
+-- runtime that has been offline a while — a laptop closed overnight would turn
+-- "assign this issue" into a failure inside one 30s sweep tick instead of
+-- waiting for the machine to come back. Requiring the task's own age keeps the
+-- promise the name makes: a queued task gets one full reconnect grace before it
+-- is given up on, counted from when it started waiting. It also bounds the
+-- scan, which would otherwise re-evaluate the runtime subquery against every
+-- queued row on every tick.
+--
+-- Heartbeat age is read directly rather than gated on runtime.status='online',
+-- so a row stuck at 'online' with a long-dead heartbeat still releases its
+-- queue.
+--
+-- The runtime_id IS NULL / missing-runtime arms are fail-closed defence, not
+-- live paths: the schema already excludes both. runtime_id was NOT NULL from
+-- migration 004 until 251 replaced it with CHECK (runtime_id IS NOT NULL OR
+-- completed_at IS NOT NULL), which every insert and update is checked against
+-- (NOT VALID only skips the backfill scan), so no queued row can be unbound.
+-- A dangling reference is impossible because agent_task_queue_runtime_id_fkey
+-- (migration 004) is ON DELETE CASCADE: deleting a runtime removes the rows
+-- referencing it rather than orphaning them, and the normal delete path
+-- (migration 251, MUL-5559) explicitly unbinds history tasks first in the same
+-- transaction. They are kept so a future schema change cannot silently strand
+-- rows that have no liveness signal at all.
+--
+-- A retry created by runtime_offline is exempt: it deliberately waits for that
+-- runtime to reconnect, and FailExpiredRuntimeReconnectRetries owns its exit.
 --
 -- Concurrency safety: the daemon's claim path may race with this sweeper to
 -- transition the same row out of 'queued'. We protect against that two
@@ -1597,7 +1634,7 @@ RETURNING *;
 --   1. The CTE selects victims with FOR UPDATE SKIP LOCKED so a row that is
 --      currently being claimed (or otherwise locked) is skipped — no lock
 --      contention with the dispatch path, and we won't queue up behind it.
---   2. The outer UPDATE re-checks status='queued' AND the TTL predicate at
+--   2. The outer UPDATE re-checks status='queued' AND the liveness predicate at
 --      apply time. If a daemon claimed the row between selection and update
 --      (e.g. lock released after the claim transaction commits), the row is
 --      already 'dispatched'/'running' and the WHERE clause filters it out
@@ -1608,7 +1645,19 @@ RETURNING *;
 WITH victims AS (
     SELECT id FROM agent_task_queue
     WHERE status = 'queued'
-      AND created_at < now() - make_interval(secs => @ttl_secs::double precision)
+      AND created_at < now() - make_interval(secs => @reconnect_grace_secs::double precision)
+      AND (
+          runtime_id IS NULL
+          OR NOT EXISTS (
+              SELECT 1 FROM agent_runtime r WHERE r.id = agent_task_queue.runtime_id
+          )
+          OR EXISTS (
+              SELECT 1 FROM agent_runtime r
+              WHERE r.id = agent_task_queue.runtime_id
+                AND COALESCE(r.last_seen_at, r.updated_at) <
+                    now() - make_interval(secs => @reconnect_grace_secs::double precision)
+          )
+      )
       AND NOT EXISTS (
           SELECT 1 FROM agent_task_queue retry_parent
           WHERE retry_parent.id = agent_task_queue.parent_task_id
@@ -1621,13 +1670,23 @@ WITH victims AS (
 UPDATE agent_task_queue t
 SET status = 'failed',
     completed_at = now(),
-    error = 'task expired in queue',
+    error = 'runtime unavailable while task was queued',
     failure_reason = 'queued_expired',
     prepare_lease_expires_at = NULL
 FROM victims v
 WHERE t.id = v.id
   AND t.status = 'queued'
-  AND t.created_at < now() - make_interval(secs => @ttl_secs::double precision)
+  AND t.created_at < now() - make_interval(secs => @reconnect_grace_secs::double precision)
+  AND (
+      t.runtime_id IS NULL
+      OR NOT EXISTS (SELECT 1 FROM agent_runtime r WHERE r.id = t.runtime_id)
+      OR EXISTS (
+          SELECT 1 FROM agent_runtime r
+          WHERE r.id = t.runtime_id
+            AND COALESCE(r.last_seen_at, r.updated_at) <
+                now() - make_interval(secs => @reconnect_grace_secs::double precision)
+      )
+  )
   AND NOT EXISTS (
       SELECT 1 FROM agent_task_queue retry_parent
       WHERE retry_parent.id = t.parent_task_id
@@ -2505,6 +2564,60 @@ SELECT * FROM cancelled;
 SELECT * FROM agent_task_queue
 WHERE issue_id = $1 AND status IN ('queued', 'dispatched', 'running', 'waiting_local_directory')
 ORDER BY created_at DESC;
+
+-- name: ListActiveTasksByIssueFamily :many
+-- Cross-issue coordination read for parallel sub-issue work (#7768). Given a
+-- family root — the target issue's parent, or the target itself when it has
+-- none — return every in-flight task on the root and on all of its children,
+-- so a run can see who else is already working in the family before it starts
+-- overlapping work. Advisory only: nothing here gates, queues, or serialises
+-- anything.
+--
+-- Same active set as ListActiveTasksByIssue, including 'queued': a queued
+-- sibling cannot answer you yet, but it is about to touch the same code, which
+-- is exactly what the caller is trying to find out. The status column tells the
+-- two apart.
+--
+-- Issue identity is joined in because the caller renders runs from several
+-- issues in one list and cannot label a row from the task alone. agent_id is
+-- here for the same reason: unlike ListActiveSiblingIssueTasks, whose rows all
+-- belong to the claiming agent by construction, this read spans agents — which
+-- one is on a sibling is the answer, not a detail.
+--
+-- Columns are named rather than embedded. This is the coordination question,
+-- not the execution log: result and context are JSONB blobs, and work_dir /
+-- trigger_summary / the attribution ids are all execution-log fields that a
+-- caller asking "who else is here?" never reads. Selecting them would make
+-- Postgres detoast and ship roughly 5x the bytes per row for nothing.
+--
+-- Ordered running-first so the truncation the LIMIT may impose drops the least
+-- interesting rows, and bounded because a parent with hundreds of children must
+-- not turn one coordination read into an unbounded scan.
+SELECT
+    atq.id AS task_id,
+    atq.agent_id,
+    atq.issue_id,
+    atq.status,
+    atq.created_at,
+    atq.started_at,
+    w.issue_prefix,
+    i.number AS issue_number,
+    i.title AS issue_title
+FROM agent_task_queue atq
+JOIN issue i ON i.id = atq.issue_id
+JOIN workspace w ON w.id = i.workspace_id
+WHERE i.workspace_id = @workspace_id
+  AND (i.id = @root_issue_id::uuid OR i.parent_issue_id = @root_issue_id::uuid)
+  AND atq.status IN ('queued', 'dispatched', 'running', 'waiting_local_directory')
+ORDER BY
+    CASE atq.status
+        WHEN 'running' THEN 0
+        WHEN 'dispatched' THEN 1
+        WHEN 'waiting_local_directory' THEN 2
+        ELSE 3
+    END,
+    atq.created_at DESC
+LIMIT @row_limit;
 
 -- name: GetWorkspaceAgentRunCounts :many
 -- Total task runs per agent over the trailing 30 days, used by the Agents
