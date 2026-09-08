@@ -294,6 +294,50 @@ export function createZhDict(allowSignup: boolean): LandingDict {
     },
     entries: [
       {
+        version: "0.4.41",
+        date: "2026-09-07",
+        title: "更窄的收件箱、嵌套列表快捷键、更清楚的 Codex compaction 报错",
+        changes: [],
+        features: [],
+        improvements: [
+          "收件箱列表默认更窄，给打开的内容多留出空间。",
+        ],
+        fixes: [
+          "嵌套列表里的 Tab 和 Enter 只作用于你所在的那一层。",
+          "Codex 对话因旧配置一直失败时，会直接说明该怎么改。",
+        ],
+      },
+      {
+        version: "0.4.40",
+        date: "2026-09-04",
+        title: "升级期间执行启动更稳，浅缓存仓库可以再次检出",
+        changes: [],
+        features: [],
+        improvements: [],
+        fixes: [
+          "本机应用和服务端版本不一致时，执行仍然能正常启动。",
+          "之前用过的仓库再次检出不会再失败。",
+        ],
+      },
+      {
+        version: "0.4.39",
+        date: "2026-09-03",
+        title: "标签页切换快捷键、Autopilot 身份、领队路由",
+        changes: [],
+        features: [
+          "桌面端可以用数字快捷键切换标签页。",
+        ],
+        improvements: [],
+        fixes: [
+          "回复 Squad 领队仍由该领队继续，交接信息和会话都不会丢。",
+          "很长的任务标识不会再遮住列表和表格里的标题。",
+          "Hermes 会保留你选的模型供应商，不再自己切回去。",
+          "OpenClaw 的托管 MCP 服务器能正常启动，你自己的 MCP 配置不会被改动。",
+          "定时和 Webhook 触发的 Autopilot 按触发器创建者的权限运行。",
+          "无法确认创建者的旧触发器会停下来，不会照旧运行。",
+        ],
+      },
+      {
         version: "0.4.38",
         date: "2026-09-02",
         title: "Claude Code 动态模型发现、属性筛选运算符、本地目录会话续接、Provider 运行更稳",

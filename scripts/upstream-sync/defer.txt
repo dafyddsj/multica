@@ -22,3 +22,43 @@ a92e8f6f7	Pi MCP config	mcp-support.ts already has Amp/Devin/Goose
 d6ecf4bc8	non-ASCII status keys	fights fork entity-status
 08a1e6e93	archived-agent runtime GC	sweeper cluster
 acf6864f5	remove duplicate DOM coverage	fork owns login page.test.tsx
+d1c7ec25b	live model catalog refresh	picker/schemas; keep MODEL_RATES
+035abddfe	retire delegated failure pending index	450 collides with fork entity_status
+d276991c6	remove assignment handoff note	prompt/daemon rewrite
+0eff894b5	preserve legacy handoff notes	follows d276991c6
+6a65922ef	read replica infrastructure	replica cluster
+49098deb6	one owner per duplicated prompt	follows 879d0de91
+54e641aaa	rename agent task records to runs	megapatch; dedicated port
+0242f3715	merge built-in skills drop source maps	fork skills overlay
+7f635526f	daemon workspace sync reads to replica	replica cluster
+2efe1b2a4	workflow step 2 owns comment scan	follows 879d0de91
+23171842f	drop squad source-map comment	follows 0242f3715
+48126ef7c	agent detail one leading edge	fork runtime/agent detail
+60408ef25	agent triggers autopilot as the human	auth middleware merge
+728d26f0b	usage in task history	API/task-usage port
+92942e147	GitHub PR refresh to replica	replica cluster
+7a3f8b3f5	CLI resolve custom property names	needs operators first
+9ee669fd5	detail pages on one shared rail	fork runtime/agent/skill detail
+3ac53a68a	judge autopilot writes as the human	auth middleware merge
+d753c7d78	sidebar work vs AI team	fork nav/initiatives
+53575a2a9	settings navigation reorg	Clerk settings overlay
+4aca890a2	changelog settings reorganization	follows 53575a2a9
+317844be0	capitalize AI Team label	follows d753c7d78
+028f3b443	agent execution inline in comment threads	451-453 collide with fork entity_status
+731af7ccd	runtime deletion invalidation	sweeper/metrics conflict
+d2bc574ff	task runtime environment contract docs	env-docs conflict
+571e61128	no db reads on websocket heartbeats	sweeper/metrics conflict
+cc09c3c12	relax healthy claim polling to 3m	env-docs and daemon config conflict
+2aad9842a	preserve presence for hidden private runtimes	heartbeat/presence conflict
+d5cd0f300	mcp server configuration and management	zh-Hans settings conflict
+70ea4c8f0	remove unused exact search counts	search handler conflict
+374279a9b	mcp configure icon	mcp-support Amp/Devin/Goose conflict
+d3f1e64ea	candidate-first issue search	search pipeline conflict
+940493409	publish cancellation when archiving agents	agent/task handler conflict
+8c4e0d298	CLI --fields on issue list JSON	CLI issue command conflict
+c01f60fb0	search statement timeout 5s	follows d3f1e64ea
+33222ff52	drop Pi resume whose cwd is gone	daemon_test conflict
+5f1f297d5	stop teaching issue metadata in briefs	builtin skills overlay
+bd6fb8617	thread navigation in sidebar outline	thread-nav-panel conflict
+693d5dede	truncate long thread outline labels	follows bd6fb8617
+261522e3e	batch claim-path attachment and runtime lookups	runtime lookup metrics conflict

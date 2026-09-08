@@ -294,6 +294,50 @@ export function createEnDict(allowSignup: boolean): LandingDict {
     },
     entries: [
       {
+        version: "0.4.41",
+        date: "2026-09-07",
+        title: "A narrower Inbox, nested-list shortcuts, and clearer Codex compaction errors",
+        changes: [],
+        features: [],
+        improvements: [
+          "The Inbox list is narrower by default, leaving more room for what you opened.",
+        ],
+        fixes: [
+          "Tab and Enter in a nested list only affect the level you are on.",
+          "Codex explains how to fix the setting behind a failing conversation instead of retrying silently.",
+        ],
+      },
+      {
+        version: "0.4.40",
+        date: "2026-09-04",
+        title: "Steadier task starts during upgrades, and checkouts from a shallow cache",
+        changes: [],
+        features: [],
+        improvements: [],
+        fixes: [
+          "Tasks still start while your local app and the server are on different versions.",
+          "Checking out a repository you have used before no longer fails.",
+        ],
+      },
+      {
+        version: "0.4.39",
+        date: "2026-09-03",
+        title: "Tab-switching shortcuts, Autopilot identity, and leader routing",
+        changes: [],
+        features: [
+          "Switch desktop tabs with number shortcuts.",
+        ],
+        improvements: [],
+        fixes: [
+          "Replying to a squad leader stays with that leader, keeping the briefing, folder, and session.",
+          "Long Issue identifiers no longer cover the title in lists and tables.",
+          "Hermes keeps the model provider you picked instead of switching back on its own.",
+          "OpenClaw's managed MCP servers start, and your own MCP settings stay untouched.",
+          "Scheduled and webhook Autopilot runs use the permissions of whoever created the trigger.",
+          "An older trigger whose creator can't be confirmed stops instead of running.",
+        ],
+      },
+      {
         version: "0.4.38",
         date: "2026-09-02",
         title: "Claude Code model discovery, property filter operators, session continuity, and steadier providers",

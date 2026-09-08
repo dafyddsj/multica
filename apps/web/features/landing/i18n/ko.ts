@@ -269,6 +269,50 @@ export function createKoDict(allowSignup: boolean): LandingDict {
       },
       entries: [
         {
+          version: "0.4.41",
+          date: "2026-09-07",
+          title: "더 좁아진 Inbox, 중첩 목록 단축키, 더 분명한 Codex compaction 오류",
+          changes: [],
+          features: [],
+          improvements: [
+            "Inbox 목록이 기본으로 좁아져 열어 둔 내용에 쓸 공간이 늘어납니다.",
+          ],
+          fixes: [
+            "중첩 목록에서 Tab과 Enter가 지금 있는 단계에만 적용됩니다.",
+            "오래된 설정 때문에 계속 실패하는 Codex 대화에 고치는 방법을 알려 줍니다.",
+          ],
+        },
+        {
+          version: "0.4.40",
+          date: "2026-09-04",
+          title: "업데이트 중에도 안정적인 태스크 시작, 얕은 캐시에서의 체크아웃",
+          changes: [],
+          features: [],
+          improvements: [],
+          fixes: [
+            "내 앱과 서버의 버전이 달라도 태스크가 정상적으로 시작됩니다.",
+            "전에 사용한 저장소를 다시 체크아웃할 때 실패하지 않습니다.",
+          ],
+        },
+        {
+          version: "0.4.39",
+          date: "2026-09-03",
+          title: "탭 전환 단축키, Autopilot 권한, 리더 라우팅",
+          changes: [],
+          features: [
+            "데스크톱에서 숫자 단축키로 탭을 전환할 수 있습니다.",
+          ],
+          improvements: [],
+          fixes: [
+            "Squad 리더에게 답장하면 그 리더가 계속 담당하고, 인계 내용과 세션이 사라지지 않습니다.",
+            "긴 태스크 식별자가 목록과 표에서 제목을 가리지 않습니다.",
+            "Hermes는 선택한 모델 프로바이더를 유지하고 임의로 되돌리지 않습니다.",
+            "OpenClaw의 관리형 MCP 서버가 정상적으로 시작되고, 내 MCP 설정은 그대로 유지됩니다.",
+            "예약과 Webhook Autopilot 실행은 트리거를 만든 사람의 권한으로 동작합니다.",
+            "만든 사람을 확인할 수 없는 오래된 트리거는 실행되지 않고 멈춥니다.",
+          ],
+        },
+        {
           version: "0.4.38",
           date: "2026-09-02",
           title: "Claude Code 모델 자동 검색, 속성 필터 연산자, 세션 이어가기, 제공자 동작 안정화",
