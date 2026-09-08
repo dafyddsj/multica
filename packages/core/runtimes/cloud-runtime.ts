@@ -32,6 +32,20 @@ export interface CreateCloudRuntimeNodeRequest {
   iam_instance_profile?: string;
   disk_size_gb?: number;
   tags?: Record<string, string>;
+  desired_tools?: string[];
+  secrets?: Record<string, string>;
+}
+
+export interface CloudRuntimeDesired {
+  instance_id: string;
+  tools: string[];
+  secret_keys: string[];
+}
+
+export interface CloudRuntimeDesiredWrite {
+  instance_id: string;
+  tools?: string[];
+  secrets?: Record<string, string>;
 }
 
 export const cloudRuntimeKeys = {
@@ -84,6 +98,17 @@ export function useDeleteCloudRuntimeNode(wsId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (instanceId: string) => api.deleteCloudRuntimeNode(instanceId),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: cloudRuntimeKeys.all(wsId) });
+    },
+  });
+}
+
+export function useCloudRuntimeNodeCommand(wsId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { instanceId: string; command: "start" | "stop" | "reboot" }) =>
+      api.commandCloudRuntimeNode(input.instanceId, input.command),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: cloudRuntimeKeys.all(wsId) });
     },

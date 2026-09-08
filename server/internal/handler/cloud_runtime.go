@@ -100,6 +100,20 @@ func (h *Handler) ExecCloudRuntimeNode(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) GetCloudRuntimeNodeDesired(w http.ResponseWriter, r *http.Request) {
+	h.proxyCloudRuntime(w, r, http.MethodGet, "/api/v1/nodes/desired", cloudRuntimeProxyOptions{
+		withUserID: true,
+		withQuery:  true,
+	})
+}
+
+func (h *Handler) PutCloudRuntimeNodeDesired(w http.ResponseWriter, r *http.Request) {
+	h.proxyCloudRuntime(w, r, http.MethodPut, "/api/v1/nodes/desired", cloudRuntimeProxyOptions{
+		withUserID: true,
+		withBody:   true,
+	})
+}
+
 func (h *Handler) proxyCloudRuntime(w http.ResponseWriter, r *http.Request, method, path string, opts cloudRuntimeProxyOptions) {
 	if h.CloudRuntime == nil || !h.CloudRuntime.Enabled() {
 		writeError(w, http.StatusServiceUnavailable, "cloud runtime is not configured")

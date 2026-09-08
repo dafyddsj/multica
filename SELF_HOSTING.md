@@ -517,6 +517,22 @@ multica login
 multica daemon start
 ```
 
+## Hosted daemons (qmstros-cloud)
+
+Official Multica Cloud is a private service. This fork talks to whatever you put in `MULTICA_CLOUD_URL`. The companion hoster is [qmstros-cloud](https://github.com/dafyddsj/qmstros-cloud): user-owned nodes, `mcn_` PATs, desired tools, and encrypted API keys.
+
+1. Run qmstros-cloud on a private address the Multica API can reach.
+2. Set `MULTICA_CLOUD_URL` to that address and restart the backend.
+3. Set `NEXT_PUBLIC_ENABLE_CLOUD_RUNTIME=true` and rebuild/restart the web app.
+4. In **Runtimes → Cloud Runtime**, create a node as yourself (private, follows you) or as a dedicated runner user (then publish that runtime).
+5. On the execute machine, use the bootstrap PAT file qmstros-cloud writes under its data directory:
+
+```bash
+./scripts/attach-node.sh http://localhost:8080 ./data/bootstrap/i-....pat
+```
+
+`pat/verify` has no application auth. Do not expose the hoster on the public internet.
+
 ## Advanced Configuration
 
 For environment variables, manual setup (without Docker), reverse proxy configuration, database setup, and more, see the [Advanced Configuration Guide](SELF_HOSTING_ADVANCED.md).

@@ -3,11 +3,12 @@
 import { useId, useMemo, useState } from "react";
 import type { FormEvent, HTMLAttributes } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Cloud, Loader2, RefreshCw, Rocket, Trash2 } from "lucide-react";
+import { Cloud, Loader2, Play, RefreshCw, Rocket, Square, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { CloudRuntimeNode } from "@multica/core/runtimes";
 import {
   cloudRuntimeNodeListOptions,
+  useCloudRuntimeNodeCommand,
   useCreateCloudRuntimeNode,
   useDeleteCloudRuntimeNode,
 } from "@multica/core/runtimes";
@@ -24,6 +25,7 @@ import {
 } from "@multica/ui/components/ui/dialog";
 import { Input } from "@multica/ui/components/ui/input";
 import { Label } from "@multica/ui/components/ui/label";
+import { Textarea } from "@multica/ui/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -35,8 +37,21 @@ import { cn } from "@multica/ui/lib/utils";
 import { useT } from "../../i18n";
 
 const CLOUD_RUNTIME_INSTANCE_TYPES = ["t4g.medium", "t4g.large"] as const;
+const CLOUD_RUNTIME_TOOLS = ["claude", "codex", "cursor-agent", "amp"] as const;
 const DEFAULT_INSTANCE_TYPE = CLOUD_RUNTIME_INSTANCE_TYPES[0];
 const DEFAULT_DISK_SIZE_GB = 20;
+
+function parseSecretLines(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    out[trimmed.slice(0, eq).trim()] = trimmed.slice(eq + 1);
+  }
+  return out;
+}
 
 export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
   const { t } = useT("runtimes");
@@ -48,6 +63,8 @@ export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
     DEFAULT_INSTANCE_TYPE,
   );
   const [diskSizeGB, setDiskSizeGB] = useState(String(DEFAULT_DISK_SIZE_GB));
+  const [tools, setTools] = useState<string[]>(["claude"]);
+  const [secretText, setSecretText] = useState("");
 
   const nodesQuery = useQuery(
     cloudRuntimeNodeListOptions(wsId, { limit: 20, offset: 0 }),
@@ -74,15 +91,19 @@ export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
     }
 
     try {
+      const secrets = parseSecretLines(secretText);
       await createNode.mutateAsync({
         instance_type: instanceType,
         name: valueOrUndefined(name),
         disk_size_gb: diskSize,
+        desired_tools: tools,
+        secrets: Object.keys(secrets).length > 0 ? secrets : undefined,
       });
       toast.success(t(($) => $.cloud_runtime.toast_created));
       setName("");
       setInstanceType(DEFAULT_INSTANCE_TYPE);
       setDiskSizeGB(String(DEFAULT_DISK_SIZE_GB));
+      setSecretText("");
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -141,6 +162,55 @@ export function CloudRuntimeDialog({ onClose }: { onClose: () => void }) {
                   type="number"
                   inputMode="numeric"
                 />
+              </div>
+
+              <fieldset className="space-y-2">
+                <legend className="text-caption text-muted-foreground">
+                  {t(($) => $.cloud_runtime.fields.tools)}
+                </legend>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {CLOUD_RUNTIME_TOOLS.map((tool) => {
+                    const checked = tools.includes(tool);
+                    return (
+                      <label
+                        key={tool}
+                        className="flex items-center gap-2 text-body"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() =>
+                            setTools((current) =>
+                              checked
+                                ? current.filter((item) => item !== tool)
+                                : [...current, tool],
+                            )
+                          }
+                        />
+                        <span className="font-mono text-caption">{tool}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor={`${idPrefix}-secrets`}
+                  className="text-caption text-muted-foreground"
+                >
+                  {t(($) => $.cloud_runtime.fields.secrets)}
+                </Label>
+                <Textarea
+                  id={`${idPrefix}-secrets`}
+                  value={secretText}
+                  onChange={(event) => setSecretText(event.target.value)}
+                  placeholder={t(($) => $.cloud_runtime.placeholders.secrets)}
+                  className="min-h-24 font-mono text-caption"
+                />
+                <p className="text-caption text-muted-foreground">
+                  {t(($) => $.cloud_runtime.secrets_hint)}
+                </p>
               </div>
             </form>
 
@@ -298,6 +368,9 @@ function LabeledInput({
 function CloudRuntimeNodeRow({ node, wsId }: { node: CloudRuntimeNode; wsId: string }) {
   const { t } = useT("runtimes");
   const deleteNode = useDeleteCloudRuntimeNode(wsId);
+  const commandNode = useCloudRuntimeNodeCommand(wsId);
+  const stopped = node.status.toLowerCase() === "stopped";
+  const running = node.status.toLowerCase() === "running";
   const title =
     node.name.trim() ||
     node.instance_id.trim() ||
@@ -323,6 +396,65 @@ function CloudRuntimeNodeRow({ node, wsId }: { node: CloudRuntimeNode; wsId: str
             )}
           </div>
         </div>
+        <div className="flex shrink-0 items-center">
+        {stopped && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
+            disabled={commandNode.isPending}
+            onClick={() =>
+              commandNode.mutate(
+                { instanceId: node.instance_id, command: "start" },
+                {
+                  onError: (err) =>
+                    toast.error(
+                      err instanceof Error
+                        ? err.message
+                        : t(($) => $.cloud_runtime.toast_start_failed),
+                    ),
+                },
+              )
+            }
+            aria-label={t(($) => $.cloud_runtime.start)}
+          >
+            {commandNode.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        )}
+        {running && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
+            disabled={commandNode.isPending}
+            onClick={() =>
+              commandNode.mutate(
+                { instanceId: node.instance_id, command: "stop" },
+                {
+                  onError: (err) =>
+                    toast.error(
+                      err instanceof Error
+                        ? err.message
+                        : t(($) => $.cloud_runtime.toast_stop_failed),
+                    ),
+                },
+              )
+            }
+            aria-label={t(($) => $.cloud_runtime.stop)}
+          >
+            {commandNode.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Square className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        )}
         <Button
           type="button"
           variant="ghost"
@@ -349,6 +481,7 @@ function CloudRuntimeNodeRow({ node, wsId }: { node: CloudRuntimeNode; wsId: str
             <Trash2 className="h-3.5 w-3.5" />
           )}
         </Button>
+        </div>
       </div>
       {node.instance_id && (
         <div className="mt-2 truncate font-mono text-micro text-muted-foreground">
