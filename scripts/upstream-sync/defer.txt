@@ -45,3 +45,20 @@ d753c7d78	sidebar work vs AI team	fork nav/initiatives
 4aca890a2	changelog settings reorganization	follows 53575a2a9
 317844be0	capitalize AI Team label	follows d753c7d78
 028f3b443	agent execution inline in comment threads	451-453 collide with fork entity_status
+731af7ccd	runtime deletion invalidation	sweeper/metrics conflict
+d2bc574ff	task runtime environment contract docs	env-docs conflict
+571e61128	no db reads on websocket heartbeats	sweeper/metrics conflict
+cc09c3c12	relax healthy claim polling to 3m	env-docs and daemon config conflict
+2aad9842a	preserve presence for hidden private runtimes	heartbeat/presence conflict
+d5cd0f300	mcp server configuration and management	zh-Hans settings conflict
+70ea4c8f0	remove unused exact search counts	search handler conflict
+374279a9b	mcp configure icon	mcp-support Amp/Devin/Goose conflict
+d3f1e64ea	candidate-first issue search	search pipeline conflict
+940493409	publish cancellation when archiving agents	agent/task handler conflict
+8c4e0d298	CLI --fields on issue list JSON	CLI issue command conflict
+c01f60fb0	search statement timeout 5s	follows d3f1e64ea
+33222ff52	drop Pi resume whose cwd is gone	daemon_test conflict
+5f1f297d5	stop teaching issue metadata in briefs	builtin skills overlay
+bd6fb8617	thread navigation in sidebar outline	thread-nav-panel conflict
+693d5dede	truncate long thread outline labels	follows bd6fb8617
+261522e3e	batch claim-path attachment and runtime lookups	runtime lookup metrics conflict
